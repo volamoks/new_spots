@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  // emailVerified DateTime?
+  image         String?
+  password      String
+  role      Role     @default(SUPPLIER)
+  category  String?  // Категория для КМ
+  inn       String?  // ИНН для поставщика
+  status    UserStatus @default(ACTIVE) // New field
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  bookings  Booking[]
+  accounts  Account[]
+  sessions  Session[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Zone {
+  id                 String   @id @default(cuid())
+  uniqueIdentifier   String   @unique
+  city               String
+  number             String
+  market             String
+  newFormat          String
+  equipment          String
+  dimensions         String
+  mainMacrozone      String
+  adjacentMacrozone  String
+  status             ZoneStatus
+  supplier           String?
+  brand              String?
+  category           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  bookings           Booking[]
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  userId    String
+  zoneId    String
+  startDate DateTime
+  endDate   DateTime
+  status    BookingStatus
+  category  String?  // Категория КМ, который сделал бронирование
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  zone      Zone     @relation(fields: [zoneId], references: [id])
+}
+
+enum Role {
+  SUPPLIER
+  CATEGORY_MANAGER
+  DMP_MANAGER
+}
+
+enum ZoneStatus {
+  AVAILABLE
+  BOOKED
+  UNAVAILABLE
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED_BY_CM
+  APPROVED_BY_DMP
+  REJECTED
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+

@@ -1,0 +1,313 @@
+import { create } from "zustand"
+import { zonesData } from "./zonesData"
+import type { RequestFilterState } from "@/components/RequestFilters"
+import { produce } from "immer"
+
+// Add this type definition
+export type UserRole = "supplier" | "category_manager" | "dmp_manager"
+
+type User = {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+}
+
+type Zone = {
+  id: string
+  city: string
+  number: string
+  market: string
+  newFormat: string
+  equipment: string
+  dimensions: string
+  mainMacrozone: string
+  adjacentMacrozone: string
+  status: "Новая" | "Согласована КМ" | "Согласована ДМП" | "Отклонена"
+}
+
+type Request = {
+  id: number
+  supplierName: string
+  dateCreated: string
+  dateRange: string
+  zones: Zone[]
+}
+
+// Add this to the GlobalState interface
+interface GlobalState {
+  // Category Manager Dashboard
+  selectedSupplier: string
+  selectedZones: string[]
+  suppliers: string[]
+  supplierData: {
+    brands: string[]
+    locations: string[]
+    totalSpots: number
+    spotsPerLocation: { city: string; count: number }[]
+    spotsPerBrand: { brand: string; count: number }[]
+    zones: any[]
+  } | null
+  setSelectedSupplier: (supplier: string) => void
+  toggleZoneSelection: (zoneId: string) => void
+  clearSelectedZones: () => void
+
+  // Requests
+  requests: Request[]
+  filteredRequests: Request[]
+  handleApprove: (requestId: number, zoneId: string) => void
+  handleReject: (requestId: number, zoneId: string) => void
+  handleFilterChange: (filters: RequestFilterState) => void
+
+  // Zones
+  zones: any[]
+  filteredZones: any[]
+  filters: {
+    category: string
+    macrozone: string
+    cities: string[]
+    storeCategories: string[]
+    equipment: string[]
+  }
+  setFilters: (filters: any) => void
+  toggleZoneSelectionForBooking: (zoneId: string) => void
+  handleBooking: () => void
+
+  // Auth state
+  user: User | null
+  isAuthenticated: boolean
+  login: (user: User) => void
+  logout: () => void
+  switchRole: (role: UserRole) => void
+
+  // Добавьте в интерфейс GlobalState:
+  step: number
+  setStep: (step: number) => void
+}
+
+// Update the create function to include auth state and functions
+export const useGlobalStore = create<GlobalState>((set, get) => ({
+  // Category Manager Dashboard
+  selectedSupplier: "",
+  selectedZones: [],
+  suppliers: [...new Set(zonesData.map((zone) => zone["Поставщик"]))].filter(
+    (supplier) => supplier !== "КоммерческоеПустые" && supplier !== "Пустые",
+  ),
+  supplierData: null,
+  setSelectedSupplier: (supplier) => {
+    set({ selectedSupplier: supplier })
+    const filteredZones = zonesData.filter((zone) => zone["Поставщик"] === supplier)
+    const brands = [...new Set(filteredZones.map((zone) => zone["Brand"]))].filter(Boolean)
+    const locations = [...new Set(filteredZones.map((zone) => zone["Город"]))].filter(Boolean)
+    const totalSpots = filteredZones.length
+    const spotsPerLocation = locations.map((location) => ({
+      city: location,
+      count: filteredZones.filter((zone) => zone["Город"] === location).length,
+    }))
+    const spotsPerBrand = brands.map((brand) => ({
+      brand,
+      count: filteredZones.filter((zone) => zone["Brand"] === brand).length,
+    }))
+    set({
+      supplierData: {
+        brands,
+        locations,
+        totalSpots,
+        spotsPerLocation,
+        spotsPerBrand,
+        zones: filteredZones,
+      },
+    })
+  },
+  toggleZoneSelection: (zoneId) => {
+    set((state) => ({
+      selectedZones: state.selectedZones.includes(zoneId)
+        ? state.selectedZones.filter((id) => id !== zoneId)
+        : [...state.selectedZones, zoneId],
+    }))
+  },
+  clearSelectedZones: () => set({ selectedZones: [] }),
+
+  // Requests
+  requests: [
+    {
+      id: 1,
+      supplierName: "ООО Фрукты",
+      dateCreated: "2025-06-01",
+      dateRange: "2025-06-10 - 2025-06-20",
+      zones: [
+        {
+          id: "1",
+          city: "Москва",
+          number: "001",
+          market: "Магазин №1",
+          newFormat: "Да",
+          equipment: "Стандарт",
+          dimensions: "3x4",
+          mainMacrozone: "Центр",
+          adjacentMacrozone: "Север",
+          status: "Новая",
+        },
+        {
+          id: "2",
+          city: "Санкт-Петербург",
+          number: "002",
+          market: "Магазин №2",
+          newFormat: "Нет",
+          equipment: "Премиум",
+          dimensions: "4x5",
+          mainMacrozone: "Север",
+          adjacentMacrozone: "Центр",
+          status: "Новая",
+        },
+      ],
+    },
+    {
+      id: 2,
+      supplierName: "ИП Иванов",
+      dateCreated: "2025-06-02",
+      dateRange: "2025-06-15 - 2025-06-30",
+      zones: [
+        {
+          id: "3",
+          city: "Новосибирск",
+          number: "003",
+          market: "Магазин №3",
+          newFormat: "Да",
+          equipment: "Стандарт",
+          dimensions: "3x3",
+          mainMacrozone: "Восток",
+          adjacentMacrozone: "Центр",
+          status: "Новая",
+        },
+      ],
+    },
+  ],
+  filteredRequests: [],
+  handleApprove: (requestId, zoneId) => {
+    set(
+      produce((state) => {
+        const request = state.requests.find((r) => r.id === requestId)
+        if (request) {
+          const zone = request.zones.find((z) => z.id === zoneId)
+          if (zone) {
+            zone.status = "Согласована КМ"
+          }
+        }
+        state.filteredRequests = state.requests
+      }),
+    )
+  },
+  handleReject: (requestId, zoneId) => {
+    set(
+      produce((state) => {
+        const request = state.requests.find((r) => r.id === requestId)
+        if (request) {
+          const zone = request.zones.find((z) => z.id === zoneId)
+          if (zone) {
+            zone.status = "Отклонена"
+          }
+        }
+        state.filteredRequests = state.requests
+      }),
+    )
+  },
+  handleFilterChange: (filters) => {
+    set((state) => {
+      let filtered = state.requests
+
+      if (filters.status) {
+        filtered = filtered.filter((request) => request.zones.some((zone) => zone.status === filters.status))
+      }
+
+      if (filters.supplierName) {
+        filtered = filtered.filter((request) =>
+          request.supplierName.toLowerCase().includes(filters.supplierName.toLowerCase()),
+        )
+      }
+
+      if (filters.dateFrom) {
+        filtered = filtered.filter((request) => new Date(request.dateCreated) >= new Date(filters.dateFrom))
+      }
+
+      if (filters.dateTo) {
+        filtered = filtered.filter((request) => new Date(request.dateCreated) <= new Date(filters.dateTo))
+      }
+
+      return { filteredRequests: filtered }
+    })
+  },
+
+  // Zones
+  zones: zonesData,
+  filteredZones: zonesData,
+  filters: {
+    category: "",
+    macrozone: "",
+    cities: [],
+    storeCategories: [],
+    equipment: [],
+  },
+  setFilters: (newFilters) => {
+    set(
+      produce((state) => {
+        state.filters = { ...state.filters, ...newFilters }
+        state.filteredZones = state.zones.filter((zone) => {
+          if (state.filters.category && zone["Основная Макрозона"] !== state.filters.category) {
+            return false
+          }
+          if (state.filters.macrozone) {
+            const adjacentMacrozones = zone["Смежная макрозона"].split("/")
+            if (!adjacentMacrozones.includes(state.filters.macrozone)) {
+              return false
+            }
+          }
+          if (state.filters.cities.length > 0 && !state.filters.cities.includes(zone["Город"])) {
+            return false
+          }
+          if (
+            state.filters.storeCategories.length > 0 &&
+            !state.filters.storeCategories.includes(zone["Формат маркета"])
+          ) {
+            return false
+          }
+          if (state.filters.equipment.length > 0 && !state.filters.equipment.includes(zone["Оборудование"])) {
+            return false
+          }
+          return true
+        })
+      }),
+    )
+  },
+  toggleZoneSelectionForBooking: (zoneId) => {
+    set(
+      produce((state) => {
+        const index = state.selectedZones.indexOf(zoneId)
+        if (index > -1) {
+          state.selectedZones.splice(index, 1)
+        } else {
+          state.selectedZones.push(zoneId)
+        }
+      }),
+    )
+  },
+  handleBooking: () => {
+    console.log("Бронирование зон:", get().selectedZones)
+    set({ selectedZones: [] })
+  },
+
+  // Auth state
+  user: null,
+  isAuthenticated: false,
+  login: (user) => set({ user, isAuthenticated: true }),
+  logout: () => set({ user: null, isAuthenticated: false }),
+  switchRole: (role) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, role } : null,
+    })),
+
+  // Добавьте в create функцию:
+  step: 1,
+  setStep: (step) => set({ step }),
+}))
+
