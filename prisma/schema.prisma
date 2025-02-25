@@ -35,18 +35,18 @@ model Session {
 }
 
 model User {
-  id              String    @id @default(cuid())
+  id              String           @id @default(cuid())
   name            String?
-  email           String?   @unique
+  email           String?          @unique
   // emailVerified DateTime?
   image           String?
   password        String
-  role            Role     @default(SUPPLIER)
-  category        String?  // Категория для КМ
-  inn             String?  // ИНН для поставщика
-  status          UserStatus @default(ACTIVE) // New field
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  role            Role             @default(SUPPLIER)
+  category        String? // Категория для КМ
+  inn             String? // ИНН для поставщика
+  status          UserStatus       @default(ACTIVE) // New field
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   bookingRequests BookingRequest[]
   accounts        Account[]
   sessions        Session[]
@@ -61,47 +61,50 @@ model VerificationToken {
 }
 
 model Zone {
-  id                 String   @id @default(cuid())
-  uniqueIdentifier   String   @unique
-  city               String
-  number             String
-  market             String
-  newFormat          String
-  equipment          String
-  dimensions         String
-  mainMacrozone      String
-  adjacentMacrozone  String
-  status             ZoneStatus
-  supplier           String?
-  brand              String?
-  category           String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  bookings           Booking[]
+  id                String     @id @default(cuid())
+  uniqueIdentifier  String     @unique
+  city              String
+  number            String
+  market            String
+  newFormat         String
+  equipment         String
+  dimensions        String
+  mainMacrozone     String
+  adjacentMacrozone String
+  status            ZoneStatus
+  supplier          String?
+  brand             String?
+  category          String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  bookings          Booking[]
+}
+
+enum RequestStatus {
+  NEW
+  CLOSED
 }
 
 model BookingRequest {
-  id          String   @id @default(cuid())
-  userId      String
-  startDate   DateTime
-  endDate     DateTime
-  status      BookingStatus
-  category    String?  // Категория КМ, который сделал бронирование
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
-  bookings    Booking[]
+  id        String        @id @default(cuid())
+  userId    String
+  status    RequestStatus // Added status field
+  category  String? // Категория КМ, который сделал бронирование
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id])
+  bookings  Booking[]
 }
 
 model Booking {
-  id              String   @id @default(cuid())
+  id               String         @id @default(cuid())
   bookingRequestId String
-  zoneId          String
-  status          BookingStatus
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  bookingRequest  BookingRequest @relation(fields: [bookingRequestId], references: [id], onDelete: Cascade)
-  zone            Zone     @relation(fields: [zoneId], references: [id])
+  zoneId           String
+  status           BookingStatus
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  bookingRequest   BookingRequest @relation(fields: [bookingRequestId], references: [id], onDelete: Cascade)
+  zone             Zone           @relation(fields: [zoneId], references: [id])
 }
 
 enum Role {
@@ -117,10 +120,11 @@ enum ZoneStatus {
 }
 
 enum BookingStatus {
-  PENDING
-  APPROVED_BY_CM
-  APPROVED_BY_DMP
-  REJECTED
+  PENDING_KM
+  KM_APPROVED
+  KM_REJECTED
+  DMP_APPROVED
+  DMP_REJECTED
 }
 
 enum UserStatus {
@@ -128,4 +132,3 @@ enum UserStatus {
   ACTIVE
   REJECTED
 }
-

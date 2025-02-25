@@ -1,76 +1,126 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { RequestsTable, type Request } from "../components/RequestsTable"
-import Navigation from "../components/Navigation"
-
-// Моковые данные для заявок поставщика
-const initialRequests: Request[] = [
-  {
-    id: 1,
-    supplierName: "ООО Фрукты",
-    dateCreated: "2025-06-01",
-    dateRange: "2025-06-10 - 2025-06-20",
-    zones: [
-      {
-        id: "1",
-        city: "Москва",
-        number: "001",
-        market: "Магазин №1",
-        newFormat: "Да",
-        equipment: "Стандарт",
-        dimensions: "3x4",
-        mainMacrozone: "Центр",
-        adjacentMacrozone: "Север",
-        status: "Согласована КМ",
-      },
-      {
-        id: "2",
-        city: "Санкт-Петербург",
-        number: "002",
-        market: "Магазин №2",
-        newFormat: "Нет",
-        equipment: "Премиум",
-        dimensions: "4x5",
-        mainMacrozone: "Север",
-        adjacentMacrozone: "Центр",
-        status: "Отклонена",
-      },
-    ],
-  },
-  {
-    id: 2,
-    supplierName: "ООО Фрукты",
-    dateCreated: "2025-06-02",
-    dateRange: "2025-06-15 - 2025-06-30",
-    zones: [
-      {
-        id: "3",
-        city: "Новосибирск",
-        number: "003",
-        market: "Магазин №3",
-        newFormat: "Да",
-        equipment: "Стандарт",
-        dimensions: "3x3",
-        mainMacrozone: "Восток",
-        adjacentMacrozone: "Центр",
-        status: "Новая",
-      },
-    ],
-  },
-]
+import { useState, useEffect } from "react";
+import { Zone } from "@prisma/client";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+// import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/components/ui/use-toast";
+import Navigation from "../components/Navigation";
 
 export default function SupplierPage() {
-  const [requests, setRequests] = useState<Request[]>(initialRequests)
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [selectedZones, setSelectedZones] = useState<string[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchZones = async () => {
+      try {
+        const response = await fetch("/api/zones");
+        const data = await response.json();
+        setZones(data);
+      } catch (error) {
+        console.error("Failed to fetch zones:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch zones.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchZones();
+  }, [toast]);
+
+  const handleZoneSelection = (zoneId: string) => {
+    setSelectedZones((prevSelectedZones) =>
+      prevSelectedZones.includes(zoneId)
+        ? prevSelectedZones.filter((id) => id !== zoneId)
+        : [...prevSelectedZones, zoneId]
+    );
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ zoneIds: selectedZones }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create booking request");
+      }
+
+      // const data = await response.json();
+      toast({
+        title: "Success",
+        description: "Booking request created successfully.",
+      });
+      setSelectedZones([]); // Clear selected zones after successful submission
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred";
+      console.error("Error creating booking request:", error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Navigation />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Мои заявки</h1>
-        <RequestsTable requests={requests} onApprove={() => {}} onReject={() => {}} role="Поставщик" />
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-corporate">
+              Панель поставщика
+            </CardTitle>
+            <CardDescription>
+              Создание заявок на бронирование.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <h2 className="text-lg font-semibold mb-4">Выберите зоны:</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {zones.map((zone) => (
+                <Card key={zone.id}>
+                  <CardHeader className="flex flex-row items-center justify-between space-x-2 pb-2">
+                    <CardTitle className="text-base font-medium">
+                      {zone.city} - {zone.market} - {zone.number}
+                    </CardTitle>
+                    <Checkbox
+                      checked={selectedZones.includes(zone.uniqueIdentifier)}
+                      onCheckedChange={() =>
+                        handleZoneSelection(zone.uniqueIdentifier)
+                      }
+                    />
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+            <Button
+              className="mt-4"
+              onClick={handleSubmit}
+              disabled={selectedZones.length === 0}
+            >
+              Создать запрос
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     </div>
-  )
+  );
 }
-

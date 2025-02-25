@@ -1,124 +1,243 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { RequestsTable, type Request } from "../components/RequestsTable"
-import { RequestFilters, type RequestFilterState } from "../components/RequestFilters"
-import Navigation from "../components/Navigation"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-
-// Updated mock data for DMP manager with complete zone information
-const initialRequests: Request[] = [
-  {
-    id: 3,
-    supplierName: "ООО Молоко",
-    dateCreated: "2025-06-05",
-    dateRange: "2025-07-01 - 2025-07-15",
-    zones: [
-      {
-        id: "4",
-        city: "Москва",
-        number: "004",
-        market: "Магазин №4",
-        newFormat: "Да",
-        equipment: "Премиум",
-        dimensions: "4x4",
-        mainMacrozone: "Центр",
-        adjacentMacrozone: "Юг",
-        status: "Согласована КМ",
-      },
-      {
-        id: "5",
-        city: "Екатеринбург",
-        number: "005",
-        market: "Магазин №5",
-        newFormat: "Нет",
-        equipment: "Стандарт",
-        dimensions: "3x5",
-        mainMacrozone: "Урал",
-        adjacentMacrozone: "Центр",
-        status: "Согласована КМ",
-      },
-    ],
-  },
-  {
-    id: 4,
-    supplierName: "ЗАО Обувь",
-    dateCreated: "2025-06-06",
-    dateRange: "2025-07-10 - 2025-07-31",
-    zones: [
-      {
-        id: "6",
-        city: "Казань",
-        number: "006",
-        market: "Магазин №6",
-        newFormat: "Да",
-        equipment: "Премиум",
-        dimensions: "5x5",
-        mainMacrozone: "Поволжье",
-        adjacentMacrozone: "Центр",
-        status: "Согласована КМ",
-      },
-    ],
-  },
-]
+import { useState, useEffect } from "react";
+import { RequestsTable } from "../components/RequestsTable";
+import type { Booking } from "../components/RequestsTable";
+import { RequestFilters, type RequestFilterState } from "../components/RequestFilters";
+import Navigation from "../components/Navigation";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { getBookings } from "@/lib/api/bookings";
+import { useToast } from "@/components/ui/use-toast";
+import { BookingStatus, RequestStatus } from "@prisma/client";
+import { format } from 'date-fns';
+import { useSession } from "next-auth/react";
 
 export default function DMPManagerPage() {
-  const [requests, setRequests] = useState<Request[]>(initialRequests)
-  const [filteredRequests, setFilteredRequests] = useState<Request[]>(initialRequests)
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const { toast } = useToast();
+  const { data: session } = useSession();
 
-  const handleApprove = (requestId: number, zoneId: string) => {
-    const updatedRequests = requests.map((request) =>
-      request.id === requestId
-        ? {
-            ...request,
-            zones: request.zones.map((zone) => (zone.id === zoneId ? { ...zone, status: "Согласована ДМП" } : zone)),
-          }
-        : request,
-    )
-    setRequests(updatedRequests)
-    setFilteredRequests(updatedRequests)
-  }
+  const fetchBookingsData = async () => {
+    try {
+      console.log("Session:", session);
+      const bookingsData = await getBookings();
+      console.log("Bookings data:", bookingsData);
+      if (bookingsData) {
+        // Transform the data to match the Booking type
+        const transformedBookings: Booking[] = bookingsData.flatMap(
+          (request: {
+            id: string;
+            userId: string;
+            status: RequestStatus;
+            category: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            user: { name: string | null; };
+            bookings: {
+              id: string;
+              bookingRequestId: string;
+              zoneId: string;
+              status: BookingStatus;
+              createdAt: string;
+              updatedAt: string;
+              zone: {
+                id: string;
+                city: string;
+                number: string;
+                market: string;
+                newFormat: string;
+                equipment: string;
+                dimensions: string;
+                mainMacrozone: string;
+                adjacentMacrozone: string;
+              }
+            }[]
+          }) =>
+            request.bookings.map((booking) => ({
+              id: booking.id,
+              bookingRequestId: booking.bookingRequestId,
+              zoneId: booking.zoneId,
+              status: booking.status,
+              createdAt: booking.createdAt,
+              updatedAt: booking.updatedAt,
+              zone: {
+                id: booking.zone.id,
+                city: booking.zone.city,
+                number: booking.zone.number,
+                market: booking.zone.market,
+                newFormat: booking.zone.newFormat,
+                equipment: booking.zone.equipment,
+                dimensions: booking.zone.dimensions,
+                mainMacrozone: booking.zone.mainMacrozone,
+                adjacentMacrozone: booking.zone.adjacentMacrozone,
+              },
+              bookingRequest: {
+                userId: request.userId,
+                status: request.status,
+                category: request.category,
+                createdAt: format(new Date(request.createdAt), 'yyyy-MM-dd'),
+                user: {
+                  name: request.user.name,
+                },
+              },
+            })),
+        );
+        setBookings(transformedBookings);
+        setFilteredBookings(transformedBookings);
+      }
+    } catch (error) {
+      console.error("Failed to fetch bookings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch bookings.",
+        variant: "destructive",
+      });
+    }
+  };
 
-  const handleReject = (requestId: number, zoneId: string) => {
-    const updatedRequests = requests.map((request) =>
-      request.id === requestId
-        ? {
-            ...request,
-            zones: request.zones.map((zone) => (zone.id === zoneId ? { ...zone, status: "Отклонена" } : zone)),
-          }
-        : request,
-    )
-    setRequests(updatedRequests)
-    setFilteredRequests(updatedRequests)
-  }
+  useEffect(() => {
+    fetchBookingsData();
+  }, [toast]);
+
+  const handleApprove = (bookingId: string) => {
+    // Implement the logic to approve a booking by calling the API
+    fetch(`/api/bookings/${bookingId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "approve-dmp", bookingId }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to approve booking");
+        }
+        return response.json();
+      })
+      .then((updatedBooking) => {
+        // Update local state to reflect the change
+        setBookings((prevBookings) =>
+          prevBookings.map((booking) =>
+            booking.id === updatedBooking.id ? updatedBooking : booking
+          )
+        );
+        setFilteredBookings((prevBookings) =>
+          prevBookings.map((booking) =>
+            booking.id === updatedBooking.id ? updatedBooking : booking
+          )
+        );
+        fetchBookingsData(); // Перезагружаем данные для обеспечения консистентности
+      })
+      .catch((error) => {
+        console.error("Error approving booking:", error);
+        toast({
+          title: "Error",
+          description: "Failed to approve booking.",
+          variant: "destructive",
+        });
+      });
+  };
+
+  const handleReject = (bookingId: string) => {
+    // Implement the logic to reject a booking by calling the API
+    fetch(`/api/bookings/${bookingId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "reject-dmp", bookingId }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to reject booking");
+        }
+        return response.json();
+      })
+      .then((updatedBooking) => {
+        // Update local state to reflect the change
+        setBookings((prevBookings) =>
+          prevBookings.map((booking) =>
+            booking.id === updatedBooking.id ? updatedBooking : booking
+          )
+        );
+        setFilteredBookings((prevBookings) =>
+          prevBookings.map((booking) =>
+            booking.id === updatedBooking.id ? updatedBooking : booking
+          )
+        );
+        fetchBookingsData(); // Перезагружаем данные для обеспечения консистентности
+      })
+      .catch((error) => {
+        console.error("Error rejecting booking:", error);
+        toast({
+          title: "Error",
+          description: "Failed to reject booking.",
+          variant: "destructive",
+        });
+      });
+  };
 
   const handleFilterChange = (filters: RequestFilterState) => {
-    let filtered = requests
+    let filtered = bookings;
 
+    // Apply filtering logic based on 'filters'
+    // This is a placeholder, adjust according to your actual filtering needs
     if (filters.status) {
-      filtered = filtered.filter((request) => request.zones.some((zone) => zone.status === filters.status))
+      filtered = filtered.filter((booking) => booking.bookingRequest.status === filters.status);
     }
 
-    if (filters.supplierName) {
-      filtered = filtered.filter((request) =>
-        request.supplierName.toLowerCase().includes(filters.supplierName.toLowerCase()),
-      )
+    setFilteredBookings(filtered);
+  };
+
+  const handleRequestStatusChange = async (requestId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      // Оптимистично обновляем UI
+      setBookings((prevBookings) =>
+        prevBookings.map((booking) =>
+          booking.bookingRequestId === requestId
+            ? { ...booking, bookingRequest: { ...booking.bookingRequest, status: newStatus } }
+            : booking
+        )
+      );
+      
+      setFilteredBookings((prevBookings) =>
+        prevBookings.map((booking) =>
+          booking.bookingRequestId === requestId
+            ? { ...booking, bookingRequest: { ...booking.bookingRequest, status: newStatus } }
+            : booking
+        )
+      );
+
+      toast({
+        title: "Статус запроса обновлен",
+        description: `Статус запроса изменен на ${newStatus}.`,
+      });
+
+      fetchBookingsData(); // Перезагружаем данные для обеспечения консистентности
+    } catch (error: unknown) {
+      const err = error as Error;
+      toast({
+        variant: "destructive",
+        title: "Ошибка при обновлении статуса",
+        description: err.message,
+      });
     }
+  };
 
-    if (filters.dateFrom) {
-      filtered = filtered.filter((request) => new Date(request.dateCreated) >= new Date(filters.dateFrom))
-    }
-
-    if (filters.dateTo) {
-      filtered = filtered.filter((request) => new Date(request.dateCreated) <= new Date(filters.dateTo))
-    }
-
-    setFilteredRequests(filtered)
-  }
-
-  const filteredSpotsCount = useMemo(() => {
-    return filteredRequests.reduce((acc, request) => acc + request.zones.length, 0)
-  }, [filteredRequests])
+  const filteredSpotsCount = filteredBookings.length;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -126,12 +245,17 @@ export default function DMPManagerPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-corporate">Панель менеджера ДМП</CardTitle>
+            <CardTitle className="text-2xl font-bold text-corporate">
+              Панель менеджера ДМП
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600">Управляйте заявками, согласованными категорийными менеджерами</p>
+            <p className="text-gray-600">
+              Управляйте заявками, согласованными категорийными менеджерами
+            </p>
             <p className="text-gray-600 mt-2">
-              Отфильтровано спотов: <span className="font-semibold">{filteredSpotsCount}</span>
+              Отфильтровано спотов:{" "}
+              <span className="font-semibold">{filteredSpotsCount}</span>
             </p>
           </CardContent>
         </Card>
@@ -145,14 +269,21 @@ export default function DMPManagerPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Заявки на рассмотрение</CardTitle>
+            <CardTitle className="text-xl font-semibold">
+              Заявки на рассмотрение
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <RequestsTable requests={filteredRequests} onApprove={handleApprove} onReject={handleReject} role="ДМП" />
+            <RequestsTable
+              bookings={filteredBookings}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              role="DMP_MANAGER"
+              onRequestStatusChange={handleRequestStatusChange}
+            />
           </CardContent>
         </Card>
       </main>
     </div>
-  )
+  );
 }
-

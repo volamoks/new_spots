@@ -57,7 +57,7 @@ export default function DMPUploadPage() {
 
             const jsonData = XLSX.utils.sheet_to_json<ZoneData>(worksheet)
             setPreviewData(jsonData)
-          } catch (error) {
+          } catch (error:unknown) {
             setErrors(["Ошибка чтения файла. Проверьте формат данных."])
             setPreviewData([])
           }
