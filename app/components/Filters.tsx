@@ -1,23 +1,29 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import AdditionalFilters from "./AdditionalFilters"
 import { getCategories, getAdjacentMacrozones } from "@/lib/filterData"
 import { useGlobalStore } from "@/lib/store"
 
 export default function Filters() {
-  const { filters, setFilters, step, setStep } = useGlobalStore()
+  const { filters, setFilters, step, setStep, fetchZonesFromDB, isZonesLoading } = useGlobalStore();
 
-  const categories = useMemo(() => getCategories(), [])
+  const categories = useMemo(() => getCategories(), []);
   const adjacentMacrozones = useMemo(() => {
-    return filters.category ? getAdjacentMacrozones(filters.category) : []
-  }, [filters.category])
+    return filters.category ? getAdjacentMacrozones(filters.category) : [];
+  }, [filters.category]);
 
-  const handleFilterChange = (key: keyof typeof filters, value: any) => {
-    const newFilters = { ...filters, [key]: value }
+  useEffect(() => {
+    if (filters.macrozone && step >= 2) {
+      fetchZonesFromDB();
+    }
+  }, [filters.macrozone, step, fetchZonesFromDB]);
+
+ const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    const newFilters = { ...filters, [key]: value };
     if (key === "category") {
-      newFilters.macrozone = ""
+      newFilters.macrozone = "";
       setStep(2)
     }
     setFilters(newFilters)

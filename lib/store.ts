@@ -1,8 +1,9 @@
-import { create } from "zustand"
-import { zonesData } from "./zonesData"
-import type { RequestFilterState } from "@/app/components/RequestFilters"
-import { produce } from "immer"
-import { BookingRequestWithBookings } from "@/lib/api/bookings"
+import { create } from "zustand";
+import type { RequestFilterState } from "@/app/components/RequestFilters";
+import { produce } from "immer";
+import { BookingRequestWithBookings } from "@/lib/api/bookings";
+// import { fetchZones } from "@/lib/zones"; // No longer used
+import { Zone, ZoneStatus } from "@prisma/client";
 
 // Add this type definition
 export type UserRole = "supplier" | "category_manager" | "dmp_manager"
@@ -14,18 +15,18 @@ type User = {
   role: UserRole
 }
 
-type Zone = {
-  id: string
-  city: string
-  number: string
-  market: string
-  newFormat: string
-  equipment: string
-  dimensions: string
-  mainMacrozone: string
-  adjacentMacrozone: string
-  status: "Новая" | "Согласована КМ" | "Согласована ДМП" | "Отклонена"
-}
+// type Zone = {
+//   id: string
+//   city: string
+//   number: string
+//   market: string
+//   newFormat: string
+//   equipment: string
+//   dimensions: string
+//   mainMacrozone: string
+//   adjacentMacrozone: string
+//   status: "Новая" | "Согласована КМ" | "Согласована ДМП" | "Отклонена"
+// }
 
 type Request = {
   id: number
@@ -47,7 +48,7 @@ interface GlobalState {
     totalSpots: number
     spotsPerLocation: { city: string; count: number }[]
     spotsPerBrand: { brand: string; count: number }[]
-    zones: any[]
+    zones: Zone[]
   } | null
   setSelectedSupplier: (supplier: string) => void
   toggleZoneSelection: (zoneId: string) => void
@@ -61,8 +62,8 @@ interface GlobalState {
   handleFilterChange: (filters: RequestFilterState) => void
 
   // Zones
-  zones: any[]
-  filteredZones: any[]
+  zones: Zone[]
+  filteredZones: Zone[]
   filters: {
     category: string
     macrozone: string
@@ -70,27 +71,31 @@ interface GlobalState {
     storeCategories: string[]
     equipment: string[]
   }
-  setFilters: (filters: any) => void
-  toggleZoneSelectionForBooking: (zoneId: string) => void
-  handleBooking: () => void
-// Auth state
-user: User | null
-isAuthenticated: boolean
-login: (user: User) => void
-logout: () => void
-switchRole: (role: UserRole) => void
+  setFilters: (filters: Partial<GlobalState['filters']>) => void;
+  toggleZoneSelectionForBooking: (zoneId: string) => void;
+  handleBooking: () => void;
+    // Auth state
+  user: User | null
+  isAuthenticated: boolean
+  login: (user: User) => void
+  logout: () => void
+  switchRole: (role: UserRole) => void
 
-// Bookings
-bookingRequests: BookingRequestWithBookings[]
-setBookingRequests: (
-  bookingRequests: BookingRequestWithBookings[] | ((prev: BookingRequestWithBookings[]) => BookingRequestWithBookings[])
-) => void
-userBookings: any[] // Устаревшее поле, оставлено для обратной совместимости
-setUserBookings: (bookings: any[] | ((prev: any[]) => any[])) => void
+  // Bookings
+ bookingRequests: BookingRequestWithBookings[]
+  setBookingRequests: (
+    bookingRequests: BookingRequestWithBookings[] | ((prev: BookingRequestWithBookings[]) => BookingRequestWithBookings[])
+  ) => void
+  userBookings: BookingRequestWithBookings[] // Устаревшее поле, оставлено для обратной совместимости
+  setUserBookings: (bookings: BookingRequestWithBookings[] | ((prev: BookingRequestWithBookings[]) => BookingRequestWithBookings[])) => void
 
-// Добавьте в интерфейс GlobalState:
-step: number
-setStep: (step: number) => void
+    // Добавьте в интерфейс GlobalState:
+    step: number
+  setStep: (step: number) => void
+
+  // Добавим для загрузки данных
+  isZonesLoading: boolean
+  fetchZonesFromDB: () => Promise<void>
 }
 
 
@@ -99,24 +104,23 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   // Category Manager Dashboard
   selectedSupplier: "",
   selectedZones: [],
-  suppliers: [...new Set(zonesData.map((zone) => zone["Поставщик"]))].filter(
-    (supplier) => supplier !== "КоммерческоеПустые" && supplier !== "Пустые",
-  ),
+  suppliers: [],
   supplierData: null,
-  setSelectedSupplier: (supplier) => {
-    set({ selectedSupplier: supplier })
-    const filteredZones = zonesData.filter((zone) => zone["Поставщик"] === supplier)
-    const brands = [...new Set(filteredZones.map((zone) => zone["Brand"]))].filter(Boolean)
-    const locations = [...new Set(filteredZones.map((zone) => zone["Город"]))].filter(Boolean)
-    const totalSpots = filteredZones.length
+
+ setSelectedSupplier: (supplier) => {
+    set({ selectedSupplier: supplier });
+    const filteredZones = get().zones.filter((zone) => zone.supplier === supplier);
+    const brands = [...Array.from(new Set(filteredZones.map((zone) => zone.brand)))].filter(Boolean) as string[];
+    const locations = [...Array.from(new Set(filteredZones.map((zone) => zone.city)))].filter(Boolean) as string[];
+    const totalSpots = filteredZones.length;
     const spotsPerLocation = locations.map((location) => ({
       city: location,
-      count: filteredZones.filter((zone) => zone["Город"] === location).length,
-    }))
+      count: filteredZones.filter((zone) => zone.city === location).length,
+    }));
     const spotsPerBrand = brands.map((brand) => ({
       brand,
-      count: filteredZones.filter((zone) => zone["Brand"] === brand).length,
-    }))
+      count: filteredZones.filter((zone) => zone.brand === brand).length,
+    }));
     set({
       supplierData: {
         brands,
@@ -126,7 +130,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
         spotsPerBrand,
         zones: filteredZones,
       },
-    })
+    });
   },
   toggleZoneSelection: (zoneId) => {
     set((state) => ({
@@ -138,88 +142,89 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   clearSelectedZones: () => set({ selectedZones: [] }),
 
   // Requests
-  requests: [
-    {
-      id: 1,
-      supplierName: "ООО Фрукты",
-      dateCreated: "2025-06-01",
-      dateRange: "2025-06-10 - 2025-06-20",
-      zones: [
-        {
-          id: "1",
-          city: "Москва",
-          number: "001",
-          market: "Магазин №1",
-          newFormat: "Да",
-          equipment: "Стандарт",
-          dimensions: "3x4",
-          mainMacrozone: "Центр",
-          adjacentMacrozone: "Север",
-          status: "Новая",
-        },
-        {
-          id: "2",
-          city: "Санкт-Петербург",
-          number: "002",
-          market: "Магазин №2",
-          newFormat: "Нет",
-          equipment: "Премиум",
-          dimensions: "4x5",
-          mainMacrozone: "Север",
-          adjacentMacrozone: "Центр",
-          status: "Новая",
-        },
-      ],
-    },
-    {
-      id: 2,
-      supplierName: "ИП Иванов",
-      dateCreated: "2025-06-02",
-      dateRange: "2025-06-15 - 2025-06-30",
-      zones: [
-        {
-          id: "3",
-          city: "Новосибирск",
-          number: "003",
-          market: "Магазин №3",
-          newFormat: "Да",
-          equipment: "Стандарт",
-          dimensions: "3x3",
-          mainMacrozone: "Восток",
-          adjacentMacrozone: "Центр",
-          status: "Новая",
-        },
-      ],
-    },
-  ],
+  // requests: [
+  //   {
+  //     id: 1,
+  //     supplierName: "ООО Фрукты",
+  //     dateCreated: "2025-06-01",
+  //     dateRange: "2025-06-10 - 2025-06-20",
+  //     zones: [
+  //       {
+  //         id: "1",
+  //         city: "Москва",
+  //         number: "001",
+  //         market: "Магазин №1",
+  //         newFormat: "Да",
+  //         equipment: "Стандарт",
+  //         dimensions: "3x4",
+  //         mainMacrozone: "Центр",
+  //         adjacentMacrozone: "Север",
+  //         status: "Новая",
+  //       } as Zone,
+  //       {
+  //         id: "2",
+  //         city: "Санкт-Петербург",
+  //         number: "002",
+  //         market: "Магазин №2",
+  //         newFormat: "Нет",
+  //         equipment: "Премиум",
+  //         dimensions: "4x5",
+  //         mainMacrozone: "Север",
+  //         adjacentMacrozone: "Центр",
+  //         status: "Новая",
+  //       } as Zone,
+  //     ],
+  //   },
+  //   {
+  //     id: 2,
+  //     supplierName: "ИП Иванов",
+  //     dateCreated: "2025-06-02",
+  //     dateRange: "2025-06-15 - 2025-06-30",
+  //     zones: [
+  //       {
+  //         id: "3",
+  //         city: "Новосибирск",
+  //         number: "003",
+  //         market: "Магазин №3",
+  //         newFormat: "Да",
+  //         equipment: "Стандарт",
+  //         dimensions: "3x3",
+  //         mainMacrozone: "Восток",
+  //         adjacentMacrozone: "Центр",
+  //         status: "Новая",
+  //       } as Zone,
+  //     ],
+  //   },
+  // ],
+  requests: [], // Закомментируем пока
   filteredRequests: [],
-  handleApprove: (requestId, zoneId) => {
+    handleApprove: (requestId: number, zoneId: string) => {
     set(
-      produce((state) => {
-        const request = state.requests.find((r) => r.id === requestId)
+      produce((state: GlobalState) => {
+        const request = state.requests.find((r) => r.id === requestId);
         if (request) {
-          const zone = request.zones.find((z) => z.id === zoneId)
+          const zone = request.zones.find((z) => z.id === zoneId);
           if (zone) {
-            zone.status = "Согласована КМ"
+            zone.status = "APPROVED_BY_CM" as ZoneStatus
           }
         }
-        state.filteredRequests = state.requests
-      }),
-    )
+        state.filteredRequests = state.requests;
+      })
+    );
   },
-  handleReject: (requestId, zoneId) => {
+  handleReject: (requestId: number, zoneId: string) => {
     set(
-      produce((state) => {
-        const request = state.requests.find((r) => r.id === requestId)
+      produce((state: GlobalState) => {
+        const request = state.requests.find((r) => r.id === requestId);
         if (request) {
-          const zone = request.zones.find((z) => z.id === zoneId)
+          const zone = request.zones.find((z) => z.id === zoneId);
           if (zone) {
-            zone.status = "Отклонена"
+             zone.status = "REJECTED" as ZoneStatus
           }
         }
-        state.filteredRequests = state.requests
-      }),
-    )
+        state.filteredRequests = state.requests;
+      })
+    );
   },
   handleFilterChange: (filters) => {
     set((state) => {
@@ -248,8 +253,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   },
 
   // Zones
-  zones: zonesData,
-  filteredZones: zonesData,
+  zones: [],
+  filteredZones: [],
   filters: {
     category: "",
     macrozone: "",
@@ -259,28 +264,28 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   },
   setFilters: (newFilters) => {
     set(
-      produce((state) => {
+      produce((state: GlobalState) => {
         state.filters = { ...state.filters, ...newFilters }
         state.filteredZones = state.zones.filter((zone) => {
-          if (state.filters.category && zone["Основная Макрозона"] !== state.filters.category) {
+          if (state.filters.category && zone.mainMacrozone !== state.filters.category) {
             return false
           }
           if (state.filters.macrozone) {
-            const adjacentMacrozones = zone["Смежная макрозона"].split("/")
+            const adjacentMacrozones = zone.adjacentMacrozone.split("/")
             if (!adjacentMacrozones.includes(state.filters.macrozone)) {
               return false
             }
           }
-          if (state.filters.cities.length > 0 && !state.filters.cities.includes(zone["Город"])) {
+          if (state.filters.cities.length > 0 && !state.filters.cities.includes(zone.city)) {
             return false
           }
           if (
             state.filters.storeCategories.length > 0 &&
-            !state.filters.storeCategories.includes(zone["Формат маркета"])
+            !state.filters.storeCategories.includes(zone.market)
           ) {
             return false
           }
-          if (state.filters.equipment.length > 0 && !state.filters.equipment.includes(zone["Оборудование"])) {
+          if (state.filters.equipment.length > 0 && !state.filters.equipment.includes(zone.equipment)) {
             return false
           }
           return true
@@ -334,5 +339,25 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   // Добавьте в create функцию:
   step: 1,
   setStep: (step) => set({ step }),
-}))
+
+  // Добавляем isZonesLoading и fetchZonesFromDB
+ isZonesLoading: false,
+    fetchZonesFromDB: async () => {
+       set({ isZonesLoading: true });
+            try {
+                const { macrozone } = get().filters
+                const response = await fetch(`/api/zones?macrozone=${macrozone}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const zones = await response.json();
+                set({ zones, filteredZones: zones });
+            } catch (error) {
+                console.error("Error fetching zones from DB:", error);
+                // TODO: Handle error (e.g., show error message to user)
+            } finally {
+                set({ isZonesLoading: false });
+            }
+        },
+    }));
 

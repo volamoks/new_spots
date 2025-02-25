@@ -1,28 +1,17 @@
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from '@prisma/client';
 
-declare global {
-  var prisma: PrismaClient | undefined
-}
+            const prismaClientSingleton = () => {
+            return new PrismaClient()
+            }
 
-const prismaClientSingleton = () => {
-  return new PrismaClient({
-    log: ["error", "warn"],
-    errorFormat: "pretty",
-  })
-}
+            type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>
 
-export const prisma = globalThis.prisma ?? prismaClientSingleton()
+            const globalForPrisma = globalThis as unknown as {
+            prisma: PrismaClientSingleton | undefined
+            }
 
-if (process.env.NODE_ENV !== "production") globalThis.prisma = prisma
+            const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
 
-// Add connection handling
-prisma
-  .$connect()
-  .then(() => {
-    console.log("✅ Database connected successfully")
-  })
-  .catch((error) => {
-    console.error("❌ Database connection failed:", error)
-    process.exit(1)
-  })
+            if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
+            export { prisma }

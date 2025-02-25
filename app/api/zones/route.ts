@@ -1,33 +1,18 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { NextResponse } from "next/server";
+import { fetchZones } from "@/lib/zones";
 
-export async function GET(req: Request) {
-  try {
-    const session = await getServerSession(authOptions)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const macrozone = searchParams.get("macrozone");
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(req.url)
-    const category = searchParams.get("category")
-    const macrozone = searchParams.get("macrozone")
-    const city = searchParams.get("city")
-
-    const zones = await prisma.zone.findMany({
-      where: {
-        ...(category && { mainMacrozone: category }),
-        ...(macrozone && { adjacentMacrozone: { contains: macrozone } }),
-        ...(city && { city }),
-        status: "AVAILABLE",
-      },
-    })
-
-    return NextResponse.json(zones)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!macrozone) {
+    return NextResponse.json([], {
+      status: 400,
+      statusText: "macrozone is required",
+    });
   }
-}
 
+  const zones = await fetchZones(macrozone);
+
+  return NextResponse.json(zones);
+}

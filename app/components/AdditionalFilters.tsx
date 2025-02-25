@@ -1,24 +1,34 @@
 "use client"
 
-import { useMemo } from "react"
-import { Button } from "@/components/ui/button"
-import { zonesData } from "@/lib/zonesData"
-import { useGlobalStore } from "@/lib/store"
+import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { useGlobalStore } from "@/lib/store";
 
 export default function AdditionalFilters() {
-  const { filters, setFilters } = useGlobalStore()
+  const { filters, setFilters, zones } = useGlobalStore();
 
-  const cities = useMemo(() => [...new Set(zonesData.map((zone) => zone["Город"]))], [])
-  const storeCategories = useMemo(() => [...new Set(zonesData.map((zone) => zone["Формат маркета"]))], [])
-  const equipmentTypes = useMemo(() => [...new Set(zonesData.map((zone) => zone["Оборудование"]))], [])
+  const cities = useMemo(() => [...Array.from(new Set(zones.map((zone) => zone.city)))], [
+    zones,
+  ]);
+  const storeCategories = useMemo(
+    () => [...Array.from(new Set(zones.map((zone) => zone.market)))],
+    [zones]
+  );
+  const equipmentTypes = useMemo(
+    () => [...Array.from(new Set(zones.map((zone) => zone.equipment)))],
+    [zones]
+  );
 
-  const toggleFilter = (key: "cities" | "storeCategories" | "equipment", value: string) => {
-    const currentFilters = filters[key]
+    const toggleFilter = (
+    key: "cities" | "storeCategories" | "equipment",
+    value: string
+  ) => {
+    const currentFilters = filters[key];
     const newFilters = currentFilters.includes(value)
       ? currentFilters.filter((item) => item !== value)
-      : [...currentFilters, value]
-    setFilters({ ...filters, [key]: newFilters })
-  }
+      : [...currentFilters, value];
+    setFilters({ ...filters, [key]: newFilters });
+  };
 
   return (
     <div className="space-y-4">
@@ -68,6 +78,6 @@ export default function AdditionalFilters() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
