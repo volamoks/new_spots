@@ -131,21 +131,20 @@ export function RequestsTable({
         <TableBody>
           {Object.entries(groupedBookings).map(([reqId, requestBookings]) => {
             const request = requestBookings[0].bookingRequest;
-            let calledRequestStatusChange = false; // Track if onRequestStatusChange has been called
+            // let calledRequestStatusChange = false; // Track if onRequestStatusChange has been called
             return (
-              <>
+              <React.Fragment key={reqId}>
                 <TableRow
-                  key={reqId}
                   className="cursor-pointer"
                   onClick={() => toggleExpand(reqId)}
                 >
                   <TableCell>{reqId}</TableCell>
-                  <TableCell>{request.user.name}</TableCell>
+                  <TableCell>{request?.user?.name ?? "N/A"}</TableCell>
                   <TableCell>
-                    {new Date(request.createdAt).toLocaleDateString()}
+                    {new Date(request?.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={request.status} />
+                    <StatusBadge status={request?.status} />
                   </TableCell>
                   <TableCell>
                     {expandedRequests.includes(reqId)
@@ -219,22 +218,6 @@ export function RequestsTable({
                         </TableHeader>
                         <TableBody>
                           {requestBookings.map((booking) => {
-                            // Check if all bookings in this request are reviewed
-                            const allReviewed = requestBookings.every(
-                              (b) =>
-                                b.status === BookingStatus.KM_APPROVED ||
-                                b.status === BookingStatus.KM_REJECTED
-                            );
-
-                            // Call onRequestStatusChange if all are reviewed and it hasn't been called yet
-                            if (
-                              allReviewed &&
-                              onRequestStatusChange &&
-                              !calledRequestStatusChange
-                            ) {
-                              onRequestStatusChange(reqId, "CLOSED");
-                              calledRequestStatusChange = true; // Set to true after calling
-                            }
                             return (
                               <TableRow key={booking.id}>
                                 {visibleColumns.includes("ID") && (
@@ -311,10 +294,10 @@ export function RequestsTable({
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
-        </TableBody>
+</TableBody>
       </Table>
     </div>
   );

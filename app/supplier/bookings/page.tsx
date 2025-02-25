@@ -1,26 +1,23 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
-import { RequestsTable } from "../components/RequestsTable";
-import { RequestFilters, type RequestFilterState } from "../components/RequestFilters";
-import Navigation from "../components/Navigation";
+import { RequestsTable } from "../../components/RequestsTable";
+import { RequestFilters, type RequestFilterState } from "../../components/RequestFilters";
+import Navigation from "../../components/Navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
 import { useBookingStore, useBookingToasts } from "@/lib/stores/bookingStore";
 
-export default function DMPManagerPage() {
+export default function SupplierBookingsPage() {
   const { data: session } = useSession();
   const {
     filteredBookings,
     fetchBookings,
-    approveBooking,
-    rejectBooking,
-    updateRequestStatus,
     applyFilters,
     error
   } = useBookingStore();
   
-  const { showSuccessToast, showErrorToast } = useBookingToasts();
+  const { showErrorToast } = useBookingToasts();
 
   // Загружаем данные при монтировании компонента
   useEffect(() => {
@@ -36,37 +33,15 @@ export default function DMPManagerPage() {
     loadData();
   }, [session, fetchBookings, error, showErrorToast]);
 
-  // Обработчики событий для таблицы с обработкой уведомлений
-  const handleApprove = useCallback(async (bookingId: string) => {
-    await approveBooking(bookingId, 'DMP_MANAGER');
-    if (!error) {
-      showSuccessToast("Успешно", "Бронирование одобрено");
-    } else {
-      showErrorToast("Ошибка", error);
-    }
-  }, [approveBooking, error, showSuccessToast, showErrorToast]);
-
-  const handleReject = useCallback(async (bookingId: string) => {
-    await rejectBooking(bookingId, 'DMP_MANAGER');
-    if (!error) {
-      showSuccessToast("Успешно", "Бронирование отклонено");
-    } else {
-      showErrorToast("Ошибка", error);
-    }
-  }, [rejectBooking, error, showSuccessToast, showErrorToast]);
-
+  // Обработчик фильтрации
   const handleFilterChange = useCallback((filters: RequestFilterState) => {
     applyFilters(filters);
   }, [applyFilters]);
 
-  const handleRequestStatusChange = useCallback(async (requestId: string, newStatus: string) => {
-    await updateRequestStatus(requestId, newStatus);
-    if (!error) {
-      showSuccessToast("Статус запроса обновлен", `Статус запроса изменен на ${newStatus}`);
-    } else {
-      showErrorToast("Ошибка", error);
-    }
-  }, [updateRequestStatus, error, showSuccessToast, showErrorToast]);
+  // Пустые обработчики, так как поставщику не нужны действия
+  const handleApprove = useCallback(() => {}, []);
+  const handleReject = useCallback(() => {}, []);
+  const handleRequestStatusChange = useCallback(() => {}, []);
 
   const filteredSpotsCount = filteredBookings.length;
 
@@ -77,15 +52,15 @@ export default function DMPManagerPage() {
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-corporate">
-              Панель менеджера ДМП
+              Мои бронирования
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-gray-600">
-              Управляйте заявками, согласованными категорийными менеджерами
+              Просмотр статуса ваших заявок на бронирование
             </p>
             <p className="text-gray-600 mt-2">
-              Отфильтровано спотов:{" "}
+              Количество заявок:{" "}
               <span className="font-semibold">{filteredSpotsCount}</span>
             </p>
           </CardContent>
@@ -101,7 +76,7 @@ export default function DMPManagerPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-semibold">
-              Заявки на рассмотрение
+              Заявки на бронирование
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -109,7 +84,7 @@ export default function DMPManagerPage() {
               bookings={filteredBookings}
               onApprove={handleApprove}
               onReject={handleReject}
-              role="DMP_MANAGER"
+              role="SUPPLIER"
               onRequestStatusChange={handleRequestStatusChange}
             />
           </CardContent>

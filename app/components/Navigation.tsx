@@ -39,7 +39,10 @@ export default function Navigation() {
               <Button variant="ghost">Зоны продажи</Button>
             </Link>
             <Link href="/supplier">
-              <Button variant="ghost">Панель бронирований</Button>
+              <Button variant="ghost">Создать бронирование</Button>
+            </Link>
+            <Link href="/supplier/bookings">
+              <Button variant="ghost">Мои бронирования</Button>
             </Link>
           </>
         )

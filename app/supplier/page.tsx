@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-// import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import Navigation from "../components/Navigation";
 
@@ -101,11 +100,11 @@ export default function SupplierPage() {
                     <CardTitle className="text-base font-medium">
                       {zone.city} - {zone.market} - {zone.number}
                     </CardTitle>
-                    <Checkbox
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
                       checked={selectedZones.includes(zone.uniqueIdentifier)}
-                      onCheckedChange={() =>
-                        handleZoneSelection(zone.uniqueIdentifier)
-                      }
+                      onChange={() => handleZoneSelection(zone.uniqueIdentifier)}
                     />
                   </CardHeader>
                 </Card>
