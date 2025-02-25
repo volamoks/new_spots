@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -109,6 +109,23 @@ export function RequestsTable({
     groupedBookings[booking.bookingRequestId].push(booking);
   });
 
+    useEffect(() => {
+    // Iterate over each group of bookings (grouped by request ID)
+    Object.entries(groupedBookings).forEach(([reqId, requestBookings]) => {
+      // Check if all bookings in this request are reviewed
+      const allReviewed = requestBookings.every(
+        (booking) =>
+          booking.status === BookingStatus.KM_APPROVED ||
+          booking.status === BookingStatus.KM_REJECTED
+      );
+
+      // If all bookings are reviewed and onRequestStatusChange is provided, call it
+      if (allReviewed && onRequestStatusChange) {
+        onRequestStatusChange(reqId, "CLOSED");
+      }
+    });
+  }, [groupedBookings, onRequestStatusChange]);
+
   return (
     <div>
       <div className="flex justify-end mb-4">
@@ -131,7 +148,6 @@ export function RequestsTable({
         <TableBody>
           {Object.entries(groupedBookings).map(([reqId, requestBookings]) => {
             const request = requestBookings[0].bookingRequest;
-            // let calledRequestStatusChange = false; // Track if onRequestStatusChange has been called
             return (
               <React.Fragment key={reqId}>
                 <TableRow
@@ -224,7 +240,7 @@ export function RequestsTable({
                                   <TableCell>{booking.id}</TableCell>
                                 )}
                                 {visibleColumns.includes("Город") && (
-                                  <TableCell>{booking.zone.city}</TableCell>
+                                  <TableCell>{booking.zone?.city ?? 'N/A'}</TableCell>
                                 )}
                                 {visibleColumns.includes("№") && (
                                   <TableCell>{booking.zone.number}</TableCell>
@@ -297,8 +313,8 @@ export function RequestsTable({
               </React.Fragment>
             );
           })}
-</TableBody>
+        </TableBody>
       </Table>
     </div>
   );
-};
+}
