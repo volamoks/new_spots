@@ -41,10 +41,8 @@ export function RequestFilters({ onFilterChange }: RequestFiltersProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все</SelectItem>
-              <SelectItem value="Новая">Новая</SelectItem>
-              <SelectItem value="Согласована КМ">Согласована КМ</SelectItem>
-              <SelectItem value="Согласована ДМП">Согласована ДМП</SelectItem>
-              <SelectItem value="Отклонена">Отклонена</SelectItem>
+              <SelectItem value="NEW">Новая</SelectItem>
+              <SelectItem value="CLOSED">Закрыта</SelectItem>
             </SelectContent>
           </Select>
         </div>

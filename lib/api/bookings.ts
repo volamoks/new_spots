@@ -29,16 +29,16 @@ export interface BookingRequestWithBookings {
 }
 
 // Получение всех бронирований
-export async function getBookings() {
+export async function getBookings(url: string = '/api/bookings') {
     try {
         // Используем API endpoint для получения бронирований,
         // который правильно фильтрует данные в зависимости от роли пользователя
-        const response = await fetch('/api/bookings');
-        
+        const response = await fetch(url);
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const bookingRequests = await response.json();
         return bookingRequests;
     }

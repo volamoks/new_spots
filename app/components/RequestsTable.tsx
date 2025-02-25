@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { ColumnSelector } from "./ColumnSelector";
 import { Check, X } from "lucide-react";
-import { BookingStatus } from "@prisma/client";
+import { BookingStatus, RequestStatus } from "@prisma/client";
 
 // Define the Booking type, including related Zone and Request information
 export type Booking = {
@@ -36,7 +36,7 @@ export type Booking = {
   };
   bookingRequest: {
     userId: string;
-    status: string;
+    status: RequestStatus;
     category: string | null;
     createdAt: string;
     user: {
@@ -243,34 +243,34 @@ export function RequestsTable({
                                   <TableCell>{booking.zone?.city ?? 'N/A'}</TableCell>
                                 )}
                                 {visibleColumns.includes("№") && (
-                                  <TableCell>{booking.zone.number}</TableCell>
+                                  <TableCell>{booking.zone?.number ?? 'N/A'}</TableCell>
                                 )}
                                 {visibleColumns.includes("Маркет") && (
-                                  <TableCell>{booking.zone.market}</TableCell>
+                                  <TableCell>{booking.zone?.market ?? 'N/A'}</TableCell>
                                 )}
                                 {visibleColumns.includes("Новый формат") && (
                                   <TableCell>
-                                    {booking.zone.newFormat}
+                                    {booking.zone?.newFormat ?? 'N/A'}
                                   </TableCell>
                                 )}
                                 {visibleColumns.includes("Оборудование") && (
                                   <TableCell>
-                                    {booking.zone.equipment}
+                                    {booking.zone?.equipment ?? 'N/A'}
                                   </TableCell>
                                 )}
                                 {visibleColumns.includes("Габариты") && (
                                   <TableCell>
-                                    {booking.zone.dimensions}
+                                    {booking.zone?.dimensions ?? 'N/A'}
                                   </TableCell>
                                 )}
                                 {visibleColumns.includes("Основная Макрозона") && (
                                   <TableCell>
-                                    {booking.zone.mainMacrozone}
+                                    {booking.zone?.mainMacrozone ?? 'N/A'}
                                   </TableCell>
                                 )}
                                 {visibleColumns.includes("Смежная макрозона") && (
                                   <TableCell>
-                                    {booking.zone.adjacentMacrozone}
+                                    {booking.zone?.adjacentMacrozone ?? 'N/A'}
                                   </TableCell>
                                 )}
                                 {visibleColumns.includes("Статус") && (

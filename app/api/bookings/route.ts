@@ -79,6 +79,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const requestId = searchParams.get("requestId");
+    const status = searchParams.get("status");
 
     const whereClause: Prisma.BookingRequestWhereInput = {};
 
@@ -86,33 +87,67 @@ export async function GET(req: Request) {
       whereClause.id = requestId;
     }
 
+    if (status) {
+      whereClause.status = status as Prisma.EnumRequestStatusFilter;
+    }
+    // Убираем ограничение статуса по умолчанию, чтобы показывать все запросы,
+    // включая архивные (CLOSED)
+
     switch (session.user.role) {
       case "SUPPLIER":
         whereClause.userId = session.user.id;
         break;
       case "CATEGORY_MANAGER":
-        // КМ видит все запросы, в которых есть бронирования со статусом PENDING_KM
-        whereClause.bookings = {
-          some: {
-            status: "PENDING_KM", // Filter by PENDING_KM for Category Managers
-          },
-        };
-        
-        // Если у КМ есть категория, показываем только запросы из его категории
-        // или запросы без указанной категории
-        if (session.user.category) {
+        // Если запрошен конкретный статус запроса (например, CLOSED), то не фильтруем по статусу бронирований
+        if (!status) {
+          // Если статус не указан, то показываем запросы с бронированиями PENDING_KM или запросы со статусом CLOSED
           whereClause.OR = [
-            { category: session.user.category },
-            { category: null }
+            {
+              bookings: {
+                some: {
+                  status: "PENDING_KM" // Показываем запросы с бронированиями PENDING_KM
+                }
+              }
+            },
+            { status: "CLOSED" } // Показываем закрытые запросы (история)
           ];
+        }
+        
+        // Фильтрация по категории КМ сохраняется в любом случае
+        const categoryFilter = [
+          { category: session.user.category },
+          { category: null }
+        ];
+        
+        // Если у КМ есть категория, показываем только запросы из его категории или без категории
+        if (session.user.category) {
+          if (whereClause.OR) {
+            // Если уже есть OR-условие для статусов, добавляем условие категории к каждому варианту
+            whereClause.OR = whereClause.OR.map(condition => ({
+              ...condition,
+              OR: categoryFilter
+            }));
+          } else {
+            // Иначе просто добавляем условие фильтрации по категории
+            whereClause.OR = categoryFilter;
+          }
         }
         break;
       case "DMP_MANAGER":
-        whereClause.bookings = {
-          some: {
-            status: "KM_APPROVED", // Filter by KM_APPROVED for DMP Managers
-          },
-        };
+        // Если запрошен конкретный статус запроса (например, CLOSED), то не фильтруем по статусу бронирований
+        if (!status) {
+          // Если статус не указан, то показываем запросы с бронированиями KM_APPROVED или запросы со статусом CLOSED
+          whereClause.OR = [
+            {
+              bookings: {
+                some: {
+                  status: "KM_APPROVED" // Показываем запросы с бронированиями KM_APPROVED
+                }
+              }
+            },
+            { status: "CLOSED" } // Показываем закрытые запросы (история)
+          ];
+        }
         break;
       default:
         return NextResponse.json({ error: "Invalid user role" }, { status: 403 });
@@ -126,6 +161,7 @@ export async function GET(req: Request) {
             zone: true,
           },
         },
+        user: true, // Добавляем включение информации о пользователе
       },
       orderBy: {
         createdAt: "desc",

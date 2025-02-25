@@ -26,6 +26,8 @@ export default function DMPManagerPage() {
   useEffect(() => {
     const loadData = async () => {
       if (session) {
+        // Загружаем данные без параметра статуса, чтобы API использовало
+        // нашу обновленную логику для показа активных и закрытых заявок
         await fetchBookings();
         if (error) {
           showErrorToast("Ошибка", error);
@@ -55,9 +57,24 @@ export default function DMPManagerPage() {
     }
   }, [rejectBooking, error, showSuccessToast, showErrorToast]);
 
-  const handleFilterChange = useCallback((filters: RequestFilterState) => {
+  const handleFilterChange = useCallback(async (filters: RequestFilterState) => {
+    // Если выбран конкретный статус - загружаем данные с сервера с этим статусом
+    if (filters.status && filters.status !== 'all') {
+      await fetchBookings(filters.status);
+      if (error) {
+        showErrorToast("Ошибка", error);
+      }
+    } else if (filters.status === 'all') {
+      // Если выбраны "Все" статусы - загружаем данные без параметра статуса
+      await fetchBookings();
+      if (error) {
+        showErrorToast("Ошибка", error);
+      }
+    }
+    
+    // В любом случае применяем фильтры локально
     applyFilters(filters);
-  }, [applyFilters]);
+  }, [applyFilters, fetchBookings, error, showErrorToast]);
 
   const handleRequestStatusChange = useCallback(async (requestId: string, newStatus: string) => {
     await updateRequestStatus(requestId, newStatus);
