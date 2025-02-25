@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { useGlobalStore } from "@/lib/store"
 
 export function CategoryManagerDashboard() {
+  const { toast } = useToast()
   const {
     selectedSupplier,
     selectedZones,
@@ -22,6 +23,7 @@ export function CategoryManagerDashboard() {
     toast({
       title: "Бронирование выполнено",
       description: `Выбранные зоны (${selectedZones.length}) успешно забронированы.`,
+      variant: "success"
     })
     clearSelectedZones()
   }

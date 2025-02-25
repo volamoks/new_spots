@@ -3,7 +3,6 @@
 import { useEffect, useCallback } from "react";
 import { RequestsTable } from "../components/RequestsTable";
 import { RequestFilters, type RequestFilterState } from "../components/RequestFilters";
-import Navigation from "../components/Navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
 import { useBookingStore, useBookingToasts } from "@/lib/stores/bookingStore";
@@ -89,7 +88,6 @@ export default function CategoryManagerPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navigation />
       <main className="flex-grow container mx-auto px-4 py-8">
         <Card className="mb-6">
           <CardHeader>

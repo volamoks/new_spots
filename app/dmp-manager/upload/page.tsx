@@ -10,13 +10,11 @@ import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
-// import Navigation from "@/components/Navigation"
 import { Download, Upload, FileSpreadsheet, CheckCircle2 } from "lucide-react"
 import { PreviewTable } from "./preview-table"
 import { generateExcelTemplate } from "@/lib/excel-template"
 import type { ZoneData } from "@/types/zone"
 import * as XLSX from "xlsx"
-import Navigation from "@/app/components/Navigation"
 
 export default function DMPUploadPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -57,7 +55,7 @@ export default function DMPUploadPage() {
 
             const jsonData = XLSX.utils.sheet_to_json<ZoneData>(worksheet)
             setPreviewData(jsonData)
-          } catch (error:unknown) {
+          } catch (error) {
             setErrors(["Ошибка чтения файла. Проверьте формат данных."])
             setPreviewData([])
           }
@@ -150,6 +148,7 @@ export default function DMPUploadPage() {
       toast({
         title: "Успех",
         description: `Данные успешно загружены. Обработано записей: ${data.count}`,
+        variant: "success"
       })
 
       // Даем время увидеть 100% прогресс
@@ -191,7 +190,6 @@ export default function DMPUploadPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navigation />
       <main className="flex-grow container mx-auto px-4 py-8">
         <Card className="max-w-4xl mx-auto">
           <CardHeader>
@@ -282,4 +280,3 @@ export default function DMPUploadPage() {
     </div>
   )
 }
-

@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
-import Navigation from "@/app/components/Navigation"
 import { useAuth } from "@/lib/hooks/useAuth"
 
 type PendingKM = {
@@ -19,7 +18,7 @@ type PendingKM = {
 
 export default function VerifyKMPage() {
   const [pendingKMs, setPendingKMs] = useState<PendingKM[]>([])
-  const router = useRouter()
+  // const router = useRouter()
   const { toast } = useToast()
   const { isAuthenticated, user } = useAuth("DMP_MANAGER")
 
@@ -88,7 +87,6 @@ export default function VerifyKMPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navigation />
       <main className="flex-grow container mx-auto px-4 py-8">
         <Card>
           <CardHeader>
@@ -135,4 +133,3 @@ export default function VerifyKMPage() {
     </div>
   )
 }
-

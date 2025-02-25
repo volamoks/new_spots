@@ -109,6 +109,9 @@ export function RequestsTable({
     groupedBookings[booking.bookingRequestId].push(booking);
   });
 
+    // Используем ref для отслеживания, какие запросы уже обработаны
+    const processedRequestsRef = React.useRef<Set<string>>(new Set());
+    
     useEffect(() => {
     // Iterate over each group of bookings (grouped by request ID)
     Object.entries(groupedBookings).forEach(([reqId, requestBookings]) => {
@@ -119,8 +122,11 @@ export function RequestsTable({
           booking.status === BookingStatus.KM_REJECTED
       );
 
-      // If all bookings are reviewed and onRequestStatusChange is provided, call it
-      if (allReviewed && onRequestStatusChange) {
+      // Если все бронирования просмотрены, статус не "CLOSED" и запрос еще не обработан
+      if (allReviewed && onRequestStatusChange && !processedRequestsRef.current.has(reqId)) {
+        // Добавляем ID запроса в множество обработанных
+        processedRequestsRef.current.add(reqId);
+        // Обновляем статус
         onRequestStatusChange(reqId, "CLOSED");
       }
     });

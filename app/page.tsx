@@ -1,10 +1,8 @@
 import Link from "next/link"
-import Navigation from "./components/Navigation"
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
-      <Navigation />
       <main className="flex-grow container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-6">Добро пожаловать в StoreSpotsBooking</h1>
         <p className="text-xl mb-4">Платформа для бронирования дополнительных зон продажи в магазинах</p>
@@ -28,4 +26,3 @@ export default function Home() {
     </div>
   )
 }
-

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import Navigation from "@/components/Navigation"
+// import Navigation from "@/components/Navigation"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -91,7 +91,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navigation />
+      {/* <Navigation /> */}
       <main className="flex-grow container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>

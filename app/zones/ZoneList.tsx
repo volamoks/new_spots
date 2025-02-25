@@ -38,20 +38,21 @@ import { useEffect } from "react"
                 }
           
                 const startDate = new Date() // You might want to use a date picker in your UI
-                const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
-          
-                
-                  await createBooking(selectedZones, startDate, endDate)
-                
-          
-                toast({
-                  title: "Бронирование выполнено",
-                  description: `Выбранные зоны (${selectedZones.length}) успешно забронированы.`,
-                  variant: "default",
-                })
-              }
-                      
-              return (
+                const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+
+                try {
+                    await createBooking(selectedZones, startDate, endDate);
+                    toast({
+                        title: "Бронирование выполнено",
+                        description: `Выбранные зоны (${selectedZones.length}) успешно забронированы.`,
+                        variant: "success",
+                    });
+                } catch (error) {
+                    // The useEffect hook will handle displaying the error toast
+                }
+            };
+
+            return (
                 <div className="container mx-auto px-4 py-8">
                   <Filters />
                   {showZones ? (

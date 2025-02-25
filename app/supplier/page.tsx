@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import Navigation from "../components/Navigation";
+// import Navigation from "../components/Navigation";
 
 export default function SupplierPage() {
   const [zones, setZones] = useState<Zone[]>([]);
@@ -64,6 +64,7 @@ export default function SupplierPage() {
       toast({
         title: "Success",
         description: "Booking request created successfully.",
+        variant: "success"
       });
       setSelectedZones([]); // Clear selected zones after successful submission
     } catch (error: unknown) {
@@ -80,7 +81,7 @@ export default function SupplierPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navigation />
+      {/* <Navigation /> */}
       <main className="flex-grow container mx-auto px-4 py-8">
         <Card className="mb-6">
           <CardHeader>
