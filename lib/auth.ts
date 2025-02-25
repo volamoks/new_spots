@@ -50,24 +50,39 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           status: user.status,
+          category: user.category,
         }
       },
     }),
   ],
   callbacks: {
     jwt: async ({ token, user }) => {
+      console.log("JWT Callback - User:", user ? JSON.stringify(user) : "No user");
+      console.log("JWT Callback - Token before:", JSON.stringify(token));
+      
       if (user) {
-        token.role = user.role
-        token.status = user.status
+        token.id = user.id;
+        token.role = user.role;
+        token.status = user.status;
+        token.category = user.category;
       }
-      return token
+      
+      console.log("JWT Callback - Token after:", JSON.stringify(token));
+      return token;
     },
     session: async ({ session, token }) => {
+      console.log("Session Callback - Token:", JSON.stringify(token));
+      console.log("Session Callback - Session before:", JSON.stringify(session));
+      
       if (token) {
-        session.user.role = token.role
-        session.user.status = token.status
+        session.user.id = token.sub || token.id as string;
+        session.user.role = token.role;
+        session.user.status = token.status;
+        session.user.category = token.category;
       }
-      return session
+      
+      console.log("Session Callback - Session after:", JSON.stringify(session));
+      return session;
     },
   },
   pages: {
@@ -78,4 +93,3 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 }
-

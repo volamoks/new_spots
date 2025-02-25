@@ -1,10 +1,38 @@
-import type { Booking, BookingStatus } from "@prisma/client"
+import type { Booking, BookingRequest, BookingStatus } from "@prisma/client"
 
-export async function createBooking(zoneId: string, startDate: Date, endDate: Date): Promise<Booking> {
+// Расширенный тип для BookingRequest с включенными бронированиями и зонами
+export type BookingRequestWithBookings = BookingRequest & {
+  bookings: (Booking & {
+    zone: {
+      id: string;
+      uniqueIdentifier: string;
+      city: string;
+      number: string;
+      market: string;
+      newFormat: string;
+      equipment: string;
+      dimensions: string;
+      mainMacrozone: string;
+      adjacentMacrozone: string;
+      status: string;
+    }
+  })[];
+}
+
+// Создание бронирования для одной или нескольких зон
+export async function createBooking(
+  zoneIds: string | string[],
+  startDate: Date,
+  endDate: Date
+): Promise<{ bookingRequest: BookingRequest; bookings: Booking[] }> {
   const response = await fetch("/api/bookings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ zoneId, startDate, endDate }),
+    body: JSON.stringify({
+      zoneIds,
+      startDate,
+      endDate
+    }),
   })
 
   if (!response.ok) {
@@ -14,7 +42,8 @@ export async function createBooking(zoneId: string, startDate: Date, endDate: Da
   return response.json()
 }
 
-export async function getUserBookings(): Promise<Booking[]> {
+// Получение всех заявок на бронирование для текущего пользователя
+export async function getUserBookings(): Promise<BookingRequestWithBookings[]> {
   const response = await fetch("/api/bookings")
 
   if (!response.ok) {
@@ -24,8 +53,12 @@ export async function getUserBookings(): Promise<Booking[]> {
   return response.json()
 }
 
-export async function updateBookingStatus(bookingId: string, status: BookingStatus): Promise<Booking> {
-  const response = await fetch(`/api/bookings/${bookingId}`, {
+// Обновление статуса заявки на бронирование
+export async function updateBookingStatus(
+  bookingRequestId: string,
+  status: BookingStatus
+): Promise<BookingRequest> {
+  const response = await fetch(`/api/bookings/${bookingRequestId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),

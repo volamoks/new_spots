@@ -2,33 +2,53 @@
 
 import { useState } from "react"
 import { useGlobalStore } from "@/lib/store"
-import { createBooking, getUserBookings, updateBookingStatus } from "@/lib/api/bookings"
+import {
+  createBooking,
+  getUserBookings,
+  updateBookingStatus,
+  type BookingRequestWithBookings
+} from "@/lib/api/bookings"
 import type { BookingStatus } from "@prisma/client"
 import { useToast } from "@/components/ui/use-toast"
 
 export function useBookings() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { setUserBookings } = useGlobalStore()
+  const { setBookingRequests } = useGlobalStore()
   const { toast } = useToast()
 
-  const handleCreateBooking = async (zoneId: string, startDate: Date, endDate: Date) => {
+  // Создание заявки на бронирование для одной или нескольких зон
+  const handleCreateBooking = async (zoneIds: string[], startDate: Date, endDate: Date) => {
     setIsLoading(true)
     setError(null)
     try {
-      const newBooking = await createBooking(zoneId, startDate, endDate)
-      setUserBookings((prevBookings) => [...prevBookings, newBooking])
+      const result = await createBooking(zoneIds, startDate, endDate)
+      
+      // Обновляем список заявок на бронирование в глобальном хранилище
+      setBookingRequests((prevRequests) => [
+        {
+          ...result.bookingRequest,
+          bookings: result.bookings.map(booking => ({
+            ...booking,
+            zone: { id: '', uniqueIdentifier: '', city: '', number: '', market: '', newFormat: '',
+                   equipment: '', dimensions: '', mainMacrozone: '', adjacentMacrozone: '', status: '' }
+          }))
+        },
+        ...prevRequests
+      ])
+      
       toast({
-        title: "Бронирование создано",
-        description: "Ваше бронирование успешно создано и ожидает подтверждения.",
+        title: "Заявка создана",
+        description: `Ваша заявка на бронирование ${zoneIds.length} зон успешно создана и ожидает подтверждения.`,
         variant: "success",
       })
-      return newBooking
+      
+      return result
     } catch (err) {
       setError(err.message)
       toast({
         title: "Ошибка бронирования",
-        description: "Не удалось создать бронирование. Пожалуйста, попробуйте еще раз.",
+        description: "Не удалось создать заявку на бронирование. Пожалуйста, попробуйте еще раз.",
         variant: "destructive",
       })
     } finally {
@@ -36,18 +56,19 @@ export function useBookings() {
     }
   }
 
+  // Получение всех заявок на бронирование для текущего пользователя
   const handleFetchUserBookings = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const bookings = await getUserBookings()
-      setUserBookings(bookings)
-      return bookings
+      const bookingRequests = await getUserBookings()
+      setBookingRequests(bookingRequests)
+      return bookingRequests
     } catch (err) {
       setError(err.message)
       toast({
         title: "Ошибка загрузки",
-        description: "Не удалось загрузить ваши бронирования. Пожалуйста, попробуйте еще раз.",
+        description: "Не удалось загрузить ваши заявки на бронирование. Пожалуйста, попробуйте еще раз.",
         variant: "destructive",
       })
     } finally {
@@ -55,25 +76,34 @@ export function useBookings() {
     }
   }
 
-  const handleUpdateBookingStatus = async (bookingId: string, status: BookingStatus) => {
+  // Обновление статуса заявки на бронирование
+  const handleUpdateBookingStatus = async (bookingRequestId: string, status: BookingStatus) => {
     setIsLoading(true)
     setError(null)
     try {
-      const updatedBooking = await updateBookingStatus(bookingId, status)
-      setUserBookings((prevBookings) =>
-        prevBookings.map((booking) => (booking.id === bookingId ? updatedBooking : booking)),
+      const updatedBookingRequest = await updateBookingStatus(bookingRequestId, status)
+      
+      // Обновляем список заявок на бронирование в глобальном хранилище
+      setBookingRequests((prevRequests) =>
+        prevRequests.map((request) =>
+          request.id === bookingRequestId
+            ? { ...request, status } as BookingRequestWithBookings
+            : request
+        ),
       )
+      
       toast({
         title: "Статус обновлен",
-        description: `Статус бронирования успешно обновлен на "${status}".`,
+        description: `Статус заявки на бронирование успешно обновлен на "${status}".`,
         variant: "success",
       })
-      return updatedBooking
+      
+      return updatedBookingRequest
     } catch (err) {
       setError(err.message)
       toast({
         title: "Ошибка обновления",
-        description: "Не удалось обновить статус бронирования. Пожалуйста, попробуйте еще раз.",
+        description: "Не удалось обновить статус заявки на бронирование. Пожалуйста, попробуйте еще раз.",
         variant: "destructive",
       })
     } finally {

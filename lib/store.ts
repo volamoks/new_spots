@@ -1,7 +1,8 @@
 import { create } from "zustand"
 import { zonesData } from "./zonesData"
-import type { RequestFilterState } from "@/components/RequestFilters"
+import type { RequestFilterState } from "@/app/components/RequestFilters"
 import { produce } from "immer"
+import { BookingRequestWithBookings } from "@/lib/api/bookings"
 
 // Add this type definition
 export type UserRole = "supplier" | "category_manager" | "dmp_manager"
@@ -72,18 +73,26 @@ interface GlobalState {
   setFilters: (filters: any) => void
   toggleZoneSelectionForBooking: (zoneId: string) => void
   handleBooking: () => void
+// Auth state
+user: User | null
+isAuthenticated: boolean
+login: (user: User) => void
+logout: () => void
+switchRole: (role: UserRole) => void
 
-  // Auth state
-  user: User | null
-  isAuthenticated: boolean
-  login: (user: User) => void
-  logout: () => void
-  switchRole: (role: UserRole) => void
+// Bookings
+bookingRequests: BookingRequestWithBookings[]
+setBookingRequests: (
+  bookingRequests: BookingRequestWithBookings[] | ((prev: BookingRequestWithBookings[]) => BookingRequestWithBookings[])
+) => void
+userBookings: any[] // Устаревшее поле, оставлено для обратной совместимости
+setUserBookings: (bookings: any[] | ((prev: any[]) => any[])) => void
 
-  // Добавьте в интерфейс GlobalState:
-  step: number
-  setStep: (step: number) => void
+// Добавьте в интерфейс GlobalState:
+step: number
+setStep: (step: number) => void
 }
+
 
 // Update the create function to include auth state and functions
 export const useGlobalStore = create<GlobalState>((set, get) => ({
@@ -304,6 +313,22 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   switchRole: (role) =>
     set((state) => ({
       user: state.user ? { ...state.user, role } : null,
+    })),
+
+  // Bookings
+  bookingRequests: [],
+  setBookingRequests: (bookingRequestsOrFn) =>
+    set((state) => ({
+      bookingRequests: typeof bookingRequestsOrFn === 'function'
+        ? bookingRequestsOrFn(state.bookingRequests)
+        : bookingRequestsOrFn
+    })),
+  userBookings: [], // Устаревшее поле, оставлено для обратной совместимости
+  setUserBookings: (bookingsOrFn) =>
+    set((state) => ({
+      userBookings: typeof bookingsOrFn === 'function'
+        ? bookingsOrFn(state.userBookings)
+        : bookingsOrFn
     })),
 
   // Добавьте в create функцию:
