@@ -5,6 +5,7 @@ import type React from 'react';
 import { SessionProvider } from 'next-auth/react';
 import Navigation from '@/app/components/Navigation';
 import { Session } from 'next-auth';
+import { GlobalLoader } from '@/app/components/GlobalLoader';
 
 export function Providers({
     children,
@@ -17,6 +18,7 @@ export function Providers({
         <SessionProvider session={session}>
             <Navigation session={session} />
             {children}
+            <GlobalLoader />
         </SessionProvider>
     );
 }

@@ -17,6 +17,25 @@ export async function createBookingRequest(
   userRole: string,
   userCategory?: string
 ) {
+  // Для категорийного менеджера проверяем, что все зоны относятся к его категории
+  if (userRole === "CATEGORY_MANAGER" && userCategory) {
+    // Получаем все запрошенные зоны
+    const zones = await prisma.zone.findMany({
+      where: {
+        id: { in: zoneIds },
+      },
+    });
+
+    // Проверяем, что все зоны соответствуют категории менеджера
+    const invalidZones = zones.filter(zone => zone.category !== userCategory);
+    
+    if (invalidZones.length > 0) {
+      throw new Error(
+        `Категорийный менеджер может бронировать только зоны своей категории. Некорректные зоны: ${invalidZones.map(z => z.uniqueIdentifier).join(', ')}`
+      );
+    }
+  }
+
   // Создаем запрос на бронирование
   const bookingRequest = await prisma.bookingRequest.create({
     data: {
@@ -36,12 +55,23 @@ export async function createBookingRequest(
       continue;
     }
 
+    // Проверяем доступность зоны
+    if (zone.status !== "AVAILABLE") {
+      throw new Error(`Зона ${zone.uniqueIdentifier} недоступна для бронирования (текущий статус: ${zone.status})`);
+    }
+
     const booking = await createBooking(
       bookingRequest.id,
       zone.id,
       "PENDING_KM" as BookingStatus
     );
     bookings.push(booking);
+    
+    // Обновляем статус зоны на BOOKED
+    await prisma.zone.update({
+      where: { id: zone.id },
+      data: { status: "BOOKED" },
+    });
   }
 
   return { bookingRequest, bookings };

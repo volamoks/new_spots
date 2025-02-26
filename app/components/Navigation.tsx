@@ -42,9 +42,14 @@ export default function Navigation() {
         )
       case "CATEGORY_MANAGER":
         return (
-          <Link href="/category-manager">
-            <Button variant="ghost">Панель КМ</Button>
-          </Link>
+          <>
+            <Link href="/category-manager">
+              <Button variant="ghost">Панель КМ</Button>
+            </Link>
+            <Link href="/category-manager/bookings">
+              <Button variant="ghost">Создать бронирование</Button>
+            </Link>
+          </>
         )
       case "DMP_MANAGER":
         return (
@@ -52,8 +57,14 @@ export default function Navigation() {
             <Link href="/dmp-manager">
               <Button variant="ghost">Панель ДМП</Button>
             </Link>
+            <Link href="/dmp-manager/zones">
+              <Button variant="ghost">Управление зонами</Button>
+            </Link>
             <Link href="/dmp-manager/upload">
               <Button variant="ghost">Загрузка данных</Button>
+            </Link>
+            <Link href="/dmp-manager/export">
+              <Button variant="ghost">Экспорт/Импорт</Button>
             </Link>
             <Link href="/dmp-manager/verify-km">
               <Button variant="ghost">Подтверждение КМ</Button>
