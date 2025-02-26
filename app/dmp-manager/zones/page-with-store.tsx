@@ -22,7 +22,7 @@ export default function DMPManagerZonesPage() {
     const { data: session } = useSession();
     const { withLoading } = useLoader();
     const { toast } = useToast();
-
+    
     // Используем глобальный стор вместо локального состояния
     const {
         zones,
@@ -48,7 +48,7 @@ export default function DMPManagerZonesPage() {
         setItemsPerPage,
         setIsLoading,
         updateZoneStatus,
-        resetFilters,
+        resetFilters
     } = useZonesStore();
 
     // Функция для загрузки зон из API
@@ -266,14 +266,10 @@ export default function DMPManagerZonesPage() {
                                 <div>
                                     <h3 className="text-sm font-medium mb-2">Город</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {uniqueCities.map(city => (
+                                        {uniqueCities.map((city) => (
                                             <Button
                                                 key={city}
-                                                variant={
-                                                    cityFilters.includes(city)
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
+                                                variant={cityFilters.includes(city) ? "default" : "outline"}
                                                 size="sm"
                                                 onClick={() => toggleFilter('city', city)}
                                                 disabled={isLoading}
@@ -286,14 +282,10 @@ export default function DMPManagerZonesPage() {
                                 <div>
                                     <h3 className="text-sm font-medium mb-2">Магазин</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {uniqueMarkets.map(market => (
+                                        {uniqueMarkets.map((market) => (
                                             <Button
                                                 key={market}
-                                                variant={
-                                                    marketFilters.includes(market)
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
+                                                variant={marketFilters.includes(market) ? "default" : "outline"}
                                                 size="sm"
                                                 onClick={() => toggleFilter('market', market)}
                                                 disabled={isLoading}
@@ -306,14 +298,10 @@ export default function DMPManagerZonesPage() {
                                 <div>
                                     <h3 className="text-sm font-medium mb-2">Оборудование</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {uniqueEquipments.map(equipment => (
+                                        {uniqueEquipments.map((equipment) => (
                                             <Button
                                                 key={equipment}
-                                                variant={
-                                                    equipmentFilters.includes(equipment)
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
+                                                variant={equipmentFilters.includes(equipment) ? "default" : "outline"}
                                                 size="sm"
                                                 onClick={() => toggleFilter('equipment', equipment)}
                                                 disabled={isLoading}
@@ -326,14 +314,10 @@ export default function DMPManagerZonesPage() {
                                 <div>
                                     <h3 className="text-sm font-medium mb-2">Макрозона</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {uniqueMacrozones.map(macrozone => (
+                                        {uniqueMacrozones.map((macrozone) => (
                                             <Button
                                                 key={macrozone}
-                                                variant={
-                                                    macrozoneFilters.includes(macrozone)
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
+                                                variant={macrozoneFilters.includes(macrozone) ? "default" : "outline"}
                                                 size="sm"
                                                 onClick={() => toggleFilter('macrozone', macrozone)}
                                                 disabled={isLoading}
@@ -362,10 +346,7 @@ export default function DMPManagerZonesPage() {
                                     <TableBody>
                                         {filteredZones.length > 0 ? (
                                             filteredZones
-                                                .slice(
-                                                    (currentPage - 1) * itemsPerPage,
-                                                    currentPage * itemsPerPage,
-                                                )
+                                                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                                                 .map(zone => (
                                                     <TableRow key={zone.id}>
                                                         <TableCell className="font-medium">
@@ -374,9 +355,7 @@ export default function DMPManagerZonesPage() {
                                                         <TableCell>{zone.city}</TableCell>
                                                         <TableCell>{zone.market}</TableCell>
                                                         <TableCell>{zone.mainMacrozone}</TableCell>
-                                                        <TableCell>
-                                                            {zone.equipment || '-'}
-                                                        </TableCell>
+                                                        <TableCell>{zone.equipment || '-'}</TableCell>
                                                         <TableCell>
                                                             <span
                                                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusClass(
@@ -396,12 +375,12 @@ export default function DMPManagerZonesPage() {
                                                                         )
                                                                     }
                                                                     disabled={
-                                                                        zone.status ===
-                                                                            'AVAILABLE' || isLoading
+                                                                        zone.status === 'AVAILABLE' ||
+                                                                        isLoading
                                                                     }
                                                                     className={`text-xs px-2 py-1 rounded ${
-                                                                        zone.status ===
-                                                                            'AVAILABLE' || isLoading
+                                                                        zone.status === 'AVAILABLE' ||
+                                                                        isLoading
                                                                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                                             : 'bg-green-100 text-green-800 hover:bg-green-200'
                                                                     }`}
@@ -436,13 +415,11 @@ export default function DMPManagerZonesPage() {
                                                                         )
                                                                     }
                                                                     disabled={
-                                                                        zone.status ===
-                                                                            'UNAVAILABLE' ||
+                                                                        zone.status === 'UNAVAILABLE' ||
                                                                         isLoading
                                                                     }
                                                                     className={`text-xs px-2 py-1 rounded ${
-                                                                        zone.status ===
-                                                                            'UNAVAILABLE' ||
+                                                                        zone.status === 'UNAVAILABLE' ||
                                                                         isLoading
                                                                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                                             : 'bg-red-100 text-red-800 hover:bg-red-200'
@@ -469,23 +446,20 @@ export default function DMPManagerZonesPage() {
                                     </TableBody>
                                 </Table>
                             </div>
-
+                            
                             {/* Пагинация и выбор количества элементов на странице */}
                             <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
                                 <div className="text-sm text-gray-500">
-                                    Показано {Math.min(itemsPerPage, filteredZones.length)} из{' '}
-                                    {filteredZones.length} зон (всего {zones.length})
+                                    Показано {Math.min(itemsPerPage, filteredZones.length)} из {filteredZones.length} зон (всего {zones.length})
                                 </div>
-
+                                
                                 <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm text-gray-500">
-                                            Элементов на странице:
-                                        </span>
-                                        <select
+                                        <span className="text-sm text-gray-500">Элементов на странице:</span>
+                                        <select 
                                             className="border rounded p-1 text-sm"
                                             value={itemsPerPage}
-                                            onChange={e => setItemsPerPage(Number(e.target.value))}
+                                            onChange={(e) => setItemsPerPage(Number(e.target.value))}
                                             disabled={isLoading}
                                         >
                                             <option value={5}>5</option>
@@ -495,41 +469,21 @@ export default function DMPManagerZonesPage() {
                                             <option value={100}>100</option>
                                         </select>
                                     </div>
-
+                                    
                                     <div className="flex items-center gap-2">
                                         <button
-                                            onClick={() =>
-                                                setCurrentPage(Math.max(currentPage - 1, 1))
-                                            }
+                                            onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
                                             disabled={currentPage === 1 || isLoading}
                                             className="px-3 py-1 border rounded text-sm disabled:opacity-50"
                                         >
                                             Назад
                                         </button>
                                         <span className="text-sm">
-                                            Страница {currentPage} из{' '}
-                                            {Math.max(
-                                                1,
-                                                Math.ceil(filteredZones.length / itemsPerPage),
-                                            )}
+                                            Страница {currentPage} из {Math.max(1, Math.ceil(filteredZones.length / itemsPerPage))}
                                         </span>
                                         <button
-                                            onClick={() =>
-                                                setCurrentPage(
-                                                    Math.min(
-                                                        currentPage + 1,
-                                                        Math.ceil(
-                                                            filteredZones.length / itemsPerPage,
-                                                        ),
-                                                    ),
-                                                )
-                                            }
-                                            disabled={
-                                                currentPage >=
-                                                    Math.ceil(
-                                                        filteredZones.length / itemsPerPage,
-                                                    ) || isLoading
-                                            }
+                                            onClick={() => setCurrentPage(Math.min(currentPage + 1, Math.ceil(filteredZones.length / itemsPerPage)))}
+                                            disabled={currentPage >= Math.ceil(filteredZones.length / itemsPerPage) || isLoading}
                                             className="px-3 py-1 border rounded text-sm disabled:opacity-50"
                                         >
                                             Вперед
