@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 // import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -22,19 +22,13 @@ export default function VerifyKMPage() {
   const { toast } = useToast()
   const { isAuthenticated, user } = useAuth("DMP_MANAGER")
 
-  useEffect(() => {
-    if (isAuthenticated && user?.role === "DMP_MANAGER") {
-      fetchPendingKMs()
-    }
-  }, [isAuthenticated, user])
-
-  const fetchPendingKMs = async () => {
+  const fetchPendingKMs = useCallback(async () => {
     try {
       const response = await fetch("/api/dmp/pending-kms")
       if (!response.ok) throw new Error("Failed to fetch pending KMs")
       const data = await response.json()
       setPendingKMs(data)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch pending KMs:", error)
       toast({
         title: "Ошибка загрузки",
@@ -42,7 +36,13 @@ export default function VerifyKMPage() {
         variant: "destructive",
       })
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === "DMP_MANAGER") {
+      fetchPendingKMs()
+    }
+  }, [isAuthenticated, user, fetchPendingKMs])
 
   const handleApprove = async (kmId: string) => {
     try {
@@ -54,7 +54,7 @@ export default function VerifyKMPage() {
         variant: "success",
       })
       fetchPendingKMs() // Refresh the list
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to approve KM:", error)
       toast({
         title: "Ошибка",
@@ -74,7 +74,7 @@ export default function VerifyKMPage() {
         variant: "success",
       })
       fetchPendingKMs() // Refresh the list
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to reject KM:", error)
       toast({
         title: "Ошибка",

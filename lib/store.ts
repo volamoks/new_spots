@@ -1,11 +1,10 @@
 import { create } from "zustand";
 import type { RequestFilterState } from "@/app/components/RequestFilters";
 import { produce } from "immer";
-import { BookingRequestWithBookings } from "@/lib/api/bookings";
-// import { fetchZones } from "@/lib/zones"; // No longer used
+import { BookingRequestWithBookings } from "@/types/booking";
 import { Zone, ZoneStatus } from "@prisma/client";
 
-// Add this type definition
+// Определение типа пользовательской роли
 export type UserRole = "supplier" | "category_manager" | "dmp_manager"
 
 type User = {
@@ -15,18 +14,6 @@ type User = {
   role: UserRole
 }
 
-// type Zone = {
-//   id: string
-//   city: string
-//   number: string
-//   market: string
-//   newFormat: string
-//   equipment: string
-//   dimensions: string
-//   mainMacrozone: string
-//   adjacentMacrozone: string
-//   status: "Новая" | "Согласована КМ" | "Согласована ДМП" | "Отклонена"
-// }
 
 type Request = {
   id: number
@@ -142,61 +129,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   clearSelectedZones: () => set({ selectedZones: [] }),
 
   // Requests
-  // requests: [
-  //   {
-  //     id: 1,
-  //     supplierName: "ООО Фрукты",
-  //     dateCreated: "2025-06-01",
-  //     dateRange: "2025-06-10 - 2025-06-20",
-  //     zones: [
-  //       {
-  //         id: "1",
-  //         city: "Москва",
-  //         number: "001",
-  //         market: "Магазин №1",
-  //         newFormat: "Да",
-  //         equipment: "Стандарт",
-  //         dimensions: "3x4",
-  //         mainMacrozone: "Центр",
-  //         adjacentMacrozone: "Север",
-  //         status: "Новая",
-  //       } as Zone,
-  //       {
-  //         id: "2",
-  //         city: "Санкт-Петербург",
-  //         number: "002",
-  //         market: "Магазин №2",
-  //         newFormat: "Нет",
-  //         equipment: "Премиум",
-  //         dimensions: "4x5",
-  //         mainMacrozone: "Север",
-  //         adjacentMacrozone: "Центр",
-  //         status: "Новая",
-  //       } as Zone,
-  //     ],
-  //   },
-  //   {
-  //     id: 2,
-  //     supplierName: "ИП Иванов",
-  //     dateCreated: "2025-06-02",
-  //     dateRange: "2025-06-15 - 2025-06-30",
-  //     zones: [
-  //       {
-  //         id: "3",
-  //         city: "Новосибирск",
-  //         number: "003",
-  //         market: "Магазин №3",
-  //         newFormat: "Да",
-  //         equipment: "Стандарт",
-  //         dimensions: "3x3",
-  //         mainMacrozone: "Восток",
-  //         adjacentMacrozone: "Центр",
-  //         status: "Новая",
-  //       } as Zone,
-  //     ],
-  //   },
-  // ],
-  requests: [], // Закомментируем пока
+  requests: [],
   filteredRequests: [],
   handleApprove: (requestId: number, zoneId: string) => {
     set(
@@ -205,7 +138,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
         if (request) {
           const zone = request.zones.find((z) => z.id === zoneId);
           if (zone) {
-            zone.status = "APPROVED_BY_CM" as ZoneStatus
+            zone.status = ZoneStatus.BOOKED
           }
         }
         state.filteredRequests = state.requests;
@@ -219,7 +152,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
         if (request) {
           const zone = request.zones.find((z) => z.id === zoneId);
           if (zone) {
-            zone.status = "REJECTED" as ZoneStatus
+            zone.status = ZoneStatus.UNAVAILABLE
           }
         }
         state.filteredRequests = state.requests;

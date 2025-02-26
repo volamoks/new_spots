@@ -24,7 +24,7 @@ const formSchema = z.object({
   }),
 })
 
-interface LoginFormProps extends React.HTMLAttributes<HTMLDivElement> {}
+type LoginFormProps = React.HTMLAttributes<HTMLDivElement>
 
 export function LoginForm({ className, ...props }: LoginFormProps) {
   const router = useRouter()

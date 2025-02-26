@@ -55,8 +55,8 @@ export default function DMPUploadPage() {
 
                         const jsonData = XLSX.utils.sheet_to_json<ZoneData>(worksheet);
                         setPreviewData(jsonData);
-                    } catch (error) {
-                        console.error(error);
+                    } catch (error: unknown) {
+                        console.error('Ошибка чтения файла:', error);
                         setErrors(['Ошибка чтения файла. Проверьте формат данных.']);
                         setPreviewData([]);
                     }
@@ -184,8 +184,8 @@ export default function DMPUploadPage() {
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-        } catch (error) {
-            console.error(error);
+        } catch (error: unknown) {
+            console.error('Ошибка скачивания шаблона:', error);
             toast({
                 title: 'Ошибка',
                 description: 'Не удалось скачать шаблон',
