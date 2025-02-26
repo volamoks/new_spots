@@ -15,7 +15,7 @@ export async function createBookingRequest(
   userId: string,
   zoneIds: string[],
   userRole: string,
-  userCategory?: string
+  userCategory?: string | null
 ) {
   // Для категорийного менеджера проверяем, что все зоны относятся к его категории
   if (userRole === "CATEGORY_MANAGER" && userCategory) {

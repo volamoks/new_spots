@@ -16,12 +16,16 @@ export async function GET(request: Request, { params }: { params: { id: string }
       include: {
         bookings: {
           include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
+            bookingRequest: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    role: true,
+                  },
+                },
               },
             },
           },

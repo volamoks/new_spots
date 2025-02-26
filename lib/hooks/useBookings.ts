@@ -6,9 +6,8 @@ import {
   createBooking,
   getUserBookings,
   updateBookingStatus,
-  type BookingRequestWithBookings
 } from "@/lib/api/bookings"
-import type { BookingStatus } from "@prisma/client"
+import type { RequestStatus } from "@prisma/client"
 import { useToast } from "@/components/ui/use-toast"
 
 export function useBookings() {
@@ -23,29 +22,32 @@ export function useBookings() {
     setError(null)
     try {
       const result = await createBooking(zoneIds, startDate, endDate)
-      
+
       // Обновляем список заявок на бронирование в глобальном хранилище
       setBookingRequests((prevRequests) => [
         {
           ...result.bookingRequest,
           bookings: result.bookings.map(booking => ({
             ...booking,
-            zone: { id: '', uniqueIdentifier: '', city: '', number: '', market: '', newFormat: '',
-                   equipment: '', dimensions: '', mainMacrozone: '', adjacentMacrozone: '', status: '' }
+            zone: {
+              id: '', uniqueIdentifier: '', city: '', number: '', market: '', newFormat: '',
+              equipment: '', dimensions: '', mainMacrozone: '', adjacentMacrozone: '', status: ''
+            }
           }))
         },
         ...prevRequests
       ])
-      
+
       toast({
         title: "Заявка создана",
         description: `Ваша заявка на бронирование ${zoneIds.length} зон успешно создана и ожидает подтверждения.`,
         variant: "success",
       })
-      
+
       return result
-    } catch (err) {
-      setError(err.message)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError(errorMessage)
       toast({
         title: "Ошибка бронирования",
         description: "Не удалось создать заявку на бронирование. Пожалуйста, попробуйте еще раз.",
@@ -64,8 +66,9 @@ export function useBookings() {
       const bookingRequests = await getUserBookings()
       setBookingRequests(bookingRequests)
       return bookingRequests
-    } catch (err) {
-      setError(err.message)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError(errorMessage)
       toast({
         title: "Ошибка загрузки",
         description: "Не удалось загрузить ваши заявки на бронирование. Пожалуйста, попробуйте еще раз.",
@@ -77,30 +80,31 @@ export function useBookings() {
   }
 
   // Обновление статуса заявки на бронирование
-  const handleUpdateBookingStatus = async (bookingRequestId: string, status: BookingStatus) => {
+  const handleUpdateBookingStatus = async (bookingRequestId: string, status: RequestStatus) => {
     setIsLoading(true)
     setError(null)
     try {
       const updatedBookingRequest = await updateBookingStatus(bookingRequestId, status)
-      
+
       // Обновляем список заявок на бронирование в глобальном хранилище
       setBookingRequests((prevRequests) =>
         prevRequests.map((request) =>
           request.id === bookingRequestId
-            ? { ...request, status } as BookingRequestWithBookings
+            ? { ...request, status }
             : request
         ),
       )
-      
+
       toast({
         title: "Статус обновлен",
         description: `Статус заявки на бронирование успешно обновлен на "${status}".`,
         variant: "success",
       })
-      
+
       return updatedBookingRequest
-    } catch (err) {
-      setError(err.message)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError(errorMessage)
       toast({
         title: "Ошибка обновления",
         description: "Не удалось обновить статус заявки на бронирование. Пожалуйста, попробуйте еще раз.",
@@ -119,4 +123,3 @@ export function useBookings() {
     updateBookingStatus: handleUpdateBookingStatus,
   }
 }
-

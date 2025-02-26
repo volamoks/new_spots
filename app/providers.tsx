@@ -16,7 +16,7 @@ export function Providers({
 }) {
     return (
         <SessionProvider session={session}>
-            <Navigation session={session} />
+            <Navigation />
             {children}
             <GlobalLoader />
         </SessionProvider>

@@ -51,6 +51,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           status: user.status,
           category: user.category,
+          inn: user.inn || null,
         }
       },
     }),
