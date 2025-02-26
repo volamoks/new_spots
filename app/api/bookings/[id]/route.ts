@@ -106,7 +106,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // Check if all bookings in the request have been reviewed by KM
     const allBookingsReviewed = bookingRequest.bookings.every(
-      (booking) =>
+      (booking: PrismaBooking) =>
         booking.status === "KM_APPROVED" || booking.status === "KM_REJECTED",
     );
 
