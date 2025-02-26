@@ -33,4 +33,36 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
+### Настройка переменных окружения на Vercel
+
+Для корректной работы приложения на Vercel необходимо настроить следующие переменные окружения:
+
+1. `DATABASE_URL` - URL для подключения к базе данных PostgreSQL через Prisma Accelerate
+2. `NEXTAUTH_SECRET` - секретный ключ для NextAuth.js
+3. `NEXTAUTH_URL` - URL вашего приложения на Vercel (например, https://your-app.vercel.app)
+
+### Решение проблем с Prisma на Vercel
+
+Если вы столкнулись с ошибкой `@prisma/client did not initialize yet. Please run "prisma generate"`, убедитесь, что:
+
+1. В проекте настроен правильный скрипт сборки в `package.json`:
+   ```json
+   "build": "prisma generate && next build"
+   ```
+
+2. Добавлен скрипт `postinstall` для генерации Prisma Client:
+   ```json
+   "postinstall": "prisma generate"
+   ```
+
+3. Пакет `prisma` добавлен в `devDependencies` в `package.json`
+
+4. Файл `vercel.json` содержит правильные настройки для сборки:
+   ```json
+   {
+     "buildCommand": "npm run build",
+     "installCommand": "npm install && npx prisma generate"
+   }
+   ```
+
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
