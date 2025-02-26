@@ -58,8 +58,12 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
         description: "Добро пожаловать в систему!",
         variant: "success",
       })
-      router.push("/")
-      router.refresh()
+      
+      // Добавляем небольшую задержку перед перенаправлением
+      setTimeout(() => {
+        router.push("/")
+        router.refresh()
+      }, 500)
     }
     setIsLoading(false)
   }

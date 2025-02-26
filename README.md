@@ -41,6 +41,8 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 2. `NEXTAUTH_SECRET` - секретный ключ для NextAuth.js
 3. `NEXTAUTH_URL` - URL вашего приложения на Vercel (например, https://your-app.vercel.app)
 
+> **Важно**: Убедитесь, что `NEXTAUTH_URL` настроен правильно и соответствует URL вашего приложения на Vercel. Неправильная настройка может привести к проблемам с аутентификацией.
+
 ### Решение проблем с Prisma на Vercel
 
 Если вы столкнулись с ошибкой `@prisma/client did not initialize yet. Please run "prisma generate"`, убедитесь, что:
