@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
-import { ZoneStatus } from "@prisma/client"
+import { ZoneStatus } from "@/types/zone"
 
 interface ZoneData {
   "Уникальный идентификатор"?: string;

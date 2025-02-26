@@ -1,3 +1,9 @@
+export enum ZoneStatus {
+  AVAILABLE = "AVAILABLE",
+  BOOKED = "BOOKED",
+  UNAVAILABLE = "UNAVAILABLE"
+}
+
 export interface ZoneData {
   Область: string
   Город: string
