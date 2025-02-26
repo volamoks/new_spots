@@ -3,6 +3,23 @@ import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
 import { ZoneStatus } from "@prisma/client"
 
+interface ZoneData {
+  "Уникальный идентификатор"?: string;
+  "Город"?: string;
+  "№"?: string;
+  "Маркет"?: string;
+  "Формат маркета"?: string;
+  "Оборудование"?: string;
+  "Габариты"?: string;
+  "Основная Макрозона"?: string;
+  "Смежная макрозона"?: string;
+  "Статус"?: string;
+  "Поставщик"?: string | null;
+  "Brand"?: string | null;
+  "Категория товара"?: string | null;
+  [key: string]: string | null | undefined; // For other columns
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
@@ -51,9 +68,9 @@ export async function POST(req: NextRequest) {
     console.log("Found headers:", headers)
 
     // Convert to array of rows
-    const data: any[] = []
+    const data: ZoneData[] = []
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      const row: any = {}
+      const row: ZoneData = {}
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C })
         const cell = worksheet[address]
@@ -110,21 +127,18 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error("Ошибка при загрузке данных:", error)
-    return NextResponse.json(
-      {
-        error: "Произошла ошибка при обработке файла",
-        details: (error as Error).message,
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({
+      error: "Произошла ошибка при обработке файла",
+      details: (error as Error).message,
+    }, { status: 500 })
   }
 }
 
-async function createOrUpdateZone(zoneData: any) {
-  const status = getZoneStatus(zoneData["Статус"])
+async function createOrUpdateZone(zoneData: ZoneData) {
+  const status = getZoneStatus(zoneData["Статус"]);
 
   return await prisma.zone.upsert({
-    where: { uniqueIdentifier: zoneData["Уникальный идентификатор"] },
+    where: { uniqueIdentifier: zoneData["Уникальный идентификатор"]! },
     update: {
       city: zoneData["Город"] || "",
       number: zoneData["№"] || "",
@@ -140,7 +154,7 @@ async function createOrUpdateZone(zoneData: any) {
       category: zoneData["Категория товара"] || null,
     },
     create: {
-      uniqueIdentifier: zoneData["Уникальный идентификатор"],
+      uniqueIdentifier: zoneData["Уникальный идентификатор"]!,
       city: zoneData["Город"] || "",
       number: zoneData["№"] || "",
       market: zoneData["Маркет"] || "",
@@ -154,7 +168,7 @@ async function createOrUpdateZone(zoneData: any) {
       brand: zoneData["Brand"] || null,
       category: zoneData["Категория товара"] || null,
     },
-  })
+  });
 }
 
 function getZoneStatus(status: string): ZoneStatus {
@@ -167,4 +181,3 @@ function getZoneStatus(status: string): ZoneStatus {
       return ZoneStatus.UNAVAILABLE
   }
 }
-

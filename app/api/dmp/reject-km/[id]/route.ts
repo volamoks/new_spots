@@ -11,14 +11,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const updatedUser = await prisma.user.update({
+    await prisma.user.update({
       where: { id: params.id },
       data: { status: "REJECTED" },
     })
 
     return NextResponse.json({ message: "Category Manager rejected successfully" })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    let message = "An unknown error occurred";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

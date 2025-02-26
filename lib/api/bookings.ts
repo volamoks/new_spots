@@ -1,35 +1,15 @@
-export interface BookingRequestWithBookings {
-    id: string;
-    userId: string;
-    status: string;
-    category?: string;
-    createdAt: string;
-    updatedAt: string;
-    bookings: {
-        id: string;
-        bookingRequestId: string;
-        zoneId: string;
-        status: string;
-        createdAt: string;
-        updatedAt: string;
-        zone?: {
-            id: string;
-            uniqueIdentifier: string;
-            city: string;
-            number: string;
-            market: string;
-            newFormat: string;
-            equipment: string;
-            dimensions: string;
-            mainMacrozone: string;
-            adjacentMacrozone: string;
-            status: string;
-        };
-    }[];
+import { BookingRequestWithBookings, BookingFromApi, RequestStatus } from "@/types/booking";
+
+/**
+ * Результат создания бронирования
+ */
+interface BookingCreationResult {
+  bookingRequest: BookingRequestWithBookings;
+  bookings: BookingFromApi[];
 }
 
 // Получение всех бронирований
-export async function getBookings(url: string = '/api/bookings') {
+export async function getBookings(url: string = '/api/bookings'): Promise<BookingRequestWithBookings[] | null> {
     try {
         // Используем API endpoint для получения бронирований,
         // который правильно фильтрует данные в зависимости от роли пользователя
@@ -50,7 +30,7 @@ export async function getBookings(url: string = '/api/bookings') {
 
 // Создание новой заявки на бронирование
 // Параметры startDate и endDate добавлены для совместимости с интерфейсом, но пока не используются API
-export async function createBooking(zoneIds: string[], startDate?: Date, endDate?: Date) {
+export async function createBooking(zoneIds: string[], startDate?: Date, endDate?: Date): Promise<BookingCreationResult> {
     try {
         // Включаем даты в запрос на будущее, хотя API их может пока игнорировать
         const response = await fetch('/api/bookings', {
@@ -96,7 +76,7 @@ export async function getUserBookings(): Promise<BookingRequestWithBookings[]> {
 }
 
 // Обновление статуса бронирования
-export async function updateBookingStatus(bookingRequestId: string, status: string) {
+export async function updateBookingStatus(bookingRequestId: string, status: RequestStatus) {
     try {
         const response = await fetch(`/api/requests/${bookingRequestId}`, {
             method: 'PATCH',

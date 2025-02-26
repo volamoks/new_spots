@@ -1,21 +1,19 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-/*
- * Временно отключаем проверку типов в этом файле,
- * так как требуется более серьезный рефакторинг типов
- */
 import { create } from 'zustand';
-import { getBookings, BookingRequestWithBookings } from '../api/bookings';
-import { Booking } from '@/app/components/RequestsTable';
+import { getBookings } from '../api/bookings';
 import { format } from 'date-fns';
-import { RequestFilterState } from '@/app/components/RequestFilters';
 import { useToast as useToastHook } from '@/components/ui/use-toast';
-
+import { useCallback } from 'react';
+import {
+  BookingRequestWithBookings,
+  BookingUI,
+  BookingFromApi,
+  RequestFilterState
+} from '@/types/booking';
 
 interface BookingStore {
   // Состояние
-  bookings: Booking[];
-  filteredBookings: Booking[];
+  bookings: BookingUI[];
+  filteredBookings: BookingUI[];
   isLoading: boolean;
   error: string | null;
   filters: RequestFilterState;
@@ -64,13 +62,13 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       }
 
       // Трансформируем данные
-      const transformedBookings: Booking[] = [];
+      const transformedBookings: BookingUI[] = [];
 
       // Обрабатываем данные как массив запросов
       if (Array.isArray(bookingsData)) {
         bookingsData.forEach((request: BookingRequestWithBookings) => {
           if (request.bookings && Array.isArray(request.bookings)) {
-            request.bookings.forEach((booking) => {
+            request.bookings.forEach((booking: BookingFromApi) => {
               transformedBookings.push({
                 id: booking.id,
                 bookingRequestId: booking.bookingRequestId,
@@ -104,8 +102,11 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         });
       }
       // Обрабатываем данные как один запрос с массивом бронирований
-      else if (bookingsData.bookings && Array.isArray(bookingsData.bookings)) {
-        bookingsData.bookings.forEach((booking) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      else if (bookingsData && typeof bookingsData === 'object' && 'bookings' in bookingsData && Array.isArray((bookingsData as any).bookings)) {
+        // Безопасно приводим тип к BookingRequestWithBookings
+        const request = bookingsData as BookingRequestWithBookings;
+        request.bookings?.forEach((booking: BookingFromApi) => {
           transformedBookings.push({
             id: booking.id,
             bookingRequestId: booking.bookingRequestId,
@@ -125,12 +126,12 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
               adjacentMacrozone: booking.zone?.adjacentMacrozone || '',
             },
             bookingRequest: {
-              userId: bookingsData.userId || '',
-              status: bookingsData.status,
-              category: bookingsData.category ?? null,
-              createdAt: bookingsData.createdAt ? format(new Date(bookingsData.createdAt), 'yyyy-MM-dd') : '',
+              userId: request.userId || '',
+              status: request.status,
+              category: request.category ?? null,
+              createdAt: request.createdAt ? format(new Date(request.createdAt), 'yyyy-MM-dd') : '',
               user: {
-                name: bookingsData.user?.name || 'Неизвестный пользователь',
+                name: request.user?.name || 'Неизвестный пользователь',
               },
             },
           });
@@ -261,15 +262,18 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       }
 
       // Оптимистично обновляем UI
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       set(state => ({
         bookings: state.bookings.map(booking =>
           booking.bookingRequestId === requestId
-            ? { ...booking, bookingRequest: { ...booking.bookingRequest, status: newStatus } }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ? { ...booking, bookingRequest: { ...booking.bookingRequest, status: newStatus as any } }
             : booking
         ),
         filteredBookings: state.filteredBookings.map(booking =>
           booking.bookingRequestId === requestId
-            ? { ...booking, bookingRequest: { ...booking.bookingRequest, status: newStatus } }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ? { ...booking, bookingRequest: { ...booking.bookingRequest, status: newStatus as any } }
             : booking
         )
       }));
@@ -306,8 +310,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     });
   }
 }));
-
-import { useCallback } from 'react';
 
 /**
  * Простой store для уведомлений о результатах действий с бронированиями

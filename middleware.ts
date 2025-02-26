@@ -7,10 +7,25 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public paths that don't require authentication
-  const publicPaths = ["/", "/login", "/register"]
+  const publicPaths = ["/login", "/register"]
+  const isHomePage = pathname === "/"
+
+  // Redirect authorized users from home page to role-specific pages
+  if (isHomePage && token) {
+    const roleBasedRedirects = {
+      SUPPLIER: "/supplier/bookings",
+      CATEGORY_MANAGER: "/category-manager",
+      DMP_MANAGER: "/dmp-manager",
+    }
+
+    const userRole = token.role as keyof typeof roleBasedRedirects
+    if (userRole in roleBasedRedirects) {
+      return NextResponse.redirect(new URL(roleBasedRedirects[userRole], request.url))
+    }
+  }
 
   // Check if the path is public
-  if (publicPaths.includes(pathname)) {
+  if (publicPaths.includes(pathname) || isHomePage) {
     return NextResponse.next()
   }
 
