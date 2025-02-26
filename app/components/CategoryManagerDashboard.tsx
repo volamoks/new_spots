@@ -151,22 +151,22 @@ export function CategoryManagerDashboard() {
                 <TableBody>
                   {supplierData.zones.map((zone) => (
                     <TableRow
-                      key={zone["Уникальный идентификатор"]}
-                      className={selectedZones.includes(zone["Уникальный идентификатор"]) ? "bg-muted" : ""}
+                      key={zone.uniqueIdentifier}
+                      className={selectedZones.includes(zone.uniqueIdentifier) ? "bg-muted" : ""}
                     >
                       <TableCell>
                         <input
                           type="checkbox"
-                          checked={selectedZones.includes(zone["Уникальный идентификатор"])}
-                          onChange={() => toggleZoneSelection(zone["Уникальный идентификатор"])}
+                          checked={selectedZones.includes(zone.uniqueIdentifier)}
+                          onChange={() => toggleZoneSelection(zone.uniqueIdentifier)}
                         />
                       </TableCell>
-                      <TableCell>{zone["ID"]}</TableCell>
-                      <TableCell>{zone["Город"]}</TableCell>
-                      <TableCell>{zone["Маркет"]}</TableCell>
-                      <TableCell>{zone["Оборудование"]}</TableCell>
-                      <TableCell>{zone["Brand"]}</TableCell>
-                      <TableCell>{zone["Статус"]}</TableCell>
+                      <TableCell>{zone.id}</TableCell>
+                      <TableCell>{zone.city}</TableCell>
+                      <TableCell>{zone.market}</TableCell>
+                      <TableCell>{zone.equipment}</TableCell>
+                      <TableCell>{zone.brand}</TableCell>
+                      <TableCell>{zone.status}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -185,4 +185,3 @@ export function CategoryManagerDashboard() {
     </div>
   )
 }
-

@@ -30,9 +30,7 @@ const formSchema = z.object({
   inn: z.string().optional(),
 })
 
-interface RegisterFormProps extends React.HTMLAttributes<HTMLDivElement> {}
-
-export function RegisterForm({ className, ...props }: RegisterFormProps) {
+export function RegisterForm({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -62,14 +60,26 @@ export function RegisterForm({ className, ...props }: RegisterFormProps) {
         throw new Error("Registration failed")
       }
 
-      toast({
-        title: "Успешная регистрация",
-        description: "Теперь вы можете войти в систему",
-        variant: "success",
-      })
+      const data = await response.json();
 
+      if (data.user.role === "CATEGORY_MANAGER" && data.user.status === "PENDING") {
+        toast({
+          title: "Регистрация ожидает подтверждения",
+          description: "Ваша заявка на регистрацию в качестве категорийного менеджера ожидает подтверждения администратором.",
+          variant: "default", // Or any other variant you prefer
+        });
+      } else {
+        toast({
+          title: "Успешная регистрация",
+          description: "Теперь вы можете войти в систему",
+          variant: "success",
+        });
+      }
+      
       router.push("/login")
-    } catch (error) {
+
+    } catch (error: unknown) {
+      console.error(error);
       toast({
         title: "Ошибка регистрации",
         description: "Не удалось зарегистрироваться. Попробуйте позже.",
@@ -186,4 +196,3 @@ export function RegisterForm({ className, ...props }: RegisterFormProps) {
     </div>
   )
 }
-

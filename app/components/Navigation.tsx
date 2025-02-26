@@ -38,9 +38,9 @@ export default function Navigation() {
             <Link href="/zones">
               <Button variant="ghost">Зоны продажи</Button>
             </Link>
-            <Link href="/supplier">
+            {/* <Link href="/supplier">
               <Button variant="ghost">Создать бронирование</Button>
-            </Link>
+            </Link> */}
             <Link href="/supplier/bookings">
               <Button variant="ghost">Мои бронирования</Button>
             </Link>
