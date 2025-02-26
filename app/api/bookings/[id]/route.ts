@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { BookingStatus } from "@/types/booking";
+
+interface PrismaBooking {
+  status: BookingStatus;
+  id: string;
+  bookingRequestId: string;
+  zoneId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -32,7 +42,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
     }
 
-    const validBookingIds = bookingRequest.bookings.map((booking) => booking.id);
+    const validBookingIds = bookingRequest.bookings.map((booking: PrismaBooking) => booking.id);
 
     if (!validBookingIds.includes(bookingId)) {
       return NextResponse.json(
