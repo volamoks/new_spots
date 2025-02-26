@@ -4,8 +4,8 @@ import { BookingRequestWithBookings, BookingFromApi, RequestStatus } from "@/typ
  * Результат создания бронирования
  */
 interface BookingCreationResult {
-  bookingRequest: BookingRequestWithBookings;
-  bookings: BookingFromApi[];
+    bookingRequest: BookingRequestWithBookings;
+    bookings: BookingFromApi[];
 }
 
 // Получение всех бронирований
@@ -62,11 +62,11 @@ export async function createBooking(zoneIds: string[], startDate?: Date, endDate
 export async function getUserBookings(): Promise<BookingRequestWithBookings[]> {
     try {
         const response = await fetch('/api/bookings');
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const bookingRequests = await response.json();
         return bookingRequests;
     } catch (e) {

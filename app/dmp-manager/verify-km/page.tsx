@@ -35,6 +35,7 @@ export default function VerifyKMPage() {
       const data = await response.json()
       setPendingKMs(data)
     } catch (error) {
+      console.error("Failed to fetch pending KMs:", error)
       toast({
         title: "Ошибка загрузки",
         description: "Не удалось загрузить список ожидающих подтверждения КМ",
@@ -54,6 +55,7 @@ export default function VerifyKMPage() {
       })
       fetchPendingKMs() // Refresh the list
     } catch (error) {
+      console.error("Failed to approve KM:", error)
       toast({
         title: "Ошибка",
         description: "Не удалось подтвердить категорийного менеджера",
@@ -73,6 +75,7 @@ export default function VerifyKMPage() {
       })
       fetchPendingKMs() // Refresh the list
     } catch (error) {
+      console.error("Failed to reject KM:", error)
       toast({
         title: "Ошибка",
         description: "Не удалось отклонить категорийного менеджера",

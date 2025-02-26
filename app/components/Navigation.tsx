@@ -18,12 +18,6 @@ export default function Navigation() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // const handleRoleChange = async (role: string) => {
-  //   // Here you would typically make an API call to update the user's role
-  //   console.log(`Changing role to: ${role}`)
-  //   // After updating, you might want to refresh the session
-  //   // This is a placeholder and would need to be implemented
-  // }
 
   const handleLogout = async () => {
     await signOut({ redirect: false })

@@ -74,7 +74,7 @@ interface GlobalState {
   setFilters: (filters: Partial<GlobalState['filters']>) => void;
   toggleZoneSelectionForBooking: (zoneId: string) => void;
   handleBooking: () => void;
-    // Auth state
+  // Auth state
   user: User | null
   isAuthenticated: boolean
   login: (user: User) => void
@@ -82,15 +82,15 @@ interface GlobalState {
   switchRole: (role: UserRole) => void
 
   // Bookings
- bookingRequests: BookingRequestWithBookings[]
+  bookingRequests: BookingRequestWithBookings[]
   setBookingRequests: (
     bookingRequests: BookingRequestWithBookings[] | ((prev: BookingRequestWithBookings[]) => BookingRequestWithBookings[])
   ) => void
   userBookings: BookingRequestWithBookings[] // Устаревшее поле, оставлено для обратной совместимости
   setUserBookings: (bookings: BookingRequestWithBookings[] | ((prev: BookingRequestWithBookings[]) => BookingRequestWithBookings[])) => void
 
-    // Добавьте в интерфейс GlobalState:
-    step: number
+  // Добавьте в интерфейс GlobalState:
+  step: number
   setStep: (step: number) => void
 
   // Добавим для загрузки данных
@@ -107,7 +107,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   suppliers: [],
   supplierData: null,
 
- setSelectedSupplier: (supplier) => {
+  setSelectedSupplier: (supplier) => {
     set({ selectedSupplier: supplier });
     const filteredZones = get().zones.filter((zone) => zone.supplier === supplier);
     const brands = [...Array.from(new Set(filteredZones.map((zone) => zone.brand)))].filter(Boolean) as string[];
@@ -198,7 +198,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   // ],
   requests: [], // Закомментируем пока
   filteredRequests: [],
-    handleApprove: (requestId: number, zoneId: string) => {
+  handleApprove: (requestId: number, zoneId: string) => {
     set(
       produce((state: GlobalState) => {
         const request = state.requests.find((r) => r.id === requestId);
@@ -219,7 +219,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
         if (request) {
           const zone = request.zones.find((z) => z.id === zoneId);
           if (zone) {
-             zone.status = "REJECTED" as ZoneStatus
+            zone.status = "REJECTED" as ZoneStatus
           }
         }
         state.filteredRequests = state.requests;
@@ -341,23 +341,23 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   setStep: (step) => set({ step }),
 
   // Добавляем isZonesLoading и fetchZonesFromDB
- isZonesLoading: false,
-    fetchZonesFromDB: async () => {
-       set({ isZonesLoading: true });
-            try {
-                const { macrozone } = get().filters
-                const response = await fetch(`/api/zones?macrozone=${macrozone}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const zones = await response.json();
-                set({ zones, filteredZones: zones });
-            } catch (error) {
-                console.error("Error fetching zones from DB:", error);
-                // TODO: Handle error (e.g., show error message to user)
-            } finally {
-                set({ isZonesLoading: false });
-            }
-        },
-    }));
+  isZonesLoading: false,
+  fetchZonesFromDB: async () => {
+    set({ isZonesLoading: true });
+    try {
+      const { macrozone } = get().filters
+      const response = await fetch(`/api/zones?macrozone=${macrozone}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const zones = await response.json();
+      set({ zones, filteredZones: zones });
+    } catch (error) {
+      console.error("Error fetching zones from DB:", error);
+      // TODO: Handle error (e.g., show error message to user)
+    } finally {
+      set({ isZonesLoading: false });
+    }
+  },
+}));
 

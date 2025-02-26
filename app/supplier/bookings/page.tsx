@@ -3,7 +3,6 @@
 import { useEffect, useCallback } from "react";
 import { RequestsTable } from "../../components/RequestsTable";
 import { RequestFilters, type RequestFilterState } from "../../components/RequestFilters";
-import Navigation from "../../components/Navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
 import { useBookingStore, useBookingToasts } from "@/lib/stores/bookingStore";
