@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
+import React, { useState } from "react"
 import {
   Table,
   TableBody,
@@ -9,60 +9,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-// Удалены неиспользуемые импорты Select компонентов
 import { Input } from "@/components/ui/input"
 import { Zone, ZoneStatus } from "@prisma/client"
 import { useLoader } from "./GlobalLoader"
 import { useToast } from "@/components/ui/use-toast"
 
-interface ZonesManagementTableProps {
+interface SimpleZonesTableProps {
   zones: Zone[]
   onRefresh: () => void
 }
 
-export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableProps) {
+export function SimpleZonesTable({ zones, onRefresh }: SimpleZonesTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
   const { withLoading } = useLoader()
   const { toast } = useToast()
-  
-  // Используем ref для отслеживания, идет ли обновление в данный момент
-  const isUpdatingRef = useRef(false)
-  // Ref для хранения текущих статусов зон
-  const zoneStatusesRef = useRef<Record<string, ZoneStatus>>({})
-  
-  // Обновляем ref при монтировании компонента
-  useEffect(() => {
-    const updateZoneStatuses = () => {
-      const newStatuses: Record<string, ZoneStatus> = {}
-      zones.forEach(zone => {
-        newStatuses[zone.id] = zone.status
-      })
-      zoneStatusesRef.current = newStatuses
-    }
-    
-    // Инициализируем статусы при монтировании
-    updateZoneStatuses()
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Зависим только от монтирования компонента
-
-  // Локальное обновление зоны без перезагрузки всех данных
-  const updateZoneLocally = (zoneId: string, newStatus: ZoneStatus) => {
-    // Обновляем статус в ref
-    zoneStatusesRef.current[zoneId] = newStatus
-  }
 
   // Обработчик изменения статуса зоны
   const handleStatusChange = async (zoneId: string, newStatus: ZoneStatus) => {
-    // Проверяем, действительно ли статус изменился
-    if (zoneStatusesRef.current[zoneId] === newStatus) {
-      return // Статус не изменился, ничего не делаем
-    }
-    
-    // Устанавливаем флаг, что идет обновление
-    isUpdatingRef.current = true
-    
     try {
       await withLoading(
         fetch(`/api/zones/${zoneId}/status`, {
@@ -87,33 +50,25 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
         variant: "default",
       })
 
-      // Обновляем локально вместо полной перезагрузки
-      updateZoneLocally(zoneId, newStatus)
+      // Обновляем данные после изменения
+      onRefresh()
     } catch (error) {
       toast({
         title: "Ошибка",
         description: error instanceof Error ? error.message : "Произошла ошибка при обновлении статуса",
         variant: "destructive",
       })
-    } finally {
-      // Сбрасываем флаг обновления
-      setTimeout(() => {
-        isUpdatingRef.current = false
-      }, 100) // Небольшая задержка для завершения всех обновлений
     }
   }
 
-  // Фильтрация зон по поисковому запросу и статусу
+  // Фильтрация зон по поисковому запросу
   const filteredZones = zones.filter((zone) => {
-    const matchesSearch =
+    return (
       zone.uniqueIdentifier.toLowerCase().includes(searchTerm.toLowerCase()) ||
       zone.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
       zone.market.toLowerCase().includes(searchTerm.toLowerCase()) ||
       zone.mainMacrozone.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = statusFilter === "all" || zone.status === statusFilter
-
-    return matchesSearch && matchesStatus
+    )
   })
 
   // Преобразование статуса зоны для отображения
@@ -155,57 +110,9 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
           <button
             onClick={onRefresh}
             className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-            disabled={isUpdatingRef.current}
           >
             Обновить данные
           </button>
-        </div>
-        <div className="w-full sm:w-48">
-          <div className="border rounded-md p-2">
-            <div className="text-sm text-gray-500 mb-2">Фильтр по статусу:</div>
-            <div className="flex flex-col space-y-1">
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`text-xs px-2 py-1 rounded ${
-                  statusFilter === "all"
-                    ? "bg-gray-200 text-gray-800 font-bold"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                Все статусы
-              </button>
-              <button
-                onClick={() => setStatusFilter("AVAILABLE")}
-                className={`text-xs px-2 py-1 rounded ${
-                  statusFilter === "AVAILABLE"
-                    ? "bg-green-200 text-green-800 font-bold"
-                    : "bg-green-100 text-green-600 hover:bg-green-200"
-                }`}
-              >
-                Доступна
-              </button>
-              <button
-                onClick={() => setStatusFilter("BOOKED")}
-                className={`text-xs px-2 py-1 rounded ${
-                  statusFilter === "BOOKED"
-                    ? "bg-blue-200 text-blue-800 font-bold"
-                    : "bg-blue-100 text-blue-600 hover:bg-blue-200"
-                }`}
-              >
-                Забронирована
-              </button>
-              <button
-                onClick={() => setStatusFilter("UNAVAILABLE")}
-                className={`text-xs px-2 py-1 rounded ${
-                  statusFilter === "UNAVAILABLE"
-                    ? "bg-red-200 text-red-800 font-bold"
-                    : "bg-red-100 text-red-600 hover:bg-red-200"
-                }`}
-              >
-                Недоступна
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -242,10 +149,10 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                     <div className="flex flex-col space-y-1">
                       <button
                         onClick={() => handleStatusChange(zone.id, "AVAILABLE")}
-                        disabled={zone.status === "AVAILABLE" || isUpdatingRef.current}
+                        disabled={zone.status === "AVAILABLE"}
                         className={`text-xs px-2 py-1 rounded ${
-                          zone.status === "AVAILABLE"
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          zone.status === "AVAILABLE" 
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
                             : "bg-green-100 text-green-800 hover:bg-green-200"
                         }`}
                       >
@@ -253,10 +160,10 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                       </button>
                       <button
                         onClick={() => handleStatusChange(zone.id, "BOOKED")}
-                        disabled={zone.status === "BOOKED" || isUpdatingRef.current}
+                        disabled={zone.status === "BOOKED"}
                         className={`text-xs px-2 py-1 rounded ${
-                          zone.status === "BOOKED"
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          zone.status === "BOOKED" 
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
                             : "bg-blue-100 text-blue-800 hover:bg-blue-200"
                         }`}
                       >
@@ -264,10 +171,10 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                       </button>
                       <button
                         onClick={() => handleStatusChange(zone.id, "UNAVAILABLE")}
-                        disabled={zone.status === "UNAVAILABLE" || isUpdatingRef.current}
+                        disabled={zone.status === "UNAVAILABLE"}
                         className={`text-xs px-2 py-1 rounded ${
-                          zone.status === "UNAVAILABLE"
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          zone.status === "UNAVAILABLE" 
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
                             : "bg-red-100 text-red-800 hover:bg-red-200"
                         }`}
                       >

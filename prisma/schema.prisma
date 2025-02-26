@@ -63,14 +63,23 @@ model VerificationToken {
 model Zone {
   id                String     @id @default(cuid())
   uniqueIdentifier  String     @unique
+  region            String?    // Область
   city              String
   number            String
   market            String
   newFormat         String
+  equipmentFormat   String?    // Формат оборудования
   equipment         String
+  price             Float?     // Цена
+  externalId        String?    // ID
   dimensions        String
   mainMacrozone     String
   adjacentMacrozone String
+  sector            String?    // Сектор
+  km                String?    // КМ
+  dmpNeighborhood   String?    // Товарное соседство ДМП
+  purpose           String?    // Назначение
+  subpurpose        String?    // Подназначение
   status            ZoneStatus
   supplier          String?
   brand             String?

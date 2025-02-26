@@ -5,19 +5,29 @@ import { ZoneStatus } from "@prisma/client"
 
 interface ZoneData {
   "Уникальный идентификатор"?: string;
+  "Область"?: string;
   "Город"?: string;
   "№"?: string;
   "Маркет"?: string;
   "Формат маркета"?: string;
+  "Формат оборудования"?: string;
   "Оборудование"?: string;
+  "Цена"?: string | number;
+  "ID"?: string;
   "Габариты"?: string;
+  "Сектор"?: string;
+  "КМ"?: string;
   "Основная Макрозона"?: string;
   "Смежная макрозона"?: string;
-  "Статус"?: string;
+  "Товарное соседство ДМП"?: string;
+  "Назначение"?: string;
+  "Подназначение"?: string;
+  "Категория"?: string;
   "Поставщик"?: string | null;
   "Brand"?: string | null;
   "Категория товара"?: string | null;
-  [key: string]: string | null | undefined; // For other columns
+  "Статус"?: string;
+  [key: string]: string | number | null | undefined; // For other columns
 }
 
 export async function POST(req: NextRequest) {
@@ -135,40 +145,79 @@ export async function POST(req: NextRequest) {
 }
 
 async function createOrUpdateZone(zoneData: ZoneData) {
-  const status = getZoneStatus(zoneData["Статус"]);
+  const status = getZoneStatus(zoneData["Статус"] || "");
+  
+  // Преобразуем цену в число или undefined (не null)
+  let price: number | undefined = undefined;
+  if (zoneData["Цена"] !== undefined && zoneData["Цена"] !== null) {
+    // Если цена уже число, используем его, иначе преобразуем строку в число
+    price = typeof zoneData["Цена"] === 'number'
+      ? zoneData["Цена"]
+      : parseFloat(zoneData["Цена"].toString());
+    
+    // Проверяем, что получилось валидное число
+    if (isNaN(price)) {
+      price = undefined;
+    }
+  }
 
-  return await prisma.zone.upsert({
-    where: { uniqueIdentifier: zoneData["Уникальный идентификатор"]! },
-    update: {
-      city: zoneData["Город"] || "",
-      number: zoneData["№"] || "",
-      market: zoneData["Маркет"] || "",
-      newFormat: zoneData["Формат маркета"] || "",
-      equipment: zoneData["Оборудование"] || "",
-      dimensions: zoneData["Габариты"] || "",
-      mainMacrozone: zoneData["Основная Макрозона"] || "",
-      adjacentMacrozone: zoneData["Смежная макрозона"] || "",
-      status: status,
-      supplier: zoneData["Поставщик"] || null,
-      brand: zoneData["Brand"] || null,
-      category: zoneData["Категория товара"] || null,
-    },
-    create: {
-      uniqueIdentifier: zoneData["Уникальный идентификатор"]!,
-      city: zoneData["Город"] || "",
-      number: zoneData["№"] || "",
-      market: zoneData["Маркет"] || "",
-      newFormat: zoneData["Формат маркета"] || "",
-      equipment: zoneData["Оборудование"] || "",
-      dimensions: zoneData["Габариты"] || "",
-      mainMacrozone: zoneData["Основная Макрозона"] || "",
-      adjacentMacrozone: zoneData["Смежная макрозона"] || "",
-      status: status,
-      supplier: zoneData["Поставщик"] || null,
-      brand: zoneData["Brand"] || null,
-      category: zoneData["Категория товара"] || null,
-    },
+  // Убедимся, что все обязательные поля имеют значения
+  const uniqueIdentifier = zoneData["Уникальный идентификатор"] || "";
+  if (!uniqueIdentifier) {
+    throw new Error("Уникальный идентификатор обязателен");
+  }
+  
+  // Логируем типы данных для отладки
+  console.log("Типы данных полей:", {
+    price: typeof price,
+    km: typeof zoneData["КМ"],
+    цена: typeof zoneData["Цена"]
   });
+
+  // Создаем объект с данными для сохранения
+  const zoneDataToSave = {
+    city: zoneData["Город"] || "",
+    number: zoneData["№"] || "",
+    market: zoneData["Маркет"] || "",
+    newFormat: zoneData["Формат маркета"] || "",
+    equipment: zoneData["Оборудование"] || "",
+    dimensions: zoneData["Габариты"] || "",
+    mainMacrozone: zoneData["Основная Макрозона"] || "",
+    adjacentMacrozone: zoneData["Смежная макрозона"] || "",
+    status: status,
+    supplier: zoneData["Поставщик"] || null,
+    brand: zoneData["Brand"] || null,
+    category: zoneData["Категория товара"] || null,
+    // Новые поля
+    region: zoneData["Область"] || null,
+    equipmentFormat: zoneData["Формат оборудования"] || null,
+    price: price,
+    externalId: zoneData["ID"] || null,
+    sector: zoneData["Сектор"] || null,
+    // Преобразуем КМ в строку, так как в схеме Prisma это поле определено как String?
+    km: zoneData["КМ"] !== undefined && zoneData["КМ"] !== null
+      ? String(zoneData["КМ"])
+      : null,
+    dmpNeighborhood: zoneData["Товарное соседство ДМП"] || null,
+    purpose: zoneData["Назначение"] || null,
+    subpurpose: zoneData["Подназначение"] || null,
+  };
+
+  try {
+    // Теперь типы Prisma соответствуют нашей схеме
+    return await prisma.zone.upsert({
+      where: { uniqueIdentifier },
+      update: zoneDataToSave,
+      create: {
+        uniqueIdentifier,
+        ...zoneDataToSave
+      },
+    });
+  } catch (error) {
+    console.error("Ошибка при сохранении зоны:", error);
+    console.error("Данные зоны:", { uniqueIdentifier, ...zoneDataToSave });
+    throw error;
+  }
 }
 
 function getZoneStatus(status: string): ZoneStatus {
