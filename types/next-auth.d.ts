@@ -9,6 +9,7 @@ declare module "next-auth" {
       role: Role;
       status: UserStatus;
       category: string | null;
+      inn: string | null;
     } & DefaultSession["user"];
   }
 
@@ -16,6 +17,7 @@ declare module "next-auth" {
     role: Role;
     status: UserStatus;
     category: string | null;
+    inn: string | null;
   }
 }
 
@@ -24,5 +26,6 @@ declare module "next-auth/jwt" {
         role: Role;
         status: UserStatus;
         category: string | null;
+        inn: string | null;
     }
 }
