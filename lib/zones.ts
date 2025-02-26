@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { ZoneStatus } from "@prisma/client";
+import { ZoneStatus } from "@/types/zone";
 
 /**
  * Получает зоны по различным параметрам фильтрации

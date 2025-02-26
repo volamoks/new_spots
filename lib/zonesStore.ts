@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { Zone, ZoneStatus } from '@prisma/client';
+import { Zone } from '@prisma/client';
+import { ZoneStatus } from '@/types/zone';
 
 interface ZonesState {
     // Данные

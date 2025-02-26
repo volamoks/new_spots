@@ -10,7 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Zone, ZoneStatus } from "@prisma/client"
+import { Zone } from "@prisma/client"
+import { ZoneStatus } from "@/types/zone"
 import { useLoader } from "./GlobalLoader"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -139,42 +140,48 @@ export function SimpleZonesTable({ zones, onRefresh }: SimpleZonesTableProps) {
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusClass(
-                        zone.status
+                        zone.status === "AVAILABLE" ? ZoneStatus.AVAILABLE :
+                        zone.status === "BOOKED" ? ZoneStatus.BOOKED :
+                        ZoneStatus.UNAVAILABLE
                       )}`}
                     >
-                      {getStatusDisplay(zone.status)}
+                      {getStatusDisplay(
+                        zone.status === "AVAILABLE" ? ZoneStatus.AVAILABLE :
+                        zone.status === "BOOKED" ? ZoneStatus.BOOKED :
+                        ZoneStatus.UNAVAILABLE
+                      )}
                     </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col space-y-1">
                       <button
-                        onClick={() => handleStatusChange(zone.id, "AVAILABLE")}
-                        disabled={zone.status === "AVAILABLE"}
+                        onClick={() => handleStatusChange(zone.id, ZoneStatus.AVAILABLE)}
+                        disabled={zone.status === ZoneStatus.AVAILABLE}
                         className={`text-xs px-2 py-1 rounded ${
-                          zone.status === "AVAILABLE" 
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                          zone.status === ZoneStatus.AVAILABLE
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                             : "bg-green-100 text-green-800 hover:bg-green-200"
                         }`}
                       >
                         Доступна
                       </button>
                       <button
-                        onClick={() => handleStatusChange(zone.id, "BOOKED")}
-                        disabled={zone.status === "BOOKED"}
+                        onClick={() => handleStatusChange(zone.id, ZoneStatus.BOOKED)}
+                        disabled={zone.status === ZoneStatus.BOOKED}
                         className={`text-xs px-2 py-1 rounded ${
-                          zone.status === "BOOKED" 
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                          zone.status === ZoneStatus.BOOKED
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                             : "bg-blue-100 text-blue-800 hover:bg-blue-200"
                         }`}
                       >
                         Забронирована
                       </button>
                       <button
-                        onClick={() => handleStatusChange(zone.id, "UNAVAILABLE")}
-                        disabled={zone.status === "UNAVAILABLE"}
+                        onClick={() => handleStatusChange(zone.id, ZoneStatus.UNAVAILABLE)}
+                        disabled={zone.status === ZoneStatus.UNAVAILABLE}
                         className={`text-xs px-2 py-1 rounded ${
-                          zone.status === "UNAVAILABLE" 
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                          zone.status === ZoneStatus.UNAVAILABLE
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                             : "bg-red-100 text-red-800 hover:bg-red-200"
                         }`}
                       >

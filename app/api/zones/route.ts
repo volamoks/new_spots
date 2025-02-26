@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { fetchZones } from "@/lib/zones";
 import { authOptions } from "@/lib/auth";
-import { ZoneStatus } from "@prisma/client";
+import { ZoneStatus } from "@/types/zone";
 
 export async function GET(request: Request) {
   try {

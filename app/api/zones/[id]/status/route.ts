@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 
 import { prisma } from "@/lib/prisma"
-import { ZoneStatus } from "@prisma/client"
+import { ZoneStatus } from "@/types/zone"
 import { authOptions } from "@/lib/auth"
 
 // Обработчик PATCH-запроса для изменения статуса зоны

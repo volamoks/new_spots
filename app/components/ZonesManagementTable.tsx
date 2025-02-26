@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/table"
 // Удалены неиспользуемые импорты Select компонентов
 import { Input } from "@/components/ui/input"
-import { Zone, ZoneStatus } from "@prisma/client"
+import { Zone } from "@prisma/client"
+import { ZoneStatus } from "@/types/zone"
 import { useLoader } from "./GlobalLoader"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -36,7 +37,20 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
     const updateZoneStatuses = () => {
       const newStatuses: Record<string, ZoneStatus> = {}
       zones.forEach(zone => {
-        newStatuses[zone.id] = zone.status
+        // Преобразуем статус из Prisma в наш тип ZoneStatus
+        switch (zone.status) {
+          case "AVAILABLE":
+            newStatuses[zone.id] = ZoneStatus.AVAILABLE;
+            break;
+          case "BOOKED":
+            newStatuses[zone.id] = ZoneStatus.BOOKED;
+            break;
+          case "UNAVAILABLE":
+            newStatuses[zone.id] = ZoneStatus.UNAVAILABLE;
+            break;
+          default:
+            newStatuses[zone.id] = ZoneStatus.UNAVAILABLE;
+        }
       })
       zoneStatusesRef.current = newStatuses
     }
@@ -119,9 +133,9 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
   // Преобразование статуса зоны для отображения
   const getStatusDisplay = (status: ZoneStatus) => {
     const statusMap: Record<ZoneStatus, string> = {
-      AVAILABLE: "Доступна",
-      BOOKED: "Забронирована",
-      UNAVAILABLE: "Недоступна",
+      [ZoneStatus.AVAILABLE]: "Доступна",
+      [ZoneStatus.BOOKED]: "Забронирована",
+      [ZoneStatus.UNAVAILABLE]: "Недоступна",
     }
     return statusMap[status] || status
   }
@@ -129,11 +143,11 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
   // Получение класса статуса для стилизации
   const getStatusClass = (status: ZoneStatus) => {
     switch (status) {
-      case "AVAILABLE":
+      case ZoneStatus.AVAILABLE:
         return "bg-green-100 text-green-800 border-green-300"
-      case "BOOKED":
+      case ZoneStatus.BOOKED:
         return "bg-blue-100 text-blue-800 border-blue-300"
-      case "UNAVAILABLE":
+      case ZoneStatus.UNAVAILABLE:
         return "bg-red-100 text-red-800 border-red-300"
       default:
         return "bg-gray-100 text-gray-800 border-gray-300"
@@ -175,9 +189,9 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                 Все статусы
               </button>
               <button
-                onClick={() => setStatusFilter("AVAILABLE")}
+                onClick={() => setStatusFilter(ZoneStatus.AVAILABLE)}
                 className={`text-xs px-2 py-1 rounded ${
-                  statusFilter === "AVAILABLE"
+                  statusFilter === ZoneStatus.AVAILABLE
                     ? "bg-green-200 text-green-800 font-bold"
                     : "bg-green-100 text-green-600 hover:bg-green-200"
                 }`}
@@ -185,9 +199,9 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                 Доступна
               </button>
               <button
-                onClick={() => setStatusFilter("BOOKED")}
+                onClick={() => setStatusFilter(ZoneStatus.BOOKED)}
                 className={`text-xs px-2 py-1 rounded ${
-                  statusFilter === "BOOKED"
+                  statusFilter === ZoneStatus.BOOKED
                     ? "bg-blue-200 text-blue-800 font-bold"
                     : "bg-blue-100 text-blue-600 hover:bg-blue-200"
                 }`}
@@ -195,9 +209,9 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                 Забронирована
               </button>
               <button
-                onClick={() => setStatusFilter("UNAVAILABLE")}
+                onClick={() => setStatusFilter(ZoneStatus.UNAVAILABLE)}
                 className={`text-xs px-2 py-1 rounded ${
-                  statusFilter === "UNAVAILABLE"
+                  statusFilter === ZoneStatus.UNAVAILABLE
                     ? "bg-red-200 text-red-800 font-bold"
                     : "bg-red-100 text-red-600 hover:bg-red-200"
                 }`}
@@ -232,16 +246,22 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusClass(
-                        zone.status
+                        zone.status === "AVAILABLE" ? ZoneStatus.AVAILABLE :
+                        zone.status === "BOOKED" ? ZoneStatus.BOOKED :
+                        ZoneStatus.UNAVAILABLE
                       )}`}
                     >
-                      {getStatusDisplay(zone.status)}
+                      {getStatusDisplay(
+                        zone.status === "AVAILABLE" ? ZoneStatus.AVAILABLE :
+                        zone.status === "BOOKED" ? ZoneStatus.BOOKED :
+                        ZoneStatus.UNAVAILABLE
+                      )}
                     </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col space-y-1">
                       <button
-                        onClick={() => handleStatusChange(zone.id, "AVAILABLE")}
+                        onClick={() => handleStatusChange(zone.id, ZoneStatus.AVAILABLE)}
                         disabled={zone.status === "AVAILABLE" || isUpdatingRef.current}
                         className={`text-xs px-2 py-1 rounded ${
                           zone.status === "AVAILABLE"
@@ -252,7 +272,7 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                         Доступна
                       </button>
                       <button
-                        onClick={() => handleStatusChange(zone.id, "BOOKED")}
+                        onClick={() => handleStatusChange(zone.id, ZoneStatus.BOOKED)}
                         disabled={zone.status === "BOOKED" || isUpdatingRef.current}
                         className={`text-xs px-2 py-1 rounded ${
                           zone.status === "BOOKED"
@@ -263,7 +283,7 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                         Забронирована
                       </button>
                       <button
-                        onClick={() => handleStatusChange(zone.id, "UNAVAILABLE")}
+                        onClick={() => handleStatusChange(zone.id, ZoneStatus.UNAVAILABLE)}
                         disabled={zone.status === "UNAVAILABLE" || isUpdatingRef.current}
                         className={`text-xs px-2 py-1 rounded ${
                           zone.status === "UNAVAILABLE"
