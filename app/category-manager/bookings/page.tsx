@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Zone } from "@prisma/client";
+import { Zone } from "@/types/zone";
 import { Button } from "@/components/ui/button";
 import {
   Card,

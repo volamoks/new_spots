@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { RequestFilterState } from "@/app/components/RequestFilters";
 import { produce } from "immer";
 import { BookingRequestWithBookings } from "@/types/booking";
-import { Zone } from "@prisma/client";
+import { Zone } from "@/types/zone";
 import { ZoneStatus } from "@/types/zone";
 
 // Определение типа пользовательской роли

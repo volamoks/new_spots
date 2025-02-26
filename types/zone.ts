@@ -4,6 +4,34 @@ export enum ZoneStatus {
   UNAVAILABLE = "UNAVAILABLE"
 }
 
+export interface Zone {
+  id: string;
+  uniqueIdentifier: string;
+  region?: string;
+  city: string;
+  number: string;
+  market: string;
+  newFormat: string;
+  equipmentFormat?: string;
+  equipment: string;
+  price?: number;
+  externalId?: string;
+  dimensions: string;
+  mainMacrozone: string;
+  adjacentMacrozone: string;
+  sector?: string;
+  km?: string;
+  dmpNeighborhood?: string;
+  purpose?: string;
+  subpurpose?: string;
+  status: ZoneStatus;
+  supplier?: string;
+  brand?: string;
+  category?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ZoneData {
   Область: string
   Город: string
