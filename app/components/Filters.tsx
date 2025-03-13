@@ -8,16 +8,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import AdditionalFilters from './AdditionalFilters';
-import { getCategories, getAdjacentMacrozones } from '@/lib/filterData';
+import { getCategories, getCorrespondingMacrozones } from '@/lib/filterData';
 import { useGlobalStore } from '@/lib/store';
 
 export default function Filters() {
     const { filters, setFilters, step, setStep, fetchZonesFromDB } = useGlobalStore();
 
     const categories = useMemo(() => getCategories(), []);
-    const adjacentMacrozones = useMemo(() => {
-        return filters.category ? getAdjacentMacrozones(filters.category) : [];
+    const correspondingMacrozones = useMemo(() => {
+        return filters.category ? getCorrespondingMacrozones(filters.category) : [];
     }, [filters.category]);
 
     useEffect(() => {
@@ -26,10 +27,12 @@ export default function Filters() {
         }
     }, [filters.macrozone, step, fetchZonesFromDB]);
 
-    const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    const handleFilterChange = <T extends keyof typeof filters>(key: T, value: typeof filters[T]) => {
         const newFilters = { ...filters, [key]: value };
         if (key === 'category') {
-            newFilters.macrozone = '';
+            const macrozonesForCategory = getCorrespondingMacrozones(value as string); // Получаем макрозоны для категории
+            fetchZonesFromDB(macrozonesForCategory); // Загружаем зоны по макрозонам
+            newFilters.macrozone = []; // Очищаем фильтр макрозон
             setStep(2);
         }
         setFilters(newFilters);
@@ -67,24 +70,25 @@ export default function Filters() {
                 {step >= 2 && (
                     <div className="mb-6">
                         <h3 className="text-lg font-semibold mb-2">Шаг 2: Выберите макрозону</h3>
-                        <Select
-                            onValueChange={value => handleFilterChange('macrozone', value)}
-                            value={filters.macrozone}
-                        >
-                            <SelectTrigger className="w-[250px]">
-                                <SelectValue placeholder="Выберите макрозону" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {adjacentMacrozones.map(macrozone => (
-                                    <SelectItem
-                                        key={macrozone}
-                                        value={macrozone}
-                                    >
-                                        {macrozone}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex flex-wrap gap-2">
+                            {correspondingMacrozones.map(macrozone => (
+                                <Button
+                                    key={macrozone}
+                                    variant={filters.macrozone.includes(macrozone) ? "default" : "outline"}
+                                    onClick={() => {
+                                        let newMacrozones = [...filters.macrozone];
+                                        if (newMacrozones.includes(macrozone)) {
+                                            newMacrozones = newMacrozones.filter(mz => mz !== macrozone);
+                                        } else {
+                                            newMacrozones.push(macrozone);
+                                        }
+                                        handleFilterChange('macrozone', newMacrozones);
+                                    }}
+                                >
+                                    {macrozone}
+                                </Button>
+                            ))}
+                        </div>
                     </div>
                 )}
 

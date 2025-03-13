@@ -3,10 +3,10 @@
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 
 export type RequestFilterState = {
-  status: string
+  status: string[]
   supplierName: string
   dateFrom: string
   dateTo: string
@@ -18,13 +18,23 @@ type RequestFiltersProps = {
 
 export function RequestFilters({ onFilterChange }: RequestFiltersProps) {
   const [filters, setFilters] = useState<RequestFilterState>({
-    status: "",
+    status: [],
     supplierName: "",
     dateFrom: "",
     dateTo: "",
   })
 
-  const handleFilterChange = (key: keyof RequestFilterState, value: string) => {
+  const handleStatusChange = (value: string) => {
+    let newStatus = [...filters.status];
+    if (newStatus.includes(value)) {
+      newStatus = newStatus.filter(s => s !== value);
+    } else {
+      newStatus.push(value);
+    }
+    handleFilterChange("status", newStatus);
+  }
+
+  const handleFilterChange = <T extends keyof RequestFilterState>(key: T, value: RequestFilterState[T]) => {
     const newFilters = { ...filters, [key]: value }
     setFilters(newFilters)
     onFilterChange(newFilters)
@@ -35,16 +45,17 @@ export function RequestFilters({ onFilterChange }: RequestFiltersProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-2">
           <Label htmlFor="status">Статус</Label>
-          <Select onValueChange={(value) => handleFilterChange("status", value)}>
-            <SelectTrigger id="status">
-              <SelectValue placeholder="Выберите статус" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все</SelectItem>
-              <SelectItem value="NEW">Новая</SelectItem>
-              <SelectItem value="CLOSED">Закрыта</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => handleStatusChange("all")}>
+              Все
+            </Button>
+            <Button variant="outline" onClick={() => handleStatusChange("NEW")}>
+              Новая
+            </Button>
+            <Button variant="outline" onClick={() => handleStatusChange("CLOSED")}>
+              Закрыта
+            </Button>
+          </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="supplierName">Поставщик</Label>

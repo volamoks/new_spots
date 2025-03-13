@@ -8,27 +8,28 @@ import { ZoneStatus } from "@/types/zone";
  * @param status Статус зоны (опционально)
  * @returns Список зон, соответствующих фильтрам
  */
-export const fetchZones = async (macrozone?: string, category?: string, status?: ZoneStatus) => {
+export const fetchZones = async (macrozone?: string | string[], category?: string, status?: ZoneStatus) => {
   try {
     // Строим условие where на основе предоставленных параметров
     const whereClause: {
-      mainMacrozone?: string;
+      OR?: { mainMacrozone: string }[];
       category?: string;
       status?: ZoneStatus;
     } = {};
-    
+
     if (macrozone) {
-      whereClause.mainMacrozone = macrozone;
+      const macrozoneArray = Array.isArray(macrozone) ? macrozone : [macrozone];
+      whereClause.OR = macrozoneArray.map(mz => ({ mainMacrozone: mz }));
     }
-    
+
     if (category) {
       whereClause.category = category;
     }
-    
+
     if (status) {
       whereClause.status = status;
     }
-    
+
     const zones = await prisma.zone.findMany({
       where: whereClause,
       orderBy: [
@@ -36,7 +37,7 @@ export const fetchZones = async (macrozone?: string, category?: string, status?:
         { market: 'asc' }
       ],
     });
-    
+
     return zones;
   } catch (error) {
     console.error("Error fetching zones:", error);

@@ -54,7 +54,7 @@ interface GlobalState {
   filteredZones: Zone[]
   filters: {
     category: string
-    macrozone: string
+    macrozone: string[]
     cities: string[]
     storeCategories: string[]
     equipment: string[]
@@ -162,24 +162,26 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   },
   handleFilterChange: (filters) => {
     set((state) => {
-      let filtered = state.requests
+      let filtered = state.requests;
 
-      if (filters.status) {
-        filtered = filtered.filter((request) => request.zones.some((zone) => zone.status === filters.status))
+      if (filters.status && filters.status.length > 0) {
+        filtered = filtered.filter((request) =>
+          request.zones.some((zone) => filters.status.includes(zone.status as string))
+        );
       }
 
       if (filters.supplierName) {
         filtered = filtered.filter((request) =>
-          request.supplierName.toLowerCase().includes(filters.supplierName.toLowerCase()),
-        )
+          request.supplierName.toLowerCase().includes(filters.supplierName.toLowerCase())
+        );
       }
 
       if (filters.dateFrom) {
-        filtered = filtered.filter((request) => new Date(request.dateCreated) >= new Date(filters.dateFrom))
+        filtered = filtered.filter((request) => new Date(request.dateCreated) >= new Date(filters.dateFrom));
       }
 
       if (filters.dateTo) {
-        filtered = filtered.filter((request) => new Date(request.dateCreated) <= new Date(filters.dateTo))
+        filtered = filtered.filter((request) => new Date(request.dateCreated) <= new Date(filters.dateTo));
       }
 
       return { filteredRequests: filtered }
@@ -191,7 +193,7 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
   filteredZones: [],
   filters: {
     category: "",
-    macrozone: "",
+    macrozone: [],
     cities: [],
     storeCategories: [],
     equipment: [],
@@ -200,16 +202,22 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
     set(
       produce((state: GlobalState) => {
         state.filters = { ...state.filters, ...newFilters }
-        state.filteredZones = state.zones.filter((zone) => {
-          if (state.filters.category && zone.mainMacrozone !== state.filters.category) {
-            return false
-          }
-          if (state.filters.macrozone) {
-            const adjacentMacrozones = zone.adjacentMacrozone.split("/")
-            if (!adjacentMacrozones.includes(state.filters.macrozone)) {
-              return false
-            }
-          }
+        let filteredZones = state.zones;
+
+        // Step 1: Category filter
+        if (state.filters.category) {
+          filteredZones = filteredZones.filter(zone => zone.category === state.filters.category);
+        }
+
+        // Step 2: Macrozone filter (applied after category filter)
+        if (state.filters.macrozone && state.filters.macrozone.length > 0) {
+          filteredZones = filteredZones.filter(zone => {
+            const adjacentMacrozones = zone.adjacentMacrozone.split("/");
+            return state.filters.macrozone.some(filterMacrozone => adjacentMacrozones.includes(filterMacrozone));
+          });
+        }
+
+        state.filteredZones = filteredZones.filter(zone => {
           if (state.filters.cities.length > 0 && !state.filters.cities.includes(zone.city)) {
             return false
           }
@@ -280,7 +288,8 @@ export const useGlobalStore = create<GlobalState>((set, get) => ({
     set({ isZonesLoading: true });
     try {
       const { macrozone } = get().filters
-      const response = await fetch(`/api/zones?macrozone=${macrozone}`);
+      const macrozoneParams = macrozone.map(mz => `macrozone=${mz}`).join('&');
+      const response = await fetch(`/api/zones?${macrozoneParams}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

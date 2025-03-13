@@ -7,7 +7,7 @@ import { ZoneStatus } from "@/types/zone";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const macrozone = searchParams.get("macrozone");
+    const macrozone = searchParams.getAll("macrozone");
     const category = searchParams.get("category");
     const status = searchParams.get("status") as ZoneStatus | null;
 
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         : category;
 
     // Получаем зоны с учетом фильтров
-    const zones = await fetchZones(macrozone || undefined, categoryToUse || undefined, status || undefined);
+    const zones = await fetchZones(macrozone, categoryToUse || undefined, status || undefined);
 
     return NextResponse.json(zones);
   } catch (error) {

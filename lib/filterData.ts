@@ -1,7 +1,7 @@
 export const categoryData = [
   {
     category: "Консервация",
-    adjacentMacrozones: [
+    correspondingMacrozones: [
       "Бакалея (мука, крупы, макароны)",
       "Бакалея (специи, масло, соусы)",
       "Замороженные полуфабрикаты",
@@ -11,19 +11,19 @@ export const categoryData = [
   },
   {
     category: "СОФ",
-    adjacentMacrozones: ["Напитки", "Снеки", "Бакалея (специи, масло, соусы)"],
+    correspondingMacrozones: ["Напитки", "Снеки", "Бакалея (специи, масло, соусы)"],
   },
   {
     category: "Замороженные полуфабрикаты",
-    adjacentMacrozones: ["Бакалея (специи, масло, соусы)", "Консервация", "Снеки", "Напитки", "Кулинария (Food to go)"],
+    correspondingMacrozones: ["Бакалея (специи, масло, соусы)", "Консервация", "Снеки", "Напитки", "Кулинария (Food to go)"],
   },
   {
     category: "Сыры",
-    adjacentMacrozones: ["Кулинария (Food to go)", "Бакалея (специи, масло, соусы)"],
+    correspondingMacrozones: ["Кулинария (Food to go)", "Бакалея (специи, масло, соусы)"],
   },
   {
     category: "Хлебопродукты",
-    adjacentMacrozones: [
+    correspondingMacrozones: [
       "Кулинария (Food to go)",
       "Мясная гастрономия",
       "Консервация",
@@ -40,11 +40,11 @@ export const categoryData = [
   },
   {
     category: "Рыбная продукция",
-    adjacentMacrozones: ["Напитки", "Бакалея (специи, масло, соусы)"],
+    correspondingMacrozones: ["Напитки", "Бакалея (специи, масло, соусы)"],
   },
   {
     category: "Напитки",
-    adjacentMacrozones: [
+    correspondingMacrozones: [
       "Снеки",
       "Кулинария (Food to go)",
       "Мясная гастрономия",
@@ -63,7 +63,7 @@ export const categoryData = [
   },
   {
     category: "Кулинария (Food to go)",
-    adjacentMacrozones: [
+    correspondingMacrozones: [
       "Напитки",
       "Снеки",
       "Кондитерские изделия",
@@ -76,11 +76,11 @@ export const categoryData = [
   },
   {
     category: "Мясо и яйца",
-    adjacentMacrozones: ["Напитки", "Бакалея (специи, масло, соусы)"],
+    correspondingMacrozones: ["Напитки", "Бакалея (специи, масло, соусы)"],
   },
   {
     category: "Бакалея",
-    adjacentMacrozones: [
+    correspondingMacrozones: [
       "Консервация",
       "Бакалея (мука, крупы, макароны)",
       "Бакалея (специи, масло, соусы)",
@@ -91,7 +91,7 @@ export const categoryData = [
   },
   {
     category: "Шоколадно-конфетные изделия",
-    adjacentMacrozones: [
+    correspondingMacrozones: [
       "Напитки",
       "Чай, Кофе",
       "Бакалея (сахар, джем, мед, сгущенка, сухой завтрак)",
@@ -104,8 +104,7 @@ export const categoryData = [
 
 export const getCategories = () => categoryData.map((item) => item.category)
 
-export const getAdjacentMacrozones = (category: string) => {
+export const getCorrespondingMacrozones = (category: string) => {
   const categoryItem = categoryData.find((item) => item.category === category)
-  return categoryItem ? categoryItem.adjacentMacrozones : []
+  return categoryItem ? categoryItem.correspondingMacrozones : []
 }
-

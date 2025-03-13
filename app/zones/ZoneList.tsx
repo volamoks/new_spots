@@ -89,7 +89,7 @@ export default function ZoneList() {
                             >
                                 <CardHeader className="bg-secondary border-b">
                                     <CardTitle className="flex justify-between items-center text-lg">
-                                        <span>Зона №{zone.id}</span>
+                                        <span>Зона {zone.externalId}</span>
                                         <Badge
                                             variant={
                                                 zone.status === 'AVAILABLE'
@@ -124,7 +124,7 @@ export default function ZoneList() {
                                 <CardFooter className="bg-secondary border-t">
                                     <div className="w-full text-sm text-muted-foreground">
                                         <p>Основная макрозона: {zone.mainMacrozone}</p>
-                                        <p>Смежные макрозоны: {zone.adjacentMacrozone}</p>
+                                        {/* <p>Смежные макрозоны: {zone.adjacentMacrozone}</p> */}
                                     </div>
                                 </CardFooter>
                             </Card>

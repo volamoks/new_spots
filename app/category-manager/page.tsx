@@ -57,20 +57,12 @@ export default function CategoryManagerPage() {
   }, [rejectBooking, error, showSuccessToast, showErrorToast]);
 
   const handleFilterChange = useCallback(async (filters: RequestFilterState) => {
-    // Если выбран конкретный статус - загружаем данные с сервера с этим статусом
-    if (filters.status && filters.status !== 'all') {
-      await fetchBookings(filters.status);
-      if (error) {
-        showErrorToast("Ошибка", error);
-      }
-    } else if (filters.status === 'all') {
-      // Если выбраны "Все" статусы - загружаем данные без параметра статуса
-      await fetchBookings();
-      if (error) {
-        showErrorToast("Ошибка", error);
-      }
-    }
     
+    await fetchBookings(filters.status.length > 0 ? filters.status.join(',') : undefined);
+    if (error) {
+      showErrorToast("Ошибка", error);
+    }
+
     // В любом случае применяем фильтры локально
     applyFilters(filters);
   }, [applyFilters, fetchBookings, error, showErrorToast]);

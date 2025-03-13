@@ -35,7 +35,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
   isLoading: false,
   error: null,
   filters: {
-    status: "",
+    status: [],
     supplierName: "",
     dateFrom: "",
     dateTo: "",
@@ -142,8 +142,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
       const filters = get().filters;
       let filtered = transformedBookings;
 
-      if (filters.status) {
-        filtered = filtered.filter((booking) => booking.bookingRequest.status === filters.status);
+      if (filters.status && filters.status.length > 0) {
+        filtered = filtered.filter((booking) => filters.status.includes(booking.bookingRequest.status));
       }
 
       // Обновляем состояние
@@ -289,8 +289,8 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
     const { bookings } = get();
     let filtered = bookings;
 
-    if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter((booking) => booking.bookingRequest.status === filters.status);
+    if (filters.status && filters.status.length > 0) {
+      filtered = filtered.filter((booking) => filters.status.includes(booking.bookingRequest.status));
     }
 
     // Другие фильтры могут быть применены здесь
@@ -301,7 +301,7 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
   resetFilters: () => {
     set({
       filters: {
-        status: "",
+        status: [],
         supplierName: "",
         dateFrom: "",
         dateTo: "",

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Zone } from "@/types/zone";
 import { ZoneStatus } from '@/types/zone';
+import { getZonesByMacrozones } from '../data/zones'; // Import the new function
 
 interface ZonesState {
     // Данные
@@ -14,6 +15,7 @@ interface ZonesState {
     marketFilters: string[];
     macrozoneFilters: string[];
     equipmentFilters: string[];
+    
 
     // Пагинация
     currentPage: number;
@@ -38,6 +40,7 @@ interface ZonesState {
     setIsLoading: (isLoading: boolean) => void;
     updateZoneStatus: (zoneId: string, newStatus: ZoneStatus) => void;
     resetFilters: () => void;
+    fetchZonesFromDB: (macrozones?: string[]) => Promise<void>; // New action to fetch zones from DB
 }
 
 export const useZonesStore = create<ZonesState>((set, get) => ({
@@ -61,15 +64,12 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
     // Действия
     setZones: (zones) => {
         set({ zones });
-
         // Обновляем уникальные значения для фильтров
         const uniqueCities = Array.from(new Set(zones.map(zone => zone.city))).sort();
         const uniqueMarkets = Array.from(new Set(zones.map(zone => zone.market))).sort();
         const uniqueMacrozones = Array.from(new Set(zones.map(zone => zone.mainMacrozone))).sort();
         const uniqueEquipments = Array.from(new Set(zones.map(zone => zone.equipment))).filter(Boolean).sort();
-
         set({ uniqueCities, uniqueMarkets, uniqueMacrozones, uniqueEquipments });
-
         // Применяем фильтры к новым данным
         const state = get();
         const filteredZones = applyFilters(zones, state);
@@ -135,7 +135,7 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
     },
 
     setIsLoading: (isLoading) => {
-        set({ isLoading });
+        set({ isLoading }); // Corrected setIsLoading action
     },
 
     updateZoneStatus: (zoneId, newStatus) => {
@@ -173,6 +173,22 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
             equipmentFilters: [],
         });
         set({ filteredZones });
+    },
+
+    fetchZonesFromDB: async (macrozones) => { // Реализация действия fetchZonesFromDB
+        set({ isLoading: true });
+        try {
+            const fetchedZones = macrozones && macrozones.length > 0
+                ? await getZonesByMacrozones(macrozones)
+                : []; //  await getAllZones(); // если макрозоны не выбраны, можно загружать все или ничего
+
+            set({ isLoading: false });
+            set({ zones: fetchedZones }); // Обновляем состояние zones в сторе
+        } catch (error) {
+            console.error("Ошибка при загрузке зон из БД:", error);
+            set({ isLoading: false });
+            // Обработка ошибки, например, показ уведомления пользователю
+        }
     },
 }));
 

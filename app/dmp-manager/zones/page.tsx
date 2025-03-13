@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
@@ -79,13 +79,13 @@ export default function DMPManagerZonesPage() {
     };
 
     // Загружаем зоны только при монтировании компонента
-    useEffect(() => {
-        // Добавляем проверку, чтобы предотвратить лишние запросы
-        if (zones.length === 0) {
-            loadZones();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    
+    
+    
+    
+    
+    
+    
 
     // Обработчик изменения статуса зоны
     const handleStatusChange = async (zoneId: string, newStatus: ZoneStatus) => {

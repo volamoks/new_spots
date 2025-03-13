@@ -96,7 +96,7 @@ export interface BookingFromApi {
  * Интерфейс для состояния фильтров запросов
  */
 export interface RequestFilterState {
-  status: string;
+  status: string[];
   supplierName: string;
   dateFrom: string;
   dateTo: string;
