@@ -20,8 +20,9 @@ export function ZoneFilterTabs({
   className = "",
   role = "DMP_MANAGER"
 }: ZoneFilterTabsProps) {
-  // Если роль - поставщик, показываем только доступные зоны
-  if (role === "SUPPLIER") {
+  // Если роль - поставщик или категорийный менеджер, не показываем табы
+  // Они должны видеть только доступные зоны
+  if (role === "SUPPLIER" || role === "CATEGORY_MANAGER") {
     return null;
   }
 

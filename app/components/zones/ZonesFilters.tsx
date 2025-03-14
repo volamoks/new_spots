@@ -7,6 +7,7 @@ import { ZoneSearchInput } from "./ZoneSearchInput";
 import { SimpleZoneFilterDropdown } from "./SimpleZoneFilterDropdown";
 import { ZoneSelectedFilters } from "./ZoneSelectedFilters";
 import { RefreshCw } from "lucide-react";
+import { getCorrespondingMacrozones } from '@/lib/filterData'; // Import
 
 interface ZonesFiltersProps {
   // Состояние фильтров
@@ -17,14 +18,14 @@ interface ZonesFiltersProps {
   macrozoneFilters: string[];
   equipmentFilters: string[];
   supplierFilters: string[];
-  
+
   // Уникальные значения для фильтров
   uniqueCities: string[];
   uniqueMarkets: string[];
   uniqueMacrozones: string[];
   uniqueEquipments: string[];
   uniqueSuppliers: string[];
-  
+
   // Обработчики
   onTabChange: (tab: string) => void;
   onSearchChange: (term: string) => void;
@@ -32,11 +33,12 @@ interface ZonesFiltersProps {
   onFilterRemove: (type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', value: string) => void;
   onResetFilters: () => void;
   onRefresh: () => void;
-  
+
   // Дополнительные параметры
   isLoading?: boolean;
   role?: string;
   className?: string;
+  selectedCategory?: string | null; // Add selectedCategory prop
 }
 
 export function ZonesFilters({
@@ -48,14 +50,14 @@ export function ZonesFilters({
   macrozoneFilters,
   equipmentFilters,
   supplierFilters,
-  
+
   // Уникальные значения для фильтров
   uniqueCities,
   uniqueMarkets,
   uniqueMacrozones,
   uniqueEquipments,
   uniqueSuppliers,
-  
+
   // Обработчики
   onTabChange,
   onSearchChange,
@@ -63,18 +65,25 @@ export function ZonesFilters({
   onFilterRemove,
   onResetFilters,
   onRefresh,
-  
+
   // Дополнительные параметры
   isLoading = false,
   role = "DMP_MANAGER",
   className = "",
+  selectedCategory = null, // Provide a default value
 }: ZonesFiltersProps) {
-  // Преобразуем массивы уникальных значений в формат для выпадающих списков
-  const cityOptions = Array.isArray(uniqueCities) ? uniqueCities.map(city => ({ value: city, label: city })) : [];
-  const marketOptions = Array.isArray(uniqueMarkets) ? uniqueMarkets.map(market => ({ value: market, label: market })) : [];
-  const macrozoneOptions = Array.isArray(uniqueMacrozones) ? uniqueMacrozones.map(macrozone => ({ value: macrozone, label: macrozone })) : [];
-  const equipmentOptions = Array.isArray(uniqueEquipments) ? uniqueEquipments.map(equipment => ({ value: equipment, label: equipment })) : [];
-  const supplierOptions = Array.isArray(uniqueSuppliers) ? uniqueSuppliers.map(supplier => ({ value: supplier, label: supplier })) : [];
+    // Преобразуем массивы уникальных значений в формат для выпадающих списков
+    const cityOptions = Array.isArray(uniqueCities) ? uniqueCities.map(city => ({ value: city, label: city })) : [];
+    const marketOptions = Array.isArray(uniqueMarkets) ? uniqueMarkets.map(market => ({ value: market, label: market })) : [];
+
+    // Generate macrozoneOptions based on selectedCategory
+    const macrozoneOptions = selectedCategory
+    ? getCorrespondingMacrozones(selectedCategory).map(macrozone => ({ value: macrozone, label: macrozone }))
+    : (Array.isArray(uniqueMacrozones) ? uniqueMacrozones.map(macrozone => ({ value: macrozone, label: macrozone })) : []);
+
+
+    const equipmentOptions = Array.isArray(uniqueEquipments) ? uniqueEquipments.map(equipment => ({ value: equipment, label: equipment })) : [];
+    const supplierOptions = Array.isArray(uniqueSuppliers) ? uniqueSuppliers.map(supplier => ({ value: supplier, label: supplier })) : [];
 
   // Объект с выбранными фильтрами для компонента ZoneSelectedFilters
   const selectedFilters = {

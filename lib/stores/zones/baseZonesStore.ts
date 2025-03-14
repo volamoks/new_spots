@@ -264,16 +264,34 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
   fetchZones: async (role = "DMP_MANAGER") => {
     set({ isLoading: true, error: null });
     try {
+      console.log(`fetchZones: Начало загрузки зон для роли ${role}`);
+      
       // Используем API для получения данных
-      // Для поставщика показываем только доступные зоны
       let url = '/api/zones';
-      if (role === "SUPPLIER") {
-        url += `?status=${ZoneStatus.AVAILABLE}`;
+      let params = new URLSearchParams();
+      
+      // Для поставщика и категорийного менеджера показываем только доступные зоны
+      if (role === "SUPPLIER" || role === "CATEGORY_MANAGER") {
+        params.append("status", ZoneStatus.AVAILABLE);
+        console.log(`fetchZones: Добавлен параметр status=AVAILABLE для роли ${role}`);
       }
+      
+      // Если указана категория в параметрах запроса, добавляем её
+      // Но не добавляем категорию автоматически для категорийного менеджера
+      
+      // Добавляем параметры к URL
+      const paramsString = params.toString();
+      if (paramsString) {
+        url += `?${paramsString}`;
+      }
+      
+      console.log(`fetchZones: Запрос к API: ${url}`);
       
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Ошибка при загрузке зон из API');
+        const errorData = await response.json();
+        console.error("fetchZones: Ошибка от API:", response.status, errorData);
+        throw new Error(errorData.error || 'Ошибка при загрузке зон из API');
       }
       
       const fetchedZones = await response.json();
@@ -285,9 +303,15 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
       return fetchedZones;
     } catch (error) {
       console.error("Ошибка при загрузке зон из API:", error);
+      const errorMessage = error instanceof Error ? error.message : "Неизвестная ошибка при загрузке данных";
+      console.error("Сообщение об ошибке:", errorMessage);
+      
       set({
-        error: error instanceof Error ? error.message : "Неизвестная ошибка при загрузке данных"
+        error: errorMessage,
+        zones: [], // Очищаем зоны при ошибке
+        filteredZones: []
       });
+      
       throw error;
     } finally {
       set({ isLoading: false });

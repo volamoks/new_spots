@@ -30,7 +30,12 @@ export async function getBookings(url: string = '/api/bookings'): Promise<Bookin
 
 // Создание новой заявки на бронирование
 // Параметры startDate и endDate добавлены для совместимости с интерфейсом, но пока не используются API
-export async function createBooking(zoneIds: string[], startDate?: Date, endDate?: Date): Promise<BookingCreationResult> {
+export async function createBooking(
+    zoneIds: string[], 
+    supplierId?: string, 
+    startDate?: Date, 
+    endDate?: Date
+): Promise<BookingCreationResult> {
     try {
         // Включаем даты в запрос на будущее, хотя API их может пока игнорировать
         const response = await fetch('/api/bookings', {
@@ -40,6 +45,7 @@ export async function createBooking(zoneIds: string[], startDate?: Date, endDate
             },
             body: JSON.stringify({
                 zoneIds,
+                supplierId,
                 ...(startDate && { startDate: startDate.toISOString() }),
                 ...(endDate && { endDate: endDate.toISOString() })
             }),

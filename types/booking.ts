@@ -31,6 +31,8 @@ export interface BookingRequestUI {
   userId: string;
   status: RequestStatus;
   category: string | null;
+  supplierId?: string | null; // Добавляем ID поставщика
+  supplierName?: string | null; // Добавляем имя поставщика для отображения
   createdAt: string;
   user: UserUI;
 }
@@ -57,12 +59,18 @@ export interface BookingRequestWithBookings {
   userId: string;
   status: RequestStatus;
   category: string | null;
+  supplierId?: string | null; // Добавляем ID поставщика
   createdAt: string;
   updatedAt: string;
   user?: {
     name: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any; // Дополнительные поля пользователя, которые могут быть в API
+  };
+  supplier?: {
+    id: string;
+    name: string;
+    supplierName?: string;
   };
   bookings?: BookingFromApi[];
 }
@@ -90,6 +98,16 @@ export interface BookingFromApi {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any; // Дополнительные поля зоны, которые могут быть в API
   };
+}
+
+/**
+ * Интерфейс для параметров создания бронирования
+ */
+export interface BookingCreationParams {
+  zoneIds: string[];
+  supplierId?: string; // ID поставщика
+  startDate?: string;
+  endDate?: string;
 }
 
 /**

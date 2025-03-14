@@ -9,31 +9,25 @@ import { prisma } from "../prisma";
  * @param zoneIds Массив идентификаторов зон
  * @param userRole Роль пользователя
  * @param userCategory Категория пользователя (опционально)
+ * @param supplierId ID поставщика (опционально)
  * @returns Запрос на бронирование со связанными бронированиями
  */
 export async function createBookingRequest(
   userId: string,
   zoneIds: string[],
   userRole: string,
-  userCategory?: string | null
+  userCategory?: string | null,
+  supplierId?: string | null
 ) {
-  // Для категорийного менеджера проверяем, что все зоны относятся к его категории
-  if (userRole === "CATEGORY_MANAGER" && userCategory) {
-    // Получаем все запрошенные зоны
-    const zones = await prisma.zone.findMany({
-      where: {
-        id: { in: zoneIds },
-      },
-    });
-
-    // Проверяем, что все зоны соответствуют категории менеджера
-    const invalidZones = zones.filter(zone => zone.category !== userCategory);
-    
-    if (invalidZones.length > 0) {
-      throw new Error(
-        `Категорийный менеджер может бронировать только зоны своей категории. Некорректные зоны: ${invalidZones.map(z => z.uniqueIdentifier).join(', ')}`
-      );
+  // Для категорийного менеджера проверяем, что указан поставщик
+  if (userRole === "CATEGORY_MANAGER") {
+    // Проверяем, что указан поставщик
+    if (!supplierId) {
+      throw new Error("Для бронирования необходимо выбрать поставщика");
     }
+    
+    // Убрана проверка на соответствие категории зон категории менеджера
+    // Категорийный менеджер может бронировать любые доступные зоны от имени поставщика
   }
 
   // Создаем запрос на бронирование
@@ -42,6 +36,7 @@ export async function createBookingRequest(
       userId,
       status: "NEW" as RequestStatus,
       category: userRole === "CATEGORY_MANAGER" ? userCategory : undefined,
+      supplierId: supplierId || undefined,
     },
   });
 
@@ -67,10 +62,13 @@ export async function createBookingRequest(
     );
     bookings.push(booking);
     
-    // Обновляем статус зоны на BOOKED
+    // Обновляем статус зоны на BOOKED и устанавливаем поставщика
     await prisma.zone.update({
       where: { id: zone.id },
-      data: { status: "BOOKED" },
+      data: { 
+        status: "BOOKED",
+        supplier: supplierId || undefined
+      },
     });
   }
 

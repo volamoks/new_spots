@@ -16,6 +16,13 @@ export async function getBookingRequests(whereClause: Prisma.BookingRequestWhere
         },
       },
       user: true,
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          supplierName: true
+        }
+      }
     },
     orderBy: {
       createdAt: "desc",
@@ -38,6 +45,13 @@ export async function getBookingRequestById(id: string) {
         },
       },
       user: true,
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          supplierName: true
+        }
+      }
     },
   });
 }

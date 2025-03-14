@@ -16,6 +16,7 @@ import { ZonePagination } from '@/app/components/zones/ZonePagination';
 
 export default function SupplierZonesNewPage() {
   const { data: session } = useSession();
+  // Храним uniqueIdentifier зон вместо их внутренних ID
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [step, setStep] = useState<'category' | 'zones'>('category');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -86,11 +87,11 @@ export default function SupplierZonesNewPage() {
   const zonesToDisplay = filteredByCategory;
 
   // Обработчик выбора зоны
-  const handleZoneSelection = (zoneId: string) => {
+  const handleZoneSelection = (uniqueIdentifier: string) => {
     setSelectedZones(prev =>
-      prev.includes(zoneId)
-        ? prev.filter(id => id !== zoneId)
-        : [...prev, zoneId]
+      prev.includes(uniqueIdentifier)
+        ? prev.filter(id => id !== uniqueIdentifier)
+        : [...prev, uniqueIdentifier]
     );
   };
 
@@ -143,13 +144,10 @@ export default function SupplierZonesNewPage() {
     return correspondingMacrozones;
   }, [selectedCategory, correspondingMacrozones]);
   
-  // Фильтруем макрозоны, оставляя только те, которые соответствуют выбранной категории
-  const filteredMacrozones = categoryMacrozones.length > 0
-    ? uniqueMacrozones.filter(macrozone => categoryMacrozones.includes(macrozone))
-    : [];
-  
-  const macrozoneOptions = Array.isArray(filteredMacrozones) 
-    ? filteredMacrozones.map(macrozone => ({ value: macrozone, label: macrozone })) 
+  // Используем все макрозоны из категории, а не только те, которые есть в uniqueMacrozones
+  // Это позволит отображать все доступные макрозоны для категории, даже если нет зон с такой макрозоной
+  const macrozoneOptions = Array.isArray(categoryMacrozones) 
+    ? categoryMacrozones.map(macrozone => ({ value: macrozone, label: macrozone })) 
     : [];
   
   const equipmentOptions = Array.isArray(uniqueEquipments) ? uniqueEquipments.map(equipment => ({ value: equipment, label: equipment })) : [];
@@ -164,19 +162,19 @@ export default function SupplierZonesNewPage() {
     if (checked) {
       const newSelectedZones = [...selectedZones];
       currentZones.forEach(zone => {
-        if (!newSelectedZones.includes(zone.id)) {
-          newSelectedZones.push(zone.id);
+        if (!newSelectedZones.includes(zone.uniqueIdentifier)) {
+          newSelectedZones.push(zone.uniqueIdentifier);
         }
       });
       setSelectedZones(newSelectedZones);
     } else {
-      const zoneIdsOnPage = currentZones.map(zone => zone.id);
+      const zoneIdsOnPage = currentZones.map(zone => zone.uniqueIdentifier);
       setSelectedZones(selectedZones.filter(id => !zoneIdsOnPage.includes(id)));
     }
   };
 
   // Проверяем, выбраны ли все зоны на текущей странице
-  const areAllOnPageSelected = currentZones.length > 0 && currentZones.every(zone => selectedZones.includes(zone.id));
+  const areAllOnPageSelected = currentZones.length > 0 && currentZones.every(zone => selectedZones.includes(zone.uniqueIdentifier));
 
   // Получаем список категорий из файла filterData.ts
   const categories = useMemo(() => {
@@ -411,8 +409,8 @@ export default function SupplierZonesNewPage() {
                         <tr key={zone.id} className="hover:bg-gray-50">
                           <td className="px-3 py-4 whitespace-nowrap">
                             <Checkbox 
-                              checked={selectedZones.includes(zone.id)}
-                              onCheckedChange={() => handleZoneSelection(zone.id)}
+                              checked={selectedZones.includes(zone.uniqueIdentifier)}
+                              onCheckedChange={() => handleZoneSelection(zone.uniqueIdentifier)}
                             />
                           </td>
                           <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">

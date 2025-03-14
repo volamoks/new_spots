@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { zoneIds } = await req.json();
+    const { zoneIds, supplierId } = await req.json();
 
     // Ensure zoneIds is an array
     const zoneIdsArray = Array.isArray(zoneIds) ? zoneIds : [zoneIds];
@@ -24,12 +24,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Для КМ проверяем наличие поставщика
+    if (session.user.role === "CATEGORY_MANAGER" && !supplierId) {
+      return NextResponse.json(
+        { error: "Supplier ID is required for Category Manager bookings" },
+        { status: 400 },
+      );
+    }
+
     // Вызов сервисной функции вместо внутренней логики
     const result = await createBookingRequest(
       session.user.id,
       zoneIdsArray,
       session.user.role,
-      session.user.category
+      session.user.category,
+      supplierId
     );
 
     return NextResponse.json(result);
