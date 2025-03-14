@@ -66,6 +66,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.status = user.status;
         token.category = user.category;
+        token.inn = user.inn;
       }
 
       // console.log("JWT Callback - Token after:", JSON.stringify(token));
@@ -80,6 +81,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role;
         session.user.status = token.status;
         session.user.category = token.category;
+        session.user.inn = token.inn as string | null;
       }
 
       // console.log("Session Callback - Session after:", JSON.stringify(session));

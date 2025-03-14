@@ -3,6 +3,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataExportCard } from '@/app/components/DataExportCard';
+import { DataImportCard } from '@/app/components/DataImportCard';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
@@ -38,22 +39,7 @@ export default function DMPManagerExportPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <DataExportCard />
-
-                    {/* Здесь в будущем можно добавить компонент для импорта */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Импорт данных</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-gray-500 mb-4">
-                                Функциональность импорта данных находится в разработке и будет
-                                доступна в ближайшее время.
-                            </p>
-                            <p className="text-sm text-gray-400">
-                                Для загрузки новых зон используйте страницу Загрузка данных.
-                            </p>
-                        </CardContent>
-                    </Card>
+                    <DataImportCard />
                 </div>
             </main>
         </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Zone } from "@/types/zone";
 import { ZoneStatus } from '@/types/zone';
-import { getZonesByMacrozones } from '../data/zones'; // Import the new function
+import { getZonesByMacrozones } from '@/lib/data/zones'; // Import the new function
 
 interface ZonesState {
     // Данные

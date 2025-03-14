@@ -1,6 +1,34 @@
 import * as XLSX from "xlsx"
 import type { ZoneData } from "@/types/zone"
 
+export function generateInnTemplate() {
+  // Создаем пример данных для ИНН
+  const sampleData = [
+    {
+      "Поставщик": "ИП ООО Lachatte Central Asia",
+      "Налоговый номер": "303146221"
+    },
+    {
+      "Поставщик": "ООО UNITED DISTRIBUTION",
+      "Налоговый номер": "307094349"
+    }
+  ];
+
+  // Создаем новую книгу Excel
+  const workbook = XLSX.utils.book_new();
+
+  // Создаем лист с данными
+  const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+  // Добавляем лист в книгу
+  XLSX.utils.book_append_sheet(workbook, worksheet, "ИНН");
+
+  // Генерируем бинарные данные
+  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+
+  return new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
 export function generateExcelTemplate() {
   // Создаем пример данных
   const sampleData: Partial<ZoneData>[] = [
@@ -45,4 +73,3 @@ export function generateExcelTemplate() {
 
   return new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
 }
-

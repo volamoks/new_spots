@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Control, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
+    FormDescription,
 } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
@@ -31,6 +32,67 @@ const formSchema = z.object({
     category: z.string().optional(),
     inn: z.string().optional(),
 });
+
+// Custom component for INN field with organization name lookup
+function InnField({ control }: { control: Control<z.infer<typeof formSchema>> }) {
+    const inn = useWatch({
+        control,
+        name: "inn"
+    });
+    
+    const [organizationName, setOrganizationName] = useState<string | null>(null);
+    const [isSearching, setIsSearching] = useState(false);
+    
+    useEffect(() => {
+        const fetchOrganizationName = async () => {
+            if (inn && inn.length >= 9) {
+                setIsSearching(true);
+                try {
+                    const response = await fetch(`/api/inn/find?inn=${inn}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        setOrganizationName(data.name);
+                    } else {
+                        setOrganizationName(null);
+                    }
+                } catch (error) {
+                    console.error("Error fetching organization:", error);
+                    setOrganizationName(null);
+                } finally {
+                    setIsSearching(false);
+                }
+            }
+        };
+        
+        fetchOrganizationName();
+    }, [inn]);
+    
+    return (
+        <FormField
+            control={control}
+            name="inn"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>ИНН</FormLabel>
+                    <FormControl>
+                        <Input {...field} />
+                    </FormControl>
+                    {isSearching && (
+                        <FormDescription>
+                            Поиск организации...
+                        </FormDescription>
+                    )}
+                    {!isSearching && organizationName && (
+                        <FormDescription>
+                            Название организации: <strong>{organizationName}</strong>
+                        </FormDescription>
+                    )}
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+    );
+}
 
 export default function ProfilePage() {
     const { data: session, update } = useSession();
@@ -161,19 +223,7 @@ export default function ProfilePage() {
                                     />
                                 )}
                                 {session.user.role === 'SUPPLIER' && (
-                                    <FormField
-                                        control={form.control}
-                                        name="inn"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>ИНН</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    <InnField control={form.control} />
                                 )}
                                 <Button
                                     type="submit"

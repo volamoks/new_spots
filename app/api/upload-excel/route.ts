@@ -2,8 +2,15 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
 import { ZoneStatus } from "@/types/zone"
+import { Role, UserStatus } from "@prisma/client"
 
-interface ZoneData {
+// Общий интерфейс для данных из Excel
+interface ExcelData {
+  [key: string]: string | number | null | undefined;
+}
+
+// Интерфейс для данных зон
+interface ZoneData extends ExcelData {
   "Уникальный идентификатор"?: string;
   "Область"?: string;
   "Город"?: string;
@@ -27,13 +34,19 @@ interface ZoneData {
   "Brand"?: string | null;
   "Категория товара"?: string | null;
   "Статус"?: string;
-  [key: string]: string | number | null | undefined; // For other columns
+}
+
+// Интерфейс для данных ИНН
+interface InnData extends ExcelData {
+  "Поставщик"?: string;
+  "Налоговый номер"?: string;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File
+    const type = formData.get("type") as string || req.nextUrl.searchParams.get("type") || "zones"
 
     if (!file) {
       return NextResponse.json({ error: "Файл не загружен" }, { status: 400 })
@@ -78,9 +91,9 @@ export async function POST(req: NextRequest) {
     console.log("Found headers:", headers)
 
     // Convert to array of rows
-    const data: ZoneData[] = []
+    const data: ExcelData[] = []
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      const row: ZoneData = {}
+      const row: ExcelData = {}
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const address = XLSX.utils.encode_cell({ r: R, c: C })
         const cell = worksheet[address]
@@ -95,25 +108,38 @@ export async function POST(req: NextRequest) {
       data.push(row)
     }
 
-    // Validate data
+    // Validate data based on type
     const validationErrors: string[] = []
 
-    data.forEach((row, index) => {
-      const rowNum = index + 2 // +2 because Excel starts from 1 and we have header row
+    if (type === "zones") {
+      data.forEach((row, index) => {
+        const rowNum = index + 2 // +2 because Excel starts from 1 and we have header row
 
-      if (!row["Уникальный идентификатор"]) {
-        validationErrors.push(`Строка ${rowNum}: Отсутствует уникальный идентификатор`)
-      }
-      if (!row["Город"]) {
-        validationErrors.push(`Строка ${rowNum}: Отсутствует город`)
-      }
-      if (!row["Маркет"]) {
-        validationErrors.push(`Строка ${rowNum}: Отсутствует маркет`)
-      }
-      if (!row["Основная Макрозона"]) {
-        validationErrors.push(`Строка ${rowNum}: Отсутствует основная макрозона`)
-      }
-    })
+        if (!row["Уникальный идентификатор"]) {
+          validationErrors.push(`Строка ${rowNum}: Отсутствует уникальный идентификатор`)
+        }
+        if (!row["Город"]) {
+          validationErrors.push(`Строка ${rowNum}: Отсутствует город`)
+        }
+        if (!row["Маркет"]) {
+          validationErrors.push(`Строка ${rowNum}: Отсутствует маркет`)
+        }
+        if (!row["Основная Макрозона"]) {
+          validationErrors.push(`Строка ${rowNum}: Отсутствует основная макрозона`)
+        }
+      })
+    } else if (type === "inn") {
+      data.forEach((row, index) => {
+        const rowNum = index + 2 // +2 because Excel starts from 1 and we have header row
+
+        if (!row["Поставщик"]) {
+          validationErrors.push(`Строка ${rowNum}: Отсутствует название поставщика`)
+        }
+        if (!row["Налоговый номер"]) {
+          validationErrors.push(`Строка ${rowNum}: Отсутствует ИНН`)
+        }
+      })
+    }
 
     if (validationErrors.length > 0) {
       return NextResponse.json(
@@ -126,8 +152,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Save data to database
-    const savedData = await Promise.all(data.map(createOrUpdateZone))
+    // Save data to database based on type
+    let savedData
+    if (type === "zones") {
+      savedData = await Promise.all(data.map(row => createOrUpdateZone(row as ZoneData)))
+    } else if (type === "inn") {
+      savedData = await Promise.all(data.map(row => createOrUpdateSupplier(row as InnData)))
+    } else {
+      return NextResponse.json({ error: "Неизвестный тип импорта" }, { status: 400 })
+    }
 
     return NextResponse.json({
       message: "Данные успешно обработаны и сохранены",
@@ -167,13 +200,6 @@ async function createOrUpdateZone(zoneData: ZoneData) {
     throw new Error("Уникальный идентификатор обязателен");
   }
   
-  // Логируем типы данных для отладки
-  console.log("Типы данных полей:", {
-    price: typeof price,
-    km: typeof zoneData["КМ"],
-    цена: typeof zoneData["Цена"]
-  });
-
   // Создаем объект с данными для сохранения
   const zoneDataToSave = {
     city: zoneData["Город"] || "",
@@ -216,6 +242,48 @@ async function createOrUpdateZone(zoneData: ZoneData) {
   } catch (error) {
     console.error("Ошибка при сохранении зоны:", error);
     console.error("Данные зоны:", { uniqueIdentifier, ...zoneDataToSave });
+    throw error;
+  }
+}
+
+async function createOrUpdateSupplier(innData: InnData) {
+  const inn = innData["Налоговый номер"]?.toString() || "";
+  const organizationName = innData["Поставщик"]?.toString() || "";
+
+  if (!inn) {
+    throw new Error("ИНН обязателен");
+  }
+
+  if (!organizationName) {
+    throw new Error("Название поставщика обязательно");
+  }
+
+  try {
+    // Проверяем, существует ли организация с таким ИНН
+    const existingOrganization = await prisma.innOrganization.findUnique({
+      where: { inn }
+    });
+
+    if (existingOrganization) {
+      // Обновляем существующую организацию
+      return await prisma.innOrganization.update({
+        where: { id: existingOrganization.id },
+        data: {
+          name: organizationName
+        }
+      });
+    } else {
+      // Создаем новую организацию
+      return await prisma.innOrganization.create({
+        data: {
+          inn,
+          name: organizationName
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Ошибка при сохранении организации:", error);
+    console.error("Данные организации:", { inn, organizationName });
     throw error;
   }
 }

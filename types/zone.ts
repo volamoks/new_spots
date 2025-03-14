@@ -7,12 +7,12 @@ export enum ZoneStatus {
 export interface Zone {
   id: string;
   uniqueIdentifier: string;
-  region?: string;
+  region: string | null | undefined;
   city: string;
   number: string;
   market: string;
   newFormat: string;
-  equipmentFormat?: string;
+  equipmentFormat: string | null | undefined;
   equipment: string;
   price?: number;
   externalId?: string;
