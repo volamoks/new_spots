@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ZoneFilterTabs } from "./ZoneFilterTabs";
 import { ZoneSearchInput } from "./ZoneSearchInput";
-import { ZoneFilterDropdown } from "./ZoneFilterDropdown";
+import { SimpleZoneFilterDropdown } from "./SimpleZoneFilterDropdown";
 import { ZoneSelectedFilters } from "./ZoneSelectedFilters";
 import { RefreshCw } from "lucide-react";
 
@@ -70,11 +70,11 @@ export function ZonesFilters({
   className = "",
 }: ZonesFiltersProps) {
   // Преобразуем массивы уникальных значений в формат для выпадающих списков
-  const cityOptions = uniqueCities.map(city => ({ value: city, label: city }));
-  const marketOptions = uniqueMarkets.map(market => ({ value: market, label: market }));
-  const macrozoneOptions = uniqueMacrozones.map(macrozone => ({ value: macrozone, label: macrozone }));
-  const equipmentOptions = uniqueEquipments.map(equipment => ({ value: equipment, label: equipment }));
-  const supplierOptions = uniqueSuppliers.map(supplier => ({ value: supplier, label: supplier }));
+  const cityOptions = Array.isArray(uniqueCities) ? uniqueCities.map(city => ({ value: city, label: city })) : [];
+  const marketOptions = Array.isArray(uniqueMarkets) ? uniqueMarkets.map(market => ({ value: market, label: market })) : [];
+  const macrozoneOptions = Array.isArray(uniqueMacrozones) ? uniqueMacrozones.map(macrozone => ({ value: macrozone, label: macrozone })) : [];
+  const equipmentOptions = Array.isArray(uniqueEquipments) ? uniqueEquipments.map(equipment => ({ value: equipment, label: equipment })) : [];
+  const supplierOptions = Array.isArray(uniqueSuppliers) ? uniqueSuppliers.map(supplier => ({ value: supplier, label: supplier })) : [];
 
   // Объект с выбранными фильтрами для компонента ZoneSelectedFilters
   const selectedFilters = {
@@ -137,40 +137,40 @@ export function ZonesFilters({
 
         {/* Выпадающие списки для фильтров */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-          <ZoneFilterDropdown
+          <SimpleZoneFilterDropdown
             title="Город"
             options={cityOptions}
             selected={cityFilters}
-            onChange={(values) => onFilterChange('city', values)}
+            onChange={(values: string[]) => onFilterChange('city', values)}
             isDisabled={isLoading}
           />
-          <ZoneFilterDropdown
+          <SimpleZoneFilterDropdown
             title="Магазин"
             options={marketOptions}
             selected={marketFilters}
-            onChange={(values) => onFilterChange('market', values)}
+            onChange={(values: string[]) => onFilterChange('market', values)}
             isDisabled={isLoading}
           />
-          <ZoneFilterDropdown
+          <SimpleZoneFilterDropdown
             title="Макрозона"
             options={macrozoneOptions}
             selected={macrozoneFilters}
-            onChange={(values) => onFilterChange('macrozone', values)}
+            onChange={(values: string[]) => onFilterChange('macrozone', values)}
             isDisabled={isLoading}
           />
-          <ZoneFilterDropdown
+          <SimpleZoneFilterDropdown
             title="Оборудование"
             options={equipmentOptions}
             selected={equipmentFilters}
-            onChange={(values) => onFilterChange('equipment', values)}
+            onChange={(values: string[]) => onFilterChange('equipment', values)}
             isDisabled={isLoading}
           />
           {role !== "SUPPLIER" && (
-            <ZoneFilterDropdown
+            <SimpleZoneFilterDropdown
               title="Поставщик"
               options={supplierOptions}
               selected={supplierFilters}
-              onChange={(values) => onFilterChange('supplier', values)}
+              onChange={(values: string[]) => onFilterChange('supplier', values)}
               isDisabled={isLoading}
             />
           )}

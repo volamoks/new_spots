@@ -22,6 +22,8 @@ export default function DmpManagerZonesPage() {
     macrozoneFilters,
     equipmentFilters,
     supplierFilters,
+    sortField,
+    sortDirection,
     uniqueCities,
     uniqueMarkets,
     uniqueMacrozones,
@@ -32,6 +34,7 @@ export default function DmpManagerZonesPage() {
     setSearchTerm,
     toggleFilter,
     removeFilter,
+    setSorting,
     resetFilters,
     fetchZones,
     changeZoneStatus,
@@ -47,28 +50,40 @@ export default function DmpManagerZonesPage() {
 
   // Обработчик изменения статуса зоны
   const handleStatusChange = async (zoneId: string, newStatus: ZoneStatus) => {
-    await changeZoneStatus(zoneId, newStatus);
+    try {
+      await changeZoneStatus(zoneId, newStatus);
+    } catch (error) {
+      console.error('Ошибка при изменении статуса зоны:', error);
+    }
+  };
+
+  // Обработчик изменения сортировки
+  const handleSortChange = (field: string, direction: 'asc' | 'desc' | null) => {
+    setSorting(field, direction);
   };
 
   // Обработчик изменения фильтра
   const handleFilterChange = (type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', values: string[]) => {
     // Сбрасываем текущие фильтры этого типа
     const currentFilters = 
-      type === 'city' ? cityFilters :
-      type === 'market' ? marketFilters :
-      type === 'macrozone' ? macrozoneFilters :
-      type === 'equipment' ? equipmentFilters :
-      supplierFilters;
+      type === 'city' ? cityFilters || [] :
+      type === 'market' ? marketFilters || [] :
+      type === 'macrozone' ? macrozoneFilters || [] :
+      type === 'equipment' ? equipmentFilters || [] :
+      supplierFilters || [];
+    
+    // Проверяем, что values - это массив
+    const newValues = Array.isArray(values) ? values : [];
     
     // Удаляем старые фильтры
     currentFilters.forEach(value => {
-      if (!values.includes(value)) {
+      if (!newValues.includes(value)) {
         removeFilter(type, value);
       }
     });
     
     // Добавляем новые фильтры
-    values.forEach(value => {
+    newValues.forEach(value => {
       if (!currentFilters.includes(value)) {
         toggleFilter(type, value);
       }
@@ -116,6 +131,9 @@ export default function DmpManagerZonesPage() {
           showActions={true}
           isLoading={isLoading}
           role="DMP_MANAGER"
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
         />
       </main>
     </div>

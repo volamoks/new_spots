@@ -1,10 +1,11 @@
 "use client";
 
 import { create } from 'zustand';
-import { useZonesStore, useZonesToasts, ZonesState } from './baseZonesStore';
+import { useZonesStore, createSuccessToast, createErrorToast, ZonesState } from './baseZonesStore';
 import { ZoneStatus } from '@/types/zone';
 import { useLoader } from '@/app/components/GlobalLoader';
 import { useSession } from 'next-auth/react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface CategoryManagerZonesState {
   // Дополнительные состояния для КМ
@@ -16,8 +17,8 @@ interface CategoryManagerZonesState {
   deselectZone: (zoneId: string) => void;
   clearSelectedZones: () => void;
   selectSupplier: (supplierId: string) => void;
-  createBooking: (supplierId?: string) => Promise<void>;
-  refreshZones: () => Promise<void>;
+  createBooking: (supplierId: string | undefined, toast: any) => Promise<void>;
+  refreshZones: (toast: any) => Promise<void>;
 }
 
 export const useCategoryManagerZonesStore = create<CategoryManagerZonesState>((set, get) => ({
@@ -46,9 +47,10 @@ export const useCategoryManagerZonesStore = create<CategoryManagerZonesState>((s
     set({ selectedSupplier: supplierId });
   },
   
-  createBooking: async (supplierId) => {
+  createBooking: async (supplierId, toast) => {
     const { selectedZones, selectedSupplier } = get();
-    const { showSuccessToast, showErrorToast } = useZonesToasts();
+    const showSuccessToast = createSuccessToast(toast);
+    const showErrorToast = createErrorToast(toast);
     const { withLoading } = useLoader();
     
     // Проверяем, что выбраны зоны
@@ -100,7 +102,7 @@ export const useCategoryManagerZonesStore = create<CategoryManagerZonesState>((s
       get().clearSelectedZones();
       
       // Обновляем список зон после создания бронирования
-      await get().refreshZones();
+      await get().refreshZones(toast);
     } catch (error) {
       console.error('Ошибка при создании бронирования:', error);
       showErrorToast(
@@ -113,9 +115,9 @@ export const useCategoryManagerZonesStore = create<CategoryManagerZonesState>((s
     }
   },
 
-  refreshZones: async () => {
+  refreshZones: async (toast) => {
     const { fetchZones } = useZonesStore.getState();
-    const { showErrorToast } = useZonesToasts();
+    const showErrorToast = createErrorToast(toast);
 
     try {
       await fetchZones("CATEGORY_MANAGER");
@@ -142,6 +144,9 @@ export const useCategoryManagerZones = () => {
   // Получаем сессию пользователя
   const { data: session } = useSession();
   
+  // Получаем toast
+  const toast = useToast();
+  
   // Функция для загрузки зон с учетом категории КМ
   const fetchZonesWithCategory = async () => {
     if (session?.user?.category) {
@@ -150,10 +155,13 @@ export const useCategoryManagerZones = () => {
     }
   };
 
-  // Объединяем их в один объект
+  // Объединяем их в один объект и создаем обертки для методов, требующих toast
   return {
     ...baseStore,
     ...cmStore,
+    createBooking: (supplierId?: string) => 
+      cmStore.createBooking(supplierId, toast),
+    refreshZones: () => cmStore.refreshZones(toast),
     fetchZonesWithCategory,
     userCategory: session?.user?.category,
   };

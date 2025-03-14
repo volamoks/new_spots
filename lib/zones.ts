@@ -11,13 +11,9 @@ import { ZoneStatus } from "@/types/zone";
 export const fetchZones = async (macrozone?: string | string[], category?: string, status?: ZoneStatus) => {
   try {
     // Строим условие where на основе предоставленных параметров
-    const whereClause: {
-      OR?: { mainMacrozone: string }[];
-      category?: string;
-      status?: ZoneStatus;
-    } = {};
+    const whereClause: any = {};
 
-    if (macrozone) {
+    if (macrozone && (Array.isArray(macrozone) ? macrozone.length > 0 : true)) {
       const macrozoneArray = Array.isArray(macrozone) ? macrozone : [macrozone];
       whereClause.OR = macrozoneArray.map(mz => ({ mainMacrozone: mz }));
     }
@@ -32,12 +28,28 @@ export const fetchZones = async (macrozone?: string | string[], category?: strin
 
     console.log("fetchZones: whereClause =", JSON.stringify(whereClause));
 
+    // Если whereClause пустой (нет фильтров), не добавляем его в запрос
+    const query = Object.keys(whereClause).length > 0 
+      ? {
+          where: whereClause,
+          orderBy: [
+            { city: 'asc' },
+            { market: 'asc' }
+          ],
+        }
+      : {
+          orderBy: [
+            { city: 'asc' },
+            { market: 'asc' }
+          ],
+        };
+
     const zones = await prisma.zone.findMany({
-      where: whereClause,
+      ...(Object.keys(whereClause).length > 0 ? { where: whereClause } : {}),
       orderBy: [
         { city: 'asc' },
         { market: 'asc' }
-      ],
+      ]
     });
 
     console.log(`fetchZones: Найдено ${zones.length} зон`);

@@ -17,7 +17,9 @@ export function ZoneSelectedFilters({
   className = "",
 }: ZoneSelectedFiltersProps) {
   // Проверяем, есть ли выбранные фильтры
-  const hasFilters = Object.values(filters).some(values => values.length > 0);
+  const hasFilters = Object.values(filters).some(values => 
+    Array.isArray(values) && values.length > 0
+  );
 
   if (!hasFilters) {
     return null;
@@ -28,7 +30,7 @@ export function ZoneSelectedFilters({
       {Object.entries(filters)
         .filter(([type]) => ['city', 'market', 'macrozone', 'equipment', 'supplier'].includes(type))
         .map(([type, values]) =>
-          values.map(value => (
+          Array.isArray(values) ? values.map(value => (
             <Badge
               key={`${type}-${value}`}
               variant="secondary"
@@ -42,7 +44,7 @@ export function ZoneSelectedFilters({
                 onClick={() => onRemove(type as 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', value)}
               />
             </Badge>
-          ))
+          )) : null
         )
       }
     </div>

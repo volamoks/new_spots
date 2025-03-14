@@ -19,6 +19,10 @@ export interface ZonesState {
   equipmentFilters: string[];
   supplierFilters: string[];
 
+  // Сортировка
+  sortField: string | null;
+  sortDirection: 'asc' | 'desc' | null;
+
   // Пагинация
   currentPage: number;
   itemsPerPage: number;
@@ -40,6 +44,7 @@ export interface ZonesState {
   setSearchTerm: (term: string) => void;
   toggleFilter: (type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', value: string) => void;
   removeFilter: (type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', value: string) => void;
+  setSorting: (field: string, direction: 'asc' | 'desc' | null) => void;
   setCurrentPage: (page: number) => void;
   setItemsPerPage: (count: number) => void;
   setIsLoading: (isLoading: boolean) => void;
@@ -59,6 +64,8 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
   macrozoneFilters: [],
   equipmentFilters: [],
   supplierFilters: [],
+  sortField: null,
+  sortDirection: null,
   currentPage: 1,
   itemsPerPage: 10,
   isLoading: false,
@@ -106,6 +113,13 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
     set({ searchTerm, currentPage: 1 });
     const state = get();
     const filteredZones = applyFilters(state.zones, { ...state, searchTerm });
+    set({ filteredZones });
+  },
+  
+  setSorting: (field, direction) => {
+    set({ sortField: field, sortDirection: direction });
+    const state = get();
+    const filteredZones = applyFilters(state.zones, { ...state, sortField: field, sortDirection: direction });
     set({ filteredZones });
   },
 
@@ -226,6 +240,8 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
       macrozoneFilters: [],
       equipmentFilters: [],
       supplierFilters: [],
+      sortField: null,
+      sortDirection: null,
       currentPage: 1,
     });
 
@@ -239,6 +255,8 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
       macrozoneFilters: [],
       equipmentFilters: [],
       supplierFilters: [],
+      sortField: null,
+      sortDirection: null,
     });
     set({ filteredZones });
   },
@@ -277,7 +295,7 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
   },
 }));
 
-// Вспомогательная функция для применения фильтров
+// Вспомогательная функция для применения фильтров и сортировки
 function applyFilters(zones: Zone[], state: Partial<ZonesState>): Zone[] {
   let result = [...zones];
 
@@ -324,29 +342,52 @@ function applyFilters(zones: Zone[], state: Partial<ZonesState>): Zone[] {
     );
   }
 
+  // Сортировка результатов
+  if (state.sortField && state.sortDirection) {
+    const field = state.sortField as keyof Zone;
+    const direction = state.sortDirection;
+    
+    result.sort((a, b) => {
+      const valueA = a[field] || '';
+      const valueB = b[field] || '';
+      
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return direction === 'asc' 
+          ? valueA.localeCompare(valueB) 
+          : valueB.localeCompare(valueA);
+      } else if (typeof valueA === 'number' && typeof valueB === 'number') {
+        return direction === 'asc' 
+          ? valueA - valueB 
+          : valueB - valueA;
+      } else if (valueA instanceof Date && valueB instanceof Date) {
+        return direction === 'asc' 
+          ? valueA.getTime() - valueB.getTime() 
+          : valueB.getTime() - valueA.getTime();
+      }
+      
+      // Если типы разные или не поддерживаются, возвращаем 0 (без сортировки)
+      return 0;
+    });
+  }
+
   return result;
 }
 
 /**
- * Хук для уведомлений о результатах действий с зонами
+ * Функции для уведомлений о результатах действий с зонами
+ * Эти функции должны вызываться только внутри React-компонентов
  */
-export const useZonesToasts = () => {
-  const { toast } = useToastHook();
+export const createSuccessToast = (toast: any) => (title: string, description: string) => {
+  toast({
+    title,
+    description,
+  });
+};
 
-  const showSuccessToast = useCallback((title: string, description: string) => {
-    toast({
-      title,
-      description,
-    });
-  }, [toast]);
-
-  const showErrorToast = useCallback((title: string, description: string) => {
-    toast({
-      title,
-      description,
-      variant: "destructive",
-    });
-  }, [toast]);
-
-  return { showSuccessToast, showErrorToast };
+export const createErrorToast = (toast: any) => (title: string, description: string) => {
+  toast({
+    title,
+    description,
+    variant: "destructive",
+  });
 };

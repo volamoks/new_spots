@@ -1,20 +1,22 @@
 "use client";
 
 import { create } from 'zustand';
-import { useZonesStore, useZonesToasts, ZonesState } from './baseZonesStore';
+import { useZonesStore, createSuccessToast, createErrorToast, ZonesState } from './baseZonesStore';
 import { ZoneStatus } from '@/types/zone';
 import { useLoader } from '@/app/components/GlobalLoader';
+import { useToast } from '@/components/ui/use-toast';
 
 interface DmpManagerZonesState {
   // Дополнительные методы для DMP-менеджера
-  changeZoneStatus: (zoneId: string, newStatus: ZoneStatus) => Promise<void>;
-  refreshZones: () => Promise<void>;
+  changeZoneStatus: (zoneId: string, newStatus: ZoneStatus, toast: any) => Promise<void>;
+  refreshZones: (toast: any) => Promise<void>;
 }
 
 export const useDmpManagerZonesStore = create<DmpManagerZonesState>((set, get) => ({
   // Методы для DMP-менеджера
-  changeZoneStatus: async (zoneId, newStatus) => {
-    const { showSuccessToast, showErrorToast } = useZonesToasts();
+  changeZoneStatus: async (zoneId, newStatus, toast) => {
+    const showSuccessToast = createSuccessToast(toast);
+    const showErrorToast = createErrorToast(toast);
     const { withLoading } = useLoader();
     const { updateZoneStatus } = useZonesStore.getState();
 
@@ -55,9 +57,9 @@ export const useDmpManagerZonesStore = create<DmpManagerZonesState>((set, get) =
     }
   },
 
-  refreshZones: async () => {
+  refreshZones: async (toast) => {
     const { fetchZones } = useZonesStore.getState();
-    const { showErrorToast } = useZonesToasts();
+    const showErrorToast = createErrorToast(toast);
 
     try {
       await fetchZones("DMP_MANAGER");
@@ -80,10 +82,16 @@ export const useDmpManagerZones = () => {
   
   // Получаем методы из стора DMP-менеджера
   const dmpStore = useDmpManagerZonesStore();
+  
+  // Получаем toast
+  const toast = useToast();
 
-  // Объединяем их в один объект
+  // Объединяем их в один объект и создаем обертки для методов, требующих toast
   return {
     ...baseStore,
     ...dmpStore,
+    changeZoneStatus: (zoneId: string, newStatus: ZoneStatus) => 
+      dmpStore.changeZoneStatus(zoneId, newStatus, toast),
+    refreshZones: () => dmpStore.refreshZones(toast),
   };
 };

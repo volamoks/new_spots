@@ -2,10 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 interface ZoneFilterDropdownProps {
   title: string;
@@ -17,7 +17,7 @@ interface ZoneFilterDropdownProps {
   className?: string;
 }
 
-export function ZoneFilterDropdown({
+export function SimpleZoneFilterDropdown({
   title,
   options,
   selected,
@@ -28,12 +28,15 @@ export function ZoneFilterDropdown({
 }: ZoneFilterDropdownProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const commandRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Ensure selected is an array
+  const safeSelected = Array.isArray(selected) ? selected : [];
 
   // Закрываем попап при клике вне его
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (commandRef.current && !commandRef.current.contains(event.target as Node)) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
@@ -46,9 +49,6 @@ export function ZoneFilterDropdown({
 
   // Обработчик выбора/отмены выбора опции
   const handleSelect = (value: string) => {
-    // Убедимся, что selected - это массив
-    const safeSelected = Array.isArray(selected) ? selected : [];
-    
     const newSelected = safeSelected.includes(value)
       ? safeSelected.filter(item => item !== value)
       : [...safeSelected, value];
@@ -72,11 +72,11 @@ export function ZoneFilterDropdown({
           className={cn(
             "justify-between", 
             className, 
-            Array.isArray(selected) && selected.length > 0 ? "border-primary" : ""
+            safeSelected.length > 0 ? "border-primary" : ""
           )}
         >
           <span className="truncate">
-            {title} {Array.isArray(selected) && selected.length > 0 && `(${selected.length})`}
+            {title} {safeSelected.length > 0 && `(${safeSelected.length})`}
           </span>
           {open ? (
             <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -86,39 +86,47 @@ export function ZoneFilterDropdown({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0 w-[200px]" align="start">
-        <Command ref={commandRef}>
-          <CommandInput
-            placeholder={placeholder}
-            value={searchValue}
-            onValueChange={setSearchValue}
-          />
-          <CommandEmpty>Ничего не найдено</CommandEmpty>
-          <CommandGroup className="max-h-[200px] overflow-y-auto">
-            {filteredOptions.map(option => (
-              <CommandItem
-                key={option.value}
-                value={option.value}
-                onSelect={() => handleSelect(option.value)}
-              >
-                <div className="flex items-center gap-2">
+        <div ref={popoverRef} className="flex flex-col">
+          <div className="flex items-center border-b px-3">
+            <Input
+              placeholder={placeholder}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="h-10 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+          </div>
+          
+          {filteredOptions.length === 0 ? (
+            <div className="py-6 text-center text-sm">Ничего не найдено</div>
+          ) : (
+            <div className="max-h-[200px] overflow-y-auto p-1">
+              {filteredOptions.map(option => (
+                <div
+                  key={option.value}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm cursor-pointer hover:bg-accent",
+                    safeSelected.includes(option.value) ? "bg-accent" : ""
+                  )}
+                  onClick={() => handleSelect(option.value)}
+                >
                   <div
                     className={cn(
                       "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                      Array.isArray(selected) && selected.includes(option.value)
+                      safeSelected.includes(option.value)
                         ? "bg-primary text-primary-foreground"
                         : "opacity-50"
                     )}
                   >
-                    {Array.isArray(selected) && selected.includes(option.value) && (
+                    {safeSelected.includes(option.value) && (
                       <Check className="h-3 w-3" />
                     )}
                   </div>
                   <span>{option.label}</span>
                 </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </Command>
+              ))}
+            </div>
+          )}
+        </div>
       </PopoverContent>
     </Popover>
   );

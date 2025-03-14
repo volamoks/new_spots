@@ -1,20 +1,22 @@
 "use client";
 
 import { create } from 'zustand';
-import { useZonesStore, useZonesToasts, ZonesState } from './baseZonesStore';
+import { useZonesStore, createSuccessToast, createErrorToast, ZonesState } from './baseZonesStore';
 import { ZoneStatus } from '@/types/zone';
 import { useLoader } from '@/app/components/GlobalLoader';
+import { useToast } from '@/components/ui/use-toast';
 
 interface SupplierZonesState {
   // Дополнительные методы для поставщика
-  createBooking: (zoneIds: string[]) => Promise<void>;
-  refreshZones: () => Promise<void>;
+  createBooking: (zoneIds: string[], toast: any) => Promise<void>;
+  refreshZones: (toast: any) => Promise<void>;
 }
 
 export const useSupplierZonesStore = create<SupplierZonesState>((set, get) => ({
   // Методы для поставщика
-  createBooking: async (zoneIds) => {
-    const { showSuccessToast, showErrorToast } = useZonesToasts();
+  createBooking: async (zoneIds, toast) => {
+    const showSuccessToast = createSuccessToast(toast);
+    const showErrorToast = createErrorToast(toast);
     const { withLoading } = useLoader();
 
     try {
@@ -41,7 +43,7 @@ export const useSupplierZonesStore = create<SupplierZonesState>((set, get) => ({
       );
 
       // Обновляем список зон после создания бронирования
-      await get().refreshZones();
+      await get().refreshZones(toast);
     } catch (error) {
       console.error('Ошибка при создании бронирования:', error);
       showErrorToast(
@@ -54,9 +56,9 @@ export const useSupplierZonesStore = create<SupplierZonesState>((set, get) => ({
     }
   },
 
-  refreshZones: async () => {
+  refreshZones: async (toast) => {
     const { fetchZones } = useZonesStore.getState();
-    const { showErrorToast } = useZonesToasts();
+    const showErrorToast = createErrorToast(toast);
 
     try {
       await fetchZones("SUPPLIER");
@@ -79,10 +81,16 @@ export const useSupplierZones = () => {
   
   // Получаем методы из стора поставщика
   const supplierStore = useSupplierZonesStore();
+  
+  // Получаем toast
+  const toast = useToast();
 
-  // Объединяем их в один объект
+  // Объединяем их в один объект и создаем обертки для методов, требующих toast
   return {
     ...baseStore,
     ...supplierStore,
+    createBooking: (zoneIds: string[]) => 
+      supplierStore.createBooking(zoneIds, toast),
+    refreshZones: () => supplierStore.refreshZones(toast),
   };
 };

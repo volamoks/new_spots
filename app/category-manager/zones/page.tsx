@@ -1,16 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCategoryManagerZones } from '@/lib/stores/zones/categoryManagerZonesStore';
 import { ZoneStatus } from '@/types/zone';
 import { ZonesSummaryCard } from '@/app/components/zones/ZonesSummaryCard';
 import { ZonesFilters } from '@/app/components/zones/ZonesFilters';
 import { ZonesTable } from '@/app/components/zones/ZonesTable';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, ShoppingCart, Store } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 export default function CategoryManagerZonesPage() {
@@ -27,6 +24,8 @@ export default function CategoryManagerZonesPage() {
     macrozoneFilters,
     equipmentFilters,
     supplierFilters,
+    sortField,
+    sortDirection,
     uniqueCities,
     uniqueMarkets,
     uniqueMacrozones,
@@ -37,6 +36,7 @@ export default function CategoryManagerZonesPage() {
     setSearchTerm,
     toggleFilter,
     removeFilter,
+    setSorting,
     resetFilters,
     fetchZones,
     refreshZones,
@@ -70,7 +70,16 @@ export default function CategoryManagerZonesPage() {
   const handleCreateBooking = async () => {
     if (selectedZones.length === 0 || !selectedSupplier) return;
     
-    await createBooking(selectedSupplier);
+    try {
+      await createBooking(selectedSupplier);
+    } catch (error) {
+      console.error('Ошибка при создании бронирования:', error);
+    }
+  };
+
+  // Обработчик изменения сортировки
+  const handleSortChange = (field: string, direction: 'asc' | 'desc' | null) => {
+    setSorting(field, direction);
   };
 
   // Обработчик изменения фильтра
@@ -125,82 +134,9 @@ export default function CategoryManagerZonesPage() {
                   {userCategory || "Категория не указана"}
                 </Badge>
               </div>
-              
-              <div className="flex-1">
-                <p className="text-sm font-medium mb-1">Выберите поставщика для бронирования:</p>
-                <Select
-                  value={selectedSupplier || ""}
-                  onValueChange={(value) => selectSupplier(value)}
-                >
-                  <SelectTrigger className="w-full md:w-[300px]">
-                    <SelectValue placeholder="Выберите поставщика" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uniqueSuppliers.length > 0 ? (
-                      uniqueSuppliers.map((supplier) => (
-                        <SelectItem key={supplier} value={supplier}>
-                          {supplier}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="" disabled>
-                        Нет доступных поставщиков
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </CardContent>
         </Card>
-        
-        {/* Карточка выбранных зон */}
-        {selectedZones.length > 0 && (
-          <Card className="mb-6 border-primary">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <ShoppingCart className="mr-2 h-5 w-5 text-primary" />
-                Выбранные зоны: {selectedZones.length}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {selectedZones.map(zoneId => {
-                  const zone = zones.find(z => z.id === zoneId);
-                  return (
-                    <div 
-                      key={zoneId} 
-                      className="bg-primary-50 text-primary-700 px-2 py-1 rounded-md text-sm flex items-center"
-                    >
-                      <span>{zone?.uniqueIdentifier || zoneId}</span>
-                      <button 
-                        onClick={() => deselectZone(zoneId)}
-                        className="ml-2 text-primary-500 hover:text-primary-700"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={clearSelectedZones}
-                >
-                  Очистить выбор
-                </Button>
-                <Button 
-                  onClick={handleCreateBooking}
-                  disabled={selectedZones.length === 0 || !selectedSupplier || isLoading}
-                >
-                  <Store className="mr-2 h-4 w-4" />
-                  Создать бронирование для поставщика
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
         
         {/* Фильтры */}
         <ZonesFilters
@@ -228,82 +164,21 @@ export default function CategoryManagerZonesPage() {
         />
         
         {/* Таблица зон с возможностью выбора */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="p-2 text-left">Выбор</th>
-                    <th className="p-2 text-left">ID</th>
-                    <th className="p-2 text-left">Город</th>
-                    <th className="p-2 text-left">Магазин</th>
-                    <th className="p-2 text-left">Макрозона</th>
-                    <th className="p-2 text-left">Оборудование</th>
-                    <th className="p-2 text-left">Статус</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredZones.length > 0 ? (
-                    filteredZones.map((zone) => (
-                      <tr 
-                        key={zone.id} 
-                        className={`border-b hover:bg-gray-50 cursor-pointer ${
-                          selectedZones.includes(zone.id) ? 'bg-primary-50' : ''
-                        } ${
-                          zone.status !== ZoneStatus.AVAILABLE ? 'opacity-50' : ''
-                        }`}
-                        onClick={() => zone.status === ZoneStatus.AVAILABLE && handleZoneSelection(zone.id)}
-                      >
-                        <td className="p-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedZones.includes(zone.id)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              if (zone.status === ZoneStatus.AVAILABLE) {
-                                handleZoneSelection(zone.id);
-                              }
-                            }}
-                            disabled={zone.status !== ZoneStatus.AVAILABLE}
-                            className="h-4 w-4"
-                          />
-                        </td>
-                        <td className="p-2 font-medium">{zone.uniqueIdentifier}</td>
-                        <td className="p-2">{zone.city}</td>
-                        <td className="p-2">{zone.market}</td>
-                        <td className="p-2">{zone.mainMacrozone}</td>
-                        <td className="p-2">{zone.equipment || "-"}</td>
-                        <td className="p-2">
-                          <Badge 
-                            variant="outline" 
-                            className={`
-                              ${zone.status === ZoneStatus.AVAILABLE ? 'bg-green-100 text-green-800 border-green-300' : ''}
-                              ${zone.status === ZoneStatus.BOOKED ? 'bg-blue-100 text-blue-800 border-blue-300' : ''}
-                              ${zone.status === ZoneStatus.UNAVAILABLE ? 'bg-red-100 text-red-800 border-red-300' : ''}
-                            `}
-                          >
-                            {zone.status === ZoneStatus.AVAILABLE ? 'Доступна' : 
-                             zone.status === ZoneStatus.BOOKED ? 'Забронирована' : 
-                             'Недоступна'}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="p-4 text-center text-gray-500">
-                        {zones.length === 0
-                          ? "Зоны не найдены"
-                          : "Нет зон, соответствующих фильтрам"}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <ZonesTable
+          zones={filteredZones}
+          onZoneSelect={handleZoneSelection}
+          onCreateBooking={handleCreateBooking}
+          onSelectSupplier={selectSupplier}
+          selectedZones={selectedZones}
+          selectedSupplier={selectedSupplier}
+          uniqueSuppliers={uniqueSuppliers}
+          showActions={false}
+          isLoading={isLoading}
+          role="CATEGORY_MANAGER"
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+        />
       </main>
     </div>
   );
