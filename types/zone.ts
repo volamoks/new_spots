@@ -14,20 +14,20 @@ export interface Zone {
   newFormat: string;
   equipmentFormat: string | null | undefined;
   equipment: string;
-  price?: number;
-  externalId?: string;
+  price?: number | null;
+  externalId?: string | null;
   dimensions: string;
   mainMacrozone: string;
   adjacentMacrozone: string;
-  sector?: string;
-  km?: string;
-  dmpNeighborhood?: string;
-  purpose?: string;
-  subpurpose?: string;
+  sector?: string | null;
+  km?: string | null;
+  dmpNeighborhood?: string | null;
+  purpose?: string | null;
+  subpurpose?: string | null;
   status: ZoneStatus;
-  supplier?: string;
-  brand?: string;
-  category?: string;
+  supplier?: string | null;
+  brand?: string | null;
+  category?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,4 +57,3 @@ export interface ZoneData {
   "Категория товара": string
   Статус: string
 }
-

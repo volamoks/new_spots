@@ -30,10 +30,19 @@ export async function GET(request: Request) {
       session.user.role === "CATEGORY_MANAGER" && !category
         ? session.user.category
         : category;
+    
+    // Для поставщика показываем только доступные зоны
+    const statusToUse = 
+      session.user.role === "SUPPLIER" 
+        ? ZoneStatus.AVAILABLE 
+        : status || undefined;
 
     // Получаем зоны с учетом фильтров
-    const zones = await fetchZones(macrozone, categoryToUse || undefined, status || undefined);
-
+    const zones = await fetchZones(macrozone, categoryToUse || undefined, statusToUse);
+    
+    console.log(`API: Получено ${zones.length} зон`);
+    console.log(`API: Роль пользователя: ${session.user.role}`);
+    
     return NextResponse.json(zones);
   } catch (error) {
     console.error("Error fetching zones:", error);

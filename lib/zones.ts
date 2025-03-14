@@ -30,6 +30,8 @@ export const fetchZones = async (macrozone?: string | string[], category?: strin
       whereClause.status = status;
     }
 
+    console.log("fetchZones: whereClause =", JSON.stringify(whereClause));
+
     const zones = await prisma.zone.findMany({
       where: whereClause,
       orderBy: [
@@ -38,6 +40,8 @@ export const fetchZones = async (macrozone?: string | string[], category?: strin
       ],
     });
 
+    console.log(`fetchZones: Найдено ${zones.length} зон`);
+    
     return zones;
   } catch (error) {
     console.error("Error fetching zones:", error);

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Zone } from "@/types/zone";
 import { ZoneStatus } from '@/types/zone';
-import { getZonesByMacrozones } from '@/lib/data/zones'; // Import the new function
+// Remove direct import of server-side functions
 
 interface ZonesState {
     // Данные
@@ -63,7 +63,15 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
 
     // Действия
     setZones: (zones) => {
-        set({ zones });
+        // Convert Prisma ZoneStatus to our custom ZoneStatus if needed
+        const convertedZones = zones.map(zone => ({
+            ...zone,
+            status: zone.status === "AVAILABLE" ? ZoneStatus.AVAILABLE :
+                   zone.status === "BOOKED" ? ZoneStatus.BOOKED :
+                   ZoneStatus.UNAVAILABLE
+        }));
+        
+        set({ zones: convertedZones });
         // Обновляем уникальные значения для фильтров
         const uniqueCities = Array.from(new Set(zones.map(zone => zone.city))).sort();
         const uniqueMarkets = Array.from(new Set(zones.map(zone => zone.market))).sort();
@@ -72,7 +80,7 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
         set({ uniqueCities, uniqueMarkets, uniqueMacrozones, uniqueEquipments });
         // Применяем фильтры к новым данным
         const state = get();
-        const filteredZones = applyFilters(zones, state);
+        const filteredZones = applyFilters(convertedZones, state);
         set({ filteredZones });
     },
 
@@ -176,18 +184,51 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
     },
 
     fetchZonesFromDB: async (macrozones) => { // Реализация действия fetchZonesFromDB
+        console.log("fetchZonesFromDB вызван, macrozones:", macrozones);
         set({ isLoading: true });
         try {
-            const fetchedZones = macrozones && macrozones.length > 0
-                ? await getZonesByMacrozones(macrozones)
-                : []; //  await getAllZones(); // если макрозоны не выбраны, можно загружать все или ничего
-
-            set({ isLoading: false });
-            set({ zones: fetchedZones }); // Обновляем состояние zones в сторе
+            // Используем API вместо прямого доступа к БД
+            let url = '/api/zones';
+            
+            // Добавляем параметры запроса, если указаны макрозоны
+            if (macrozones && macrozones.length > 0) {
+                const params = new URLSearchParams();
+                macrozones.forEach(mz => params.append('macrozone', mz));
+                url += `?${params.toString()}`;
+            }
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Ошибка при загрузке зон из API');
+            }
+            
+            const fetchedZones = await response.json();
+            console.log(`fetchZonesFromDB: Получено ${fetchedZones.length} зон из API`);
+            
+            // Convert API response to our Zone type with proper status
+            const convertedZones = fetchedZones.map((zone: Partial<Zone>) => ({
+                ...zone,
+                status: zone.status === "AVAILABLE" ? ZoneStatus.AVAILABLE :
+                       zone.status === "BOOKED" ? ZoneStatus.BOOKED :
+                       ZoneStatus.UNAVAILABLE
+            }));
+            
+            console.log(`fetchZonesFromDB: Сконвертировано ${convertedZones.length} зон`);
+            
+            set({ zones: convertedZones }); // Обновляем состояние zones в сторе
+            
+            // Применяем фильтры к новым данным
+            const state = get();
+            const filteredZones = applyFilters(convertedZones, state);
+            set({ filteredZones });
+            
+            console.log(`fetchZonesFromDB: После фильтрации осталось ${filteredZones.length} зон`);
         } catch (error) {
-            console.error("Ошибка при загрузке зон из БД:", error);
+            console.error("Ошибка при загрузке зон из API:", error);
             set({ isLoading: false });
             // Обработка ошибки, например, показ уведомления пользователю
+        } finally {
+            set({ isLoading: false });
         }
     },
 }));

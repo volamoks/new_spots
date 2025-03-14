@@ -10,3 +10,12 @@ export async function getZonesByMacrozones(macrozones: string[]): Promise<Zone[]
     },
   });
 }
+
+export async function getAllZones(): Promise<Zone[]> {
+  return prisma.zone.findMany({
+    orderBy: [
+      { city: 'asc' },
+      { market: 'asc' }
+    ],
+  });
+}
