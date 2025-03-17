@@ -41,9 +41,9 @@ interface BookingState {
     setFilteredBookings: (bookings: BookingRequestWithBookings[]) => void; // Update the setter too
     fetchBookings: (status?: string) => Promise<void>;
     approveBooking: (bookingId: string, role: string) => Promise<void>;
-    rejectBooking: (bookingId: string, role: string) => Promise<void>;
-    dmpApproveBooking: (bookingId: string, zoneId: string) => Promise<void>;
-    dmpRejectBooking: (bookingId: string) => Promise<void>;
+    rejectBooking: (bookingRequestId: string, zoneId: string, bookingId: string) => Promise<void>;
+    dmpApproveBooking: (bookingRequestId: string, zoneId: string) => Promise<void>;
+    dmpRejectBooking: (bookingRequestId: string, zoneId: string) => Promise<void>;
     updateRequestStatus: (requestId: string) => Promise<void>;
     applyFilters: (filters: BookingFilters) => void;
 }
@@ -139,7 +139,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                },
+                    },
                 body: JSON.stringify({ 
                     status: "KM_APPROVED",
                     role 
@@ -185,18 +185,38 @@ export const useBookingStore = create<BookingState>((set) => ({
             });
         }
     },
-    dmpApproveBooking: async (bookingId: string, zoneId: string) => {
+    dmpApproveBooking: async (bookingRequestId: string, zoneId: string) => {
         set({ isLoading: true, error: null });
         try {
+            console.log('dmpApproveBooking called with bookingRequestId:', bookingRequestId, 'zoneId:', zoneId);
+
+            let bookingIdToApprove: string | undefined;
+
+            // Find the bookingId
+            const { filteredBookings } = useBookingStore.getState(); // Access the state directly
+
+            filteredBookings.forEach(bookingRequest => {
+                bookingRequest.bookings.forEach(booking => {
+                    if (booking.bookingRequestId === bookingRequestId && booking.zoneId === zoneId) {
+                        bookingIdToApprove = booking.id;
+                    }
+                });
+            });
+
+            if (!bookingIdToApprove) {
+                console.error('Could not find bookingId for bookingRequestId:', bookingRequestId, 'and zoneId:', zoneId);
+                return;
+            }
+
             // Use API route instead of direct database access
-            const response = await fetch(`/api/bookings/${bookingId}`, {
+            const response = await fetch(`/api/bookings/${bookingIdToApprove}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     status: "DMP_APPROVED",
-                    role: "DMP_MANAGER" 
+                    role: "DMP_MANAGER"
                 }),
             });
 
@@ -221,11 +241,12 @@ export const useBookingStore = create<BookingState>((set) => ({
             // Update the local state
             set((state: BookingState) => {
                 const requestIndex = state.filteredBookings.findIndex(
-                    (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingId)
+                    (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingIdToApprove)
                 );
 
                 if (requestIndex === -1) {
-                    // Booking request not found, return current state
+                    // Booking request not found, log a warning and return current state
+                    console.warn(`Booking request with bookingId ${bookingRequestId} not found in local state. Consider refreshing bookings.`);
                     return state;
                 }
 
@@ -233,7 +254,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                 const bookingReq = updatedBookings[requestIndex];
 
                 const updatedInnerBookings = bookingReq.bookings.map((b) =>
-                    b.id === bookingId ? { ...b, status: "DMP_APPROVED" as BookingStatus } : b
+                    b.id === bookingIdToApprove ? { ...b, status: "DMP_APPROVED" as BookingStatus } : b
                 );
 
                 updatedBookings[requestIndex] = {
@@ -252,7 +273,7 @@ export const useBookingStore = create<BookingState>((set) => ({
             });
         }
     },
-    rejectBooking: async (bookingId: string, role: string) => {
+    rejectBooking: async (bookingRequestId: string, zoneId: string, bookingId: string) => {
         set({ isLoading: true, error: null });
         try {
             // Use API route instead of direct database access
@@ -261,9 +282,9 @@ export const useBookingStore = create<BookingState>((set) => ({
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     status: "KM_REJECTED",
-                    role 
+                    role: 'CATEGORY_MANAGER'
                 }),
             });
 
@@ -272,28 +293,43 @@ export const useBookingStore = create<BookingState>((set) => ({
                 throw new Error(errorData.error || 'Failed to reject booking');
             }
 
-            // Update the local state
             set((state: BookingState) => {
                 const requestIndex = state.filteredBookings.findIndex(
                     (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingId)
                 );
 
                 if (requestIndex === -1) {
-                    // Booking request not found, return current state
+                    // Booking request not found, log a warning and return current state
+                    console.warn(`Booking request with bookingId ${bookingRequestId} not found in local state. Consider refreshing bookings.`);
                     return state;
                 }
 
                 const updatedBookings = [...state.filteredBookings]; // Create a copy
-                const bookingReq = updatedBookings[requestIndex];
+                const bookingReqIndex = updatedBookings[requestIndex].bookings.findIndex((b) => b.id === bookingId);
 
-                const updatedInnerBookings = bookingReq.bookings.map((b) =>
-                    b.id === bookingId ? { ...b, status: "KM_REJECTED" as BookingStatus } : b
-                );
+                if (bookingReqIndex === -1) {
+                    console.warn(`Booking with bookingId ${bookingId} not found in local state. Consider refreshing bookings.`);
+                    return state;
+                }
 
-                updatedBookings[requestIndex] = {
-                    ...bookingReq,
-                    bookings: updatedInnerBookings,
+                // Create a copy of the booking request
+                const updatedBookingRequest = { ...updatedBookings[requestIndex] };
+
+                // Create a copy of the bookings array
+                const updatedBookingsArray = [...updatedBookingRequest.bookings];
+
+                // Update the status of the specific booking
+                updatedBookingsArray[bookingReqIndex] = {
+                    ...updatedBookingsArray[bookingReqIndex],
+                    status: "KM_REJECTED" as BookingStatus,
                 };
+
+                // Update the bookings array in the booking request
+                updatedBookingRequest.bookings = updatedBookingsArray;
+
+                // Update the booking request in the filtered bookings array
+                updatedBookings[requestIndex] = updatedBookingRequest;
+
                 return { filteredBookings: updatedBookings, isLoading: false };
             });
         } catch (error: unknown) {
@@ -305,11 +341,29 @@ export const useBookingStore = create<BookingState>((set) => ({
             });
         }
     },
-    dmpRejectBooking: async (bookingId: string) => {
+    dmpRejectBooking: async (bookingRequestId: string, zoneId: string) => {
         set({ isLoading: true, error: null });
         try {
+            let bookingIdToReject: string | undefined;
+
+            // Find the bookingId
+            const { filteredBookings } = useBookingStore.getState(); // Access the state directly
+
+            filteredBookings.forEach(bookingRequest => {
+                bookingRequest.bookings.forEach(booking => {
+                    if (booking.bookingRequestId === bookingRequestId && booking.zoneId === zoneId) {
+                        bookingIdToReject = booking.id;
+                    }
+                });
+            });
+
+            if (!bookingIdToReject) {
+                console.error('Could not find bookingId for bookingRequestId:', bookingRequestId, 'and zoneId:', zoneId);
+                return;
+            }
+
             // Use API route instead of direct database access
-            const response = await fetch(`/api/bookings/${bookingId}`, {
+            const response = await fetch(`/api/bookings/${bookingIdToReject}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -328,7 +382,7 @@ export const useBookingStore = create<BookingState>((set) => ({
             // Update the local state
             set((state: BookingState) => {
                 const requestIndex = state.filteredBookings.findIndex(
-                    (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingId)
+                    (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingIdToReject)
                 );
 
                 if (requestIndex === -1) {
@@ -340,7 +394,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                 const bookingReq = updatedBookings[requestIndex];
 
                 const updatedInnerBookings = bookingReq.bookings.map((b) =>
-                    b.id === bookingId ? { ...b, status: "DMP_REJECTED" as BookingStatus } : b
+                    b.id === bookingIdToReject ? { ...b, status: "DMP_REJECTED" as BookingStatus } : b
                 );
 
                 updatedBookings[requestIndex] = {

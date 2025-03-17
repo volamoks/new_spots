@@ -146,11 +146,11 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
     const handleReject = async (requestId: string, zoneId: string) => {
         try {
             if (role === 'CATEGORY_MANAGER') {
-                await rejectBooking(requestId, 'CATEGORY_MANAGER');
+                await rejectBooking(requestId, zoneId, '');
                 showSuccessToast('Успешно', 'Бронирование отклонено категорийным менеджером');
             } else if (role === 'DMP_MANAGER') {
                 // We don't need zoneId for rejection, only for approval
-                await dmpRejectBooking(requestId);
+                await dmpRejectBooking(requestId, zoneId);
                 showSuccessToast('Успешно', 'Бронирование отклонено менеджером ДМП');
             }
         } catch {

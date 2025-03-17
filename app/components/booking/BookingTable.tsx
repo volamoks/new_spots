@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
     Table,
     TableBody,
@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/table';
 import { StatusBadge } from '../StatusBadge';
 import { BookingRequestWithBookings } from '@/lib/stores/bookingStore';
-import { BookingActions } from './BookingActions';
+import { BookingActionsAndStatus } from './BookingActionsAndStatus';
+// import { BookingActions } from './BookingActions';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -26,7 +27,12 @@ type BookingTableProps = {
 };
 
 export function BookingTable({ requests, role, onApprove, onReject }: BookingTableProps) {
-    const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
+    const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>(
+        requests.reduce((acc: Record<string, boolean>, request) => {
+            acc[request.id] = true;
+            return acc;
+        }, {}),
+    );
 
     const toggleExpand = (requestId: string) => {
         setExpandedRequests(prev => ({
@@ -59,6 +65,9 @@ export function BookingTable({ requests, role, onApprove, onReject }: BookingTab
             return 'Invalid date';
         }
     };
+
+    const memoizedOnApprove = useCallback(onApprove, [onApprove]);
+    const memoizedOnReject = useCallback(onReject || (() => {}), [onReject]);
 
     return (
         <>
@@ -121,18 +130,14 @@ export function BookingTable({ requests, role, onApprove, onReject }: BookingTab
                                             <TableCell>{booking.zone.city}</TableCell>
                                             <TableCell>{booking.zone.market}</TableCell>
                                             <TableCell>{booking.zone.mainMacrozone}</TableCell>
-                                            <TableCell>
-                                                <StatusBadge status={booking.status} />
-                                            </TableCell>
-                                            <TableCell>
-                                                <BookingActions
-                                                    booking={booking}
-                                                    role={role}
-                                                    requestId={request.id}
-                                                    onApprove={onApprove}
-                                                    onReject={onReject}
-                                                />
-                                            </TableCell>
+
+                                            <BookingActionsAndStatus
+                                                booking={booking}
+                                                role={role}
+                                                requestId={request.id}
+                                                onApprove={memoizedOnApprove}
+                                                onReject={memoizedOnReject}
+                                            />
                                         </TableRow>
                                     ))}
                             </React.Fragment>
