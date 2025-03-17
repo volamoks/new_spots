@@ -1,103 +1,81 @@
-# Booking Component Refactor Plan
+# Booking System Refactor Plan
 
-**Goal:** Refactor the booking component and related stores to be more modular, efficient, and handle role-based booking logic, with improved performance and code organization.
+This document outlines the plan to address issues with the booking creation process and implement new features.
 
-**Plan:**
+## Root Cause Analysis
 
-1.  **Rename and Move:** Rename `app/supplier/zones-new/page.tsx` to `app/components/BookingPage.tsx` and move it to the `app/components` directory. (**DONE**)
+The primary issue is the hardcoded `userId` and `userRole` in the `createBooking` function within `lib/stores/bookingStore.ts`. This results in all bookings being created under the same user and role, regardless of the logged-in user.
 
-2.  **Integrate Category Manager Functionality:**
-    *   Modify `BookingPage.tsx` to conditionally render UI elements and logic based on the user's role (obtained via `useAuth` hook - see step 7).
-    *   **Supplier:** Keep the existing functionality.
-    *   **Category Manager:**
-        *   Add a `SupplierSelection` component (integrated into the layout). This component will:
-            *   Fetch suppliers using the `/api/suppliers` endpoint (modified in step 3).
-            *   Display a list of suppliers (name and INN).
-            *   Store the selected supplier's INN in the `bookingStore`.
-        *   Add a `CategorySelection` component (integrated into the layout). This component will:
-            *   Get the list of categories (from `lib/filterData.ts`).
-            *   Store the selected category in the `bookingStore`.
-        *   Modify the zone fetching logic to filter zones based on the selected category (if a category is selected). This will now be handled by the combination of `zonesStore` and `filterStore`.
-        *   Modify the booking creation logic in `bookingStore` to include the `supplierId` (which will be the supplier's INN) when sending the request to `/api/bookings`.
+## Additional Issues and Requirements
 
-3.  **Modify `/api/suppliers`:**
-    *   Update `app/api/suppliers/route.ts` to include the `inn` field in the `select` clause:
+*   **Brand Input:** A "brand" field needs to be added to the booking process.
+*   **Workflow:** The booking workflow differs based on user role (Supplier vs. Category Manager):
+    *   Supplier-created bookings require Category Manager approval (`PENDING_KM`).
+    *   Category Manager-created bookings go directly to DMP Manager approval (`PENDING_DMP`).
+*   **DMP Manager Approval:** After DMP Manager approval, the database needs to be updated (status, supplier, and brand).
+*   **Error Handling:** The current error handling is insufficient and needs improvement.
+*   **Transactionality:** The booking creation process should be atomic (all steps succeed or fail together).
 
-        ```typescript
-        // ...
-        select: {
-          id: true,
-          name: true,
-          supplierName: true,
-          inn: true,
-        },
-        // ...
-        ```
+## Plan
 
-4.  **Store Refactoring:**
-    *   Create a new `filterStore` (`lib/stores/filterStore.ts`) to manage all filter and sorting state. (**DONE**)
-    *   Modify the existing `zonesStore` (`lib/stores/zonesStore.ts`) to only handle fetching and storing raw zone data. (**DONE**)
-    *   Keep the `bookingStore` (`lib/stores/bookingStore.ts`) for managing the booking process state. (**DONE**)
-    *   Create a `loaderStore` (`lib/stores/loaderStore.ts`) to manage the global loading state. (**DONE**)
-    *   Remove redundant stores:
-        *   `lib/stores/zones/baseZonesStore.ts` (**TODO**)
-        *   `lib/stores/zones/categoryManagerZonesStore.ts`
-        *   `lib/stores/zones/supplierZonesStore.ts`
-        *   `lib/stores/zones/dmpManagerZonesStore.ts`
-        *   `lib/store.ts`
+### 1. Fix Hardcoded User and Role (Critical)
 
-5.  **Routing:**
-    *   Create new routes:
-        *   `/supplier/bookings`: For suppliers.
-        *   `/category-manager/bookings`: For category managers.
-    *   These routes will render the `BookingPage` component.
+*   In `lib/stores/bookingStore.ts`, remove the hardcoded `userId` and `userRole` from the `createBooking` function.
+*   Use the `useAuth` hook to get the currently logged-in user's ID and role.
+*   Pass the correct `userId`, `userRole`, `userCategory` (if applicable), and `supplierInn` (if applicable) to the `createBookingRequest` function.
 
-6.  **Refactor existing booking pages:**
-    *   Replace the contents of `app/category-manager/bookings/page.tsx` and `app/supplier/bookings/page.tsx` to render the new `BookingPage` component.
+### 2. Implement Brand Input
 
-7.  **`useAuth` Hook:**
-    *   Create a custom hook, `useAuth` (`lib/hooks/useAuth.ts`), to encapsulate session management logic. This hook will use `useSession` internally and provide a clean API for components to access user data and authentication status.
+*   Add a `brand` field to the `Zone` model in `prisma/schema.prisma`.
+*   Create and apply a database migration: `npx prisma migrate dev --name add_brand_to_zone`.
+*   Add a `brand` field to the `BookingState` interface in `lib/stores/bookingStore.ts`.
+*   Add state management for the `brand` in `lib/stores/bookingStore.ts`.
+*   Modify the `createBookingRequest` function in `lib/services/bookingService.ts` to accept a `brand` parameter.
+*   Modify the `createBooking` function in `lib/data/bookings.ts` to accept and use the `brand` parameter.
+*   Add a text input field for the brand in `app/components/booking/BookingActions.tsx`.
+*   Update calls to `createBooking` to pass the brand.
 
-8.  **Update `createBookingRequest`:**
-    *   Update the `createBookingRequest` function in `lib/services/bookingService.ts` to use the provided `supplierId` (the INN) to associate the booking.
+### 3. Adjust Booking Status Logic
 
-9.  **Custom Hooks:**
-    *   Create a `useZones` hook to encapsulate fetching and filtering zones.
-    *   Create a `useBooking` hook to encapsulate the booking process.
-    *   Create a `useSuppliers` hook to fetch suppliers.
-    *   Create a `useCategories` hook to fetch categories.
+*   In `lib/services/bookingService.ts`, in the `createBookingRequest` function, set the initial `booking` status based on the user's role:
+    *   Supplier: `PENDING_KM`
+    *   Category Manager: `PENDING_DMP`
 
-10. **Performance Enhancements:**
-    *   Use `useMemo` and `useCallback` for memoization.
-    *   Implement debouncing/throttling for the search input.
-    *   Consider virtualization for very long lists.
-    *   Optimize API calls.
-    *   Utilize Next.js code splitting.
+### 4. DMP Manager Approval Updates
 
-**Mermaid Diagram (Component and Store Structure):**
+*   Confirm that the `updateBookingStatus` function correctly handles status updates and that the brand and supplier are correctly set during booking creation and approval.
+
+### 5. Improve Error Handling
+
+*   Use the `useToast` hook in `BookingActions.tsx` to display user-friendly error messages.
+*   Add more specific error handling in `createBookingRequest` and `createBooking` as needed.
+
+### 6. Review Transactionality
+
+*   Wrap the booking creation logic in `lib/services/bookingService.ts` within a Prisma transaction.
+*   Modify `createBooking` function in `lib/data/bookings.ts` to accept a prisma instance.
+
+### 7. Test Thoroughly
+
+*   Perform thorough testing with different user roles (supplier, category manager, DMP manager) and different scenarios.
+
+## Mermaid Diagram
 
 ```mermaid
 graph LR
-    A[BookingPage] --> H1(useZones)
-    A --> H2(useBooking)
-    A --> H3(useSuppliers)
-    A --> H4(useAuth)
-    H1 --> Z[zonesStore]
-    H1 --> F[filterStore]
-    H2 --> B[bookingStore]
-    Z --> DB[(Database)]
-    ZonesFilters --> F
-    ZonesTable --> H1
-
-    subgraph "Zustand Stores"
-        Z
-        B
-        F
-        L[loaderStore]
-    end
-     subgraph "Custom Hooks"
-        H1
-        H2
-        H3
-        H4
-    end
+    A[User clicks "Create Booking"] --> B(BookingActions.handleCreateBooking);
+    B --> BA[Get Brand Input];
+    B --> C{useBookingStore.createBooking};
+    C --> D[Get User ID and Role from useAuth];
+    D --> E(lib/services/bookingService.ts: createBookingRequest);
+    E --> EA[Pass Brand to createBookingRequest];
+    E --> F{Check Zone Availability};
+    F -- Available --> G(lib/data/bookings.ts: createBooking);
+    G --> GA[Include Brand in Booking Record];
+    F -- Unavailable --> H[Throw Error];
+    G --> I[Update Zone Status to BOOKED];
+    I --> J[Create Booking Request Record];
+    C -- Error --> K[Display Error Toast];
+    C -- Success --> L[Clear Selected Zones];
+    style D fill:#f9f,stroke:#333,stroke-width:2px
+    style C fill:#ccf,stroke:#333,stroke-width:2px

@@ -4,20 +4,48 @@ import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useZonesStore } from '@/lib/stores/zonesStore';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { useAuth } from '@/lib/hooks/useAuth'; // Import useAuth
+import { useToast } from '@/components/ui/use-toast'; // Import useToast
 
 const BookingActions = () => {
-    const { createBooking, selectedZones, clearSelectedZones } = useBookingStore();
-
+    const { createBooking, selectedZones, clearSelectedZones, selectedSupplierInn } =
+        useBookingStore(); // Get selectedSupplierInn
+    const { user } = useAuth(); // Get the user
     const { isLoading, refreshZones } = useZonesStore();
+    const { toast } = useToast(); // Get the toast function
 
     const handleCreateBooking = async () => {
-        if (selectedZones.length === 0) return;
+        if (selectedZones.length === 0) {
+            toast({
+                title: 'Ошибка',
+                description: 'Выберите зоны для бронирования.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        if (!user) {
+            toast({
+                title: 'Ошибка',
+                description: 'Пользователь не авторизован.',
+                variant: 'destructive',
+            });
+            return;
+        }
 
         try {
-            await createBooking(selectedZones);
+            await createBooking(selectedZones, user, selectedSupplierInn); // Pass user and selectedSupplierInn
+            console.log(selectedZones);
             clearSelectedZones(); // Clear selected zones after successful booking
         } catch (error) {
             console.error('Ошибка при создании бронирования:', error);
+            toast({
+                title: 'Ошибка',
+                description:
+                    'Не удалось создать бронирование. ' +
+                    (error instanceof Error ? error.message : ''),
+                variant: 'destructive',
+            });
         }
     };
 

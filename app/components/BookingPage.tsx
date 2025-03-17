@@ -83,7 +83,7 @@ export default function BookingPage() {
     );
 
     // Inline styles for brevity
-    const filters = (
+    const filtersAndContent = (
         <div>
             <BookingFilters selectedCategory={selectedCategory} />
             <Card className="py-4 mb-6">
@@ -125,7 +125,7 @@ export default function BookingPage() {
                     </Card>
                     {/* Main booking interface */}
                     {/* <MacrozoneSelection selectedCategory={selectedCategory} /> */}
-                    {selectedCategory.length > 0 && filters}
+                    {selectedCategory.length > 0 && filtersAndContent}
                 </div>
             </main>
         </div>

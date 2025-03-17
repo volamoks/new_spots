@@ -61,16 +61,33 @@ export async function getBookingRequestById(id: string) {
  * @param bookingRequestId ID запроса на бронирование
  * @param zoneId ID зоны
  * @param status Статус бронирования
+ * @param supplierId ID поставщика (опционально)
  * @returns Созданное бронирование
  */
-export async function createBooking(bookingRequestId: string, zoneId: string, status: BookingStatus) {
-  return prisma.booking.create({
+export async function createBooking(
+  bookingRequestId: string,
+  zoneId: string,
+  status: BookingStatus,
+  userId: string,
+  supplierId?: string,
+) {
+  const booking = await prisma.booking.create({
     data: {
       bookingRequestId,
       zoneId,
       status,
     },
   });
+
+  // Update the zone's supplier if supplierId is provided
+  if (supplierId) {
+    await prisma.zone.update({
+      where: { id: zoneId },
+      data: { supplier: supplierId },
+    });
+  }
+
+  return booking;
 }
 
 /**
