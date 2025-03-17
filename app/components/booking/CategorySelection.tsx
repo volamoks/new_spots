@@ -22,7 +22,7 @@ const CategorySelection: React.FC<CategorySelectionProps> = ({
     }, []);
 
     return (
-        <div className="w-full max-w-sm mb-6">
+        <div className="w-full max-w mb-6">
             <label className="block text-m font-medium mb-2 mt-4">Выберите Категорию</label>
             <Select
                 value={selectedCategory}

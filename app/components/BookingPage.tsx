@@ -92,8 +92,8 @@ export default function BookingPage() {
                     {/* Category Selection at the top */}
                     <Card className="mb-6">
                         {/* Supplier Selection for Category Managers */}
-                        {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
-                        <CardContent className="p-4 space-y-4">
+                        <CardContent className=" ">
+                            {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
                             <CategorySelection
                                 onCategorySelect={setSelectedCategoryCallback}
                                 selectedCategory={selectedCategory}
