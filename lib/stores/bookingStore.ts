@@ -1,11 +1,9 @@
 import { create } from 'zustand';
-import { getAllBookings, updateBookingStatus } from '@/lib/services/bookingService';
 import { useToast } from '@/components/ui/use-toast';
-import { type RequestFilterState } from '@/app/components/RequestFilters';
 import { BookingRequest, type Booking, User, Zone, BookingStatus, Role } from '@prisma/client';
 
 // Add this type definition
-type BookingRequestWithBookings = BookingRequest & {
+export type BookingRequestWithBookings = BookingRequest & {
     bookings: (Booking & { zone: Zone; bookingRequest: BookingRequest })[];
     supplier: User | null;
     user: User;
@@ -16,6 +14,15 @@ interface SimplifiedUser {
     id: string;
     role: Role;
     category?: string | null;
+}
+
+// Define a type for filters
+export interface BookingFilters {
+    status: string[];
+    supplierName?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    [key: string]: string | string[] | undefined; // Allow for additional filter properties with specific types
 }
 
 interface BookingState {
@@ -35,8 +42,10 @@ interface BookingState {
     fetchBookings: (status?: string) => Promise<void>;
     approveBooking: (bookingId: string, role: string) => Promise<void>;
     rejectBooking: (bookingId: string, role: string) => Promise<void>;
+    dmpApproveBooking: (bookingId: string, zoneId: string) => Promise<void>;
+    dmpRejectBooking: (bookingId: string) => Promise<void>;
     updateRequestStatus: (requestId: string) => Promise<void>;
-    applyFilters: (filters: RequestFilterState) => void;
+    applyFilters: (filters: BookingFilters) => void;
 }
 
 export const useBookingStore = create<BookingState>((set) => ({
@@ -101,10 +110,21 @@ export const useBookingStore = create<BookingState>((set) => ({
     fetchBookings: async (status?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const bookings = await getAllBookings(status);
-            // console.log(bookings); // Inspect the bookings data
+            // Use the API route instead of direct database access
+            const url = status ? `/api/bookings?status=${status}` : '/api/bookings';
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch bookings');
+            }
+            
+            const bookings = await response.json();
+            console.log('Bookings from API:', bookings); // Debug log
+            
             set({ filteredBookings: bookings as BookingRequestWithBookings[], isLoading: false });
         } catch (error: unknown) {
+            console.error('Error fetching bookings:', error);
             set({
                 error: error instanceof Error ? error.message : 'An unknown error occurred',
                 isLoading: false,
@@ -114,7 +134,24 @@ export const useBookingStore = create<BookingState>((set) => ({
     approveBooking: async (bookingId: string, role: string) => {
         set({ isLoading: true, error: null });
         try {
-            await updateBookingStatus(bookingId, "KM_APPROVED", role);
+            // Use API route instead of direct database access
+            const response = await fetch(`/api/bookings/${bookingId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    status: "KM_APPROVED",
+                    role 
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to approve booking');
+            }
+
+            // Update the local state
             set((state: BookingState) => {
                 const requestIndex = state.filteredBookings.findIndex(
                     (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingId)
@@ -140,6 +177,74 @@ export const useBookingStore = create<BookingState>((set) => ({
                 return { filteredBookings: updatedBookings, isLoading: false };
             });
         } catch (error: unknown) {
+            console.error('Error approving booking:', error);
+            set({
+                error:
+                    error instanceof Error ? error.message : "An unknown error occurred",
+                isLoading: false,
+            });
+        }
+    },
+    dmpApproveBooking: async (bookingId: string, zoneId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            // Use API route instead of direct database access
+            const response = await fetch(`/api/bookings/${bookingId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    status: "DMP_APPROVED",
+                    role: "DMP_MANAGER" 
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to approve booking');
+            }
+            
+            // Then update the zone with the supplier
+            const zoneResponse = await fetch(`/api/zones/${zoneId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: 'BOOKED' }),
+            });
+
+            if (!zoneResponse.ok) {
+                throw new Error('Failed to update zone status');
+            }
+
+            // Update the local state
+            set((state: BookingState) => {
+                const requestIndex = state.filteredBookings.findIndex(
+                    (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingId)
+                );
+
+                if (requestIndex === -1) {
+                    // Booking request not found, return current state
+                    return state;
+                }
+
+                const updatedBookings = [...state.filteredBookings]; // Create a copy
+                const bookingReq = updatedBookings[requestIndex];
+
+                const updatedInnerBookings = bookingReq.bookings.map((b) =>
+                    b.id === bookingId ? { ...b, status: "DMP_APPROVED" as BookingStatus } : b
+                );
+
+                updatedBookings[requestIndex] = {
+                    ...bookingReq,
+                    bookings: updatedInnerBookings,
+                };
+
+                return { filteredBookings: updatedBookings, isLoading: false };
+            });
+        } catch (error: unknown) {
+            console.error('Error approving booking by DMP:', error);
             set({
                 error:
                     error instanceof Error ? error.message : "An unknown error occurred",
@@ -150,7 +255,24 @@ export const useBookingStore = create<BookingState>((set) => ({
     rejectBooking: async (bookingId: string, role: string) => {
         set({ isLoading: true, error: null });
         try {
-            await updateBookingStatus(bookingId, "KM_REJECTED", role);
+            // Use API route instead of direct database access
+            const response = await fetch(`/api/bookings/${bookingId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    status: "KM_REJECTED",
+                    role 
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to reject booking');
+            }
+
+            // Update the local state
             set((state: BookingState) => {
                 const requestIndex = state.filteredBookings.findIndex(
                     (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingId)
@@ -175,6 +297,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                 return { filteredBookings: updatedBookings, isLoading: false };
             });
         } catch (error: unknown) {
+            console.error('Error rejecting booking:', error);
             set({
                 error:
                     error instanceof Error ? error.message : "An unknown error occurred",
@@ -182,14 +305,52 @@ export const useBookingStore = create<BookingState>((set) => ({
             });
         }
     },
-    updateRequestStatus: async () => {
+    dmpRejectBooking: async (bookingId: string) => {
         set({ isLoading: true, error: null });
         try {
-            // updateBookingStatus is designed to work with individual booking IDs, not request IDs
-            // This function needs to be rethought if we want to update the entire request status
-            // For now, it will do nothing
-            set({ isLoading: false });
+            // Use API route instead of direct database access
+            const response = await fetch(`/api/bookings/${bookingId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    status: "DMP_REJECTED",
+                    role: "DMP_MANAGER" 
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to reject booking');
+            }
+
+            // Update the local state
+            set((state: BookingState) => {
+                const requestIndex = state.filteredBookings.findIndex(
+                    (bookingReq) => bookingReq.bookings.some((b) => b.id === bookingId)
+                );
+
+                if (requestIndex === -1) {
+                    // Booking request not found, return current state
+                    return state;
+                }
+
+                const updatedBookings = [...state.filteredBookings]; // Create a copy
+                const bookingReq = updatedBookings[requestIndex];
+
+                const updatedInnerBookings = bookingReq.bookings.map((b) =>
+                    b.id === bookingId ? { ...b, status: "DMP_REJECTED" as BookingStatus } : b
+                );
+
+                updatedBookings[requestIndex] = {
+                    ...bookingReq,
+                    bookings: updatedInnerBookings,
+                };
+                return { filteredBookings: updatedBookings, isLoading: false };
+            });
         } catch (error: unknown) {
+            console.error('Error rejecting booking by DMP:', error);
             set({
                 error:
                     error instanceof Error ? error.message : "An unknown error occurred",
@@ -197,21 +358,37 @@ export const useBookingStore = create<BookingState>((set) => ({
             });
         }
     },
-    applyFilters: (filters: RequestFilterState) => {
-        set((state) => {
-            const filteredBookings = state.filteredBookings.map((bookingRequest) => {
-                const filteredBookings =
-                    filters.status.length > 0
-                        ? bookingRequest.bookings.filter((booking: Booking) =>
-                            filters.status.includes(booking.status)
-                        )
-                        : bookingRequest.bookings;
-
-                return { ...bookingRequest, bookings: filteredBookings };
+    updateRequestStatus: async (requestId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            // Use API route instead of direct database access
+            const response = await fetch(`/api/requests/${requestId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: 'PROCESSED' }),
             });
 
-            return { ...state, filteredBookings };
-        });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update request status');
+            }
+
+            set({ isLoading: false });
+        } catch (error: unknown) {
+            console.error('Error updating request status:', error);
+            set({
+                error:
+                    error instanceof Error ? error.message : "An unknown error occurred",
+                isLoading: false,
+            });
+        }
+    },
+    applyFilters: (filters: BookingFilters) => {
+        // This function would apply filters to the filteredBookings
+        // For now, it's a placeholder
+        console.log('Applying filters:', filters);
     },
 }));
 
