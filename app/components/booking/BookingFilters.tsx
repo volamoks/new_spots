@@ -10,6 +10,7 @@ interface Props {
 import { ZoneSelectedFilters } from '@/app/components/zones/ZoneSelectedFilters';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 const BookingFilters = ({ selectedCategory }: Props) => {
     const {
@@ -22,6 +23,7 @@ const BookingFilters = ({ selectedCategory }: Props) => {
         debouncedSetSearchTerm,
         toggleFilter,
         removeFilter,
+        resetFilters,
     } = useFilterStore();
 
     const { uniqueCities, uniqueMarkets, uniqueEquipments, isLoading } = useZonesStore();
@@ -154,6 +156,14 @@ const BookingFilters = ({ selectedCategory }: Props) => {
                         className="mt-2"
                     />
                 </div>
+                <Button
+                    variant="outline"
+                    onClick={resetFilters}
+                    disabled={isLoading}
+                    className="whitespace-nowrap"
+                >
+                    Сбросить фильтры
+                </Button>
             </CardContent>
         </Card>
     );

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { Zone } from '@/types/zone';
 import { useFilterStore } from './filterStore';
-import { useBookingStore } from './bookingStore';
 
 interface ZonesState {
   zones: Zone[];
@@ -45,19 +44,20 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
   fetchZones: async (role: string, category?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const selectedSupplierInn = useBookingStore.getState().selectedSupplierInn;
+      // const selectedSupplierInn = useBookingStore.getState().selectedSupplierInn; // Remove supplier filtering
       let url = '/api/zones';
       const queryParams = [];
 
       if (category) {
         queryParams.push(`category=${category}`);
       }
-      if (role === 'CATEGORY_MANAGER' && selectedSupplierInn) {
-        queryParams.push(`supplierInn=${selectedSupplierInn}`);
-      }
+      // Remove supplier filtering
+      // if (role === 'CATEGORY_MANAGER' && selectedSupplierInn) {
+      //   queryParams.push(`supplierInn=${selectedSupplierInn}`);
+      // }
 
       if (queryParams.length > 0) {
-          url += `?${queryParams.join('&')}`;
+        url += `?${queryParams.join('&')}`;
       }
 
       const response = await fetch(url);
@@ -79,18 +79,21 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
         uniqueSuppliers,
       });
 
-    } catch (error: any) {
-      set({ error: error.message, isLoading: false });
+    } catch (error: unknown) {
+      set({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        isLoading: false,
+      });
     }
   },
 
-    refreshZones: async () => {
-      const { fetchZones } = get();
-      try {
-        const currentCategory = useFilterStore.getState().categoryFilter;
-        await fetchZones('', currentCategory || '');
-      } catch (error) {
-        console.error('Ошибка при обновлении зон:', error);
-      }
-    },
+  refreshZones: async () => {
+    const { fetchZones } = get();
+    try {
+      const currentCategory = useFilterStore.getState().categoryFilter;
+      await fetchZones('', currentCategory || '');
+    } catch (error: unknown) {
+      console.error('Ошибка при обновлении зон:', error);
+    }
+  },
 }));

@@ -16,9 +16,10 @@ import BookingPageHeader from './booking/BookingPageHeader';
 import SupplierSelection from './booking/SupplierSelection';
 import { Zone } from '@/types/zone';
 import { Card, CardContent } from '@/components/ui/card';
+import { GlobalLoader } from './GlobalLoader';
 
 export default function BookingPage() {
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, user, isLoading } = useAuth();
     const setSelectedSupplierInn = useBookingStore(state => state.setSelectedSupplierInn);
     const [selectedCategory, setSelectedCategory] = useState<string>('');
 
@@ -82,6 +83,24 @@ export default function BookingPage() {
     );
 
     // Inline styles for brevity
+    const filters = (
+        <div>
+            <BookingFilters selectedCategory={selectedCategory} />
+            <Card className="py-4 mb-6">
+                <BookingActions />
+            </Card>
+            <ZonesTable zones={currentZones} />
+            <ZonePagination
+                currentPage={currentPage}
+                totalItems={zones.length}
+                filteredItems={zonesToDisplay.length}
+                totalPages={Math.ceil(zonesToDisplay.length / itemsPerPage)}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPageCallback}
+                onItemsPerPageChange={setItemsPerPageCallback}
+            />
+        </div>
+    );
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
@@ -92,29 +111,21 @@ export default function BookingPage() {
                     {/* Category Selection at the top */}
                     <Card className="mb-6">
                         {/* Supplier Selection for Category Managers */}
-                        <CardContent className=" ">
-                            {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
-                            <CategorySelection
-                                onCategorySelect={setSelectedCategoryCallback}
-                                selectedCategory={selectedCategory}
-                            />
-                        </CardContent>
+                        {isLoading ? (
+                            <GlobalLoader />
+                        ) : (
+                            <CardContent className=" ">
+                                {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
+                                <CategorySelection
+                                    onCategorySelect={setSelectedCategoryCallback}
+                                    selectedCategory={selectedCategory}
+                                />
+                            </CardContent>
+                        )}
                     </Card>
-
                     {/* Main booking interface */}
                     {/* <MacrozoneSelection selectedCategory={selectedCategory} /> */}
-                    <BookingFilters selectedCategory={selectedCategory} />
-                    <ZonesTable zones={currentZones} />
-                    <BookingActions />
-                    <ZonePagination
-                        currentPage={currentPage}
-                        totalItems={zones.length}
-                        filteredItems={zonesToDisplay.length}
-                        totalPages={Math.ceil(zonesToDisplay.length / itemsPerPage)}
-                        itemsPerPage={itemsPerPage}
-                        onPageChange={setCurrentPageCallback}
-                        onItemsPerPageChange={setItemsPerPageCallback}
-                    />
+                    {selectedCategory.length > 0 && filters}
                 </div>
             </main>
         </div>

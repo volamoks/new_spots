@@ -1,36 +1,28 @@
 import React from 'react';
 import { useBookingStore } from '@/lib/stores/bookingStore';
-import { useFilterStore } from '@/lib/stores/filterStore';
+// import { useFilterStore } from '@/lib/stores/filterStore';
 import { useZonesStore } from '@/lib/stores/zonesStore';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 
 const BookingActions = () => {
     const { createBooking, selectedZones, clearSelectedZones } = useBookingStore();
-    const { resetFilters } = useFilterStore();
+
     const { isLoading, refreshZones } = useZonesStore();
 
-  const handleCreateBooking = async () => {
-    if (selectedZones.length === 0) return;
+    const handleCreateBooking = async () => {
+        if (selectedZones.length === 0) return;
 
-    try {
-      await createBooking(selectedZones);
-      clearSelectedZones(); // Clear selected zones after successful booking
-    } catch (error) {
-      console.error('Ошибка при создании бронирования:', error);
-    }
-  };
+        try {
+            await createBooking(selectedZones);
+            clearSelectedZones(); // Clear selected zones after successful booking
+        } catch (error) {
+            console.error('Ошибка при создании бронирования:', error);
+        }
+    };
 
     return (
-        <div className="flex gap-2">
-            <Button
-                variant="outline"
-                onClick={resetFilters}
-                disabled={isLoading}
-                className="whitespace-nowrap"
-            >
-                Сбросить фильтры
-            </Button>
+        <div className="flex gap-2 m-6 ">
             <Button
                 onClick={refreshZones}
                 disabled={isLoading}

@@ -54,7 +54,8 @@ export async function GET(request: Request) {
     const zones = await fetchZones(macrozone, categoryToUse || undefined, statusToUse);
     
     console.log(`API zones: Получено ${zones.length} зон`);
-    
+    console.log('API zones: Data:', JSON.stringify(zones, null, 2)); // Log the data
+
     return NextResponse.json(zones);
   } catch (error) {
     console.error("Error fetching zones:", error);
