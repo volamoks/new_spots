@@ -1,6 +1,5 @@
 import { BookingStatus, RequestStatus } from "@prisma/client";
-import { getBookingRequests, createBooking, findZoneByUniqueIdentifier } from "../data/bookings";
-import { buildBookingFilters } from "../utils/filters";
+import { createBooking, findZoneByUniqueIdentifier } from "../data/bookings";
 import { prisma } from "../prisma";
 
 /**
@@ -9,7 +8,7 @@ import { prisma } from "../prisma";
  * @param zoneIds Массив идентификаторов зон
  * @param userRole Роль пользователя
  * @param userCategory Категория пользователя (опционально)
- * @param supplierId ID поставщика (опционально)
+ * @param supplierInn ИНН поставщика (опционально)
  * @returns Запрос на бронирование со связанными бронированиями
  */
 export async function createBookingRequest(
@@ -17,91 +16,158 @@ export async function createBookingRequest(
   zoneIds: string[],
   userRole: string,
   userCategory?: string | null,
-  supplierId?: string | null
+  supplierInn?: string | null
 ) {
-  // Для категорийного менеджера проверяем, что указан поставщик
   if (userRole === "CATEGORY_MANAGER") {
-    // Проверяем, что указан поставщик
-    if (!supplierId) {
+    if (!supplierInn) {
       throw new Error("Для бронирования необходимо выбрать поставщика");
     }
-    
-    // Убрана проверка на соответствие категории зон категории менеджера
-    // Категорийный менеджер может бронировать любые доступные зоны от имени поставщика
+
+    const supplier = await prisma.user.findUnique({
+      where: {
+        inn: supplierInn,
+      },
+    });
+
+    if (!supplier) {
+      throw new Error(`Supplier with INN ${supplierInn} not found`);
+    }
+
+    const supplierId = supplier.id;
+
+    const bookingRequest = await prisma.bookingRequest.create({
+      data: {
+        userId,
+        status: "NEW" as RequestStatus,
+        category: userRole === "CATEGORY_MANAGER" ? userCategory : undefined,
+        supplierId: supplierId,
+      },
+    });
+
+    const bookings = [];
+    for (const zoneId of zoneIds) {
+      const zone = await findZoneByUniqueIdentifier(zoneId);
+
+      if (!zone) {
+        console.warn(`Zone with uniqueIdentifier ${zoneId} not found, skipping`);
+        continue;
+      }
+
+      if (zone.status !== "AVAILABLE") {
+        throw new Error(
+          `Зона ${zone.uniqueIdentifier} недоступна для бронирования (текущий статус: ${zone.status})`
+        );
+      }
+
+      const booking = await createBooking(
+        bookingRequest.id,
+        zone.id,
+        "PENDING_KM" as BookingStatus
+      );
+      bookings.push(booking);
+
+      await prisma.zone.update({
+        where: { id: zone.id },
+        data: {
+          status: "BOOKED",
+          supplier: supplierId,
+        },
+      });
+    }
+    return { bookingRequest, bookings };
+  } else {
+    const bookingRequest = await prisma.bookingRequest.create({
+      data: {
+        userId,
+        status: "NEW" as RequestStatus,
+        category: userRole === "CATEGORY_MANAGER" ? userCategory : undefined,
+      },
+    });
+
+    const bookings = [];
+    for (const zoneId of zoneIds) {
+      const zone = await findZoneByUniqueIdentifier(zoneId);
+
+      if (!zone) {
+        console.warn(`Zone with uniqueIdentifier ${zoneId} not found, skipping`);
+        continue;
+      }
+
+      if (zone.status !== "AVAILABLE") {
+        throw new Error(
+          `Зона ${zone.uniqueIdentifier} недоступна для бронирования (текущий статус: ${zone.status})`
+        );
+      }
+
+      const booking = await createBooking(
+        bookingRequest.id,
+        zone.id,
+        "PENDING_KM" as BookingStatus
+      );
+      bookings.push(booking);
+
+      await prisma.zone.update({
+        where: { id: zone.id },
+        data: {
+          status: "BOOKED",
+          supplier: userId
+        },
+      });
+    }
+    return { bookingRequest, bookings };
+  }
+}
+
+export async function getAllBookings(status?: string) {
+  const where: any = {};
+
+  if (status) {
+    where.bookings = {
+      some: {
+        status: {
+          in: status.split(',').map(s => s.trim())
+        }
+      }
+    }
   }
 
-  // Создаем запрос на бронирование
-  const bookingRequest = await prisma.bookingRequest.create({
-    data: {
-      userId,
-      status: "NEW" as RequestStatus,
-      category: userRole === "CATEGORY_MANAGER" ? userCategory : undefined,
-      supplierId: supplierId || undefined,
+  const bookingRequests = await prisma.bookingRequest.findMany({
+    where,
+    include: {
+      bookings: {
+        include: {
+          zone: true,
+          bookingRequest: true
+        },
+      },
+      supplier: true,
+      user: true,
     },
   });
 
-  // Создаем бронирования для каждой зоны
-  const bookings = [];
-  for (const zoneId of zoneIds) {
-    const zone = await findZoneByUniqueIdentifier(zoneId);
-
-    if (!zone) {
-      console.warn(`Zone with uniqueIdentifier ${zoneId} not found, skipping`);
-      continue;
-    }
-
-    // Проверяем доступность зоны
-    if (zone.status !== "AVAILABLE") {
-      throw new Error(`Зона ${zone.uniqueIdentifier} недоступна для бронирования (текущий статус: ${zone.status})`);
-    }
-
-    const booking = await createBooking(
-      bookingRequest.id,
-      zone.id,
-      "PENDING_KM" as BookingStatus
-    );
-    bookings.push(booking);
-    
-    // Обновляем статус зоны на BOOKED и устанавливаем поставщика
-    await prisma.zone.update({
-      where: { id: zone.id },
-      data: { 
-        status: "BOOKED",
-        supplier: supplierId || undefined
-      },
-    });
-  }
-
-  return { bookingRequest, bookings };
+  return bookingRequests;
 }
 
-/**
- * Получает запросы на бронирование в зависимости от роли пользователя и параметров фильтрации
- * @param userId ID пользователя
- * @param userRole Роль пользователя
- * @param userCategory Категория пользователя (опционально)
- * @param requestId ID запроса (опционально)
- * @param status Статус запроса (опционально)
- * @returns Список запросов на бронирование
- */
-export async function fetchBookingRequests(
-  userId: string,
-  userRole: string,
-  userCategory?: string | null,
-  requestId?: string | null,
-  status?: string | null
-) {
-  // Построение фильтров на основе роли пользователя и параметров
-  const whereClause = buildBookingFilters(
-    userRole,
-    userId,
-    requestId,
-    status,
-    userCategory
-  );
+export async function updateBookingStatus(bookingId: string, status: BookingStatus, role?: string) {
+  if (role === 'CATEGORY_MANAGER') {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId }
+    });
 
-  // Получение запросов на бронирование с использованием слоя доступа к данным
-  const bookingRequests = await getBookingRequests(whereClause);
+    if (!booking) {
+      throw new Error(`Booking with ID ${bookingId} not found`);
+    }
 
-  return bookingRequests;
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status }
+    });
+  }
+  else {
+    // For other roles, update the individual booking status directly
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status },
+    });
+  }
 }

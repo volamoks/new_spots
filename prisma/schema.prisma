@@ -34,22 +34,22 @@ model Session {
 }
 
 model User {
-  id                String           @id @default(cuid())
-  name              String?
-  email             String?          @unique
-  image             String?
-  password          String
-  role              Role             @default(SUPPLIER)
-  category          String?
-  inn               String?          @unique
-  supplierName      String?
-  status            UserStatus       @default(ACTIVE)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  accounts          Account[]
-  bookingRequests   BookingRequest[]
-  supplierBookings  BookingRequest[] @relation("BookingSupplier")
-  sessions          Session[]
+  id               String           @id @default(cuid())
+  name             String?
+  email            String?          @unique
+  image            String?
+  password         String
+  role             Role             @default(SUPPLIER)
+  category         String?
+  inn              String?          @unique
+  supplierName     String?
+  status           UserStatus       @default(ACTIVE)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  accounts         Account[]
+  bookingRequests  BookingRequest[]
+  supplierBookings BookingRequest[] @relation("BookingSupplier")
+  sessions         Session[]
 }
 
 model VerificationToken {

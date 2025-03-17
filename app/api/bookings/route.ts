@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { createBookingRequest, fetchBookingRequests } from "@/lib/services/bookingService";
+import { createBookingRequest, getAllBookings } from "@/lib/services/bookingService";
 import { handleApiError } from "@/lib/utils/api";
 
 // Create a new booking request with multiple bookings
@@ -56,17 +56,9 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const requestId = searchParams.get("requestId");
     const status = searchParams.get("status");
 
-    // Вызов сервисной функции вместо внутренней логики
-    const bookingRequests = await fetchBookingRequests(
-      session.user.id,
-      session.user.role,
-      session.user.category,
-      requestId,
-      status
-    );
+    const bookingRequests = await getAllBookings(status ?? undefined);
 
     return NextResponse.json(bookingRequests);
   } catch (error) {

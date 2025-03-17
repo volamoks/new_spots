@@ -17,11 +17,12 @@ export async function GET() {
         role: "SUPPLIER",
         status: "ACTIVE"
       },
-      select: {
-        id: true,
-        name: true,
-        supplierName: true
-      },
+        select: {
+          id: true,
+          name: true,
+          supplierName: true,
+          inn: true, // Add this line
+        },
       orderBy: {
         name: "asc"
       }

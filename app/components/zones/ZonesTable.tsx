@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from "react";
-import { Zone, ZoneStatus } from "@/types/zone";
+import { useState } from 'react';
+import { Zone, ZoneStatus } from '@/types/zone';
 import {
   Table,
   TableBody,
@@ -31,9 +31,9 @@ interface ZonesTableProps {
   isLoading?: boolean;
   role?: string;
   className?: string;
-  sortField?: string | null;
+  sortField?: keyof Zone | null;
   sortDirection?: 'asc' | 'desc' | null;
-  onSortChange?: (field: string, direction: 'asc' | 'desc' | null) => void;
+  onSortChange?: (field: keyof Zone, direction: 'asc' | 'desc' | null) => void;
 }
 
 export function ZonesTable({
@@ -99,9 +99,9 @@ export function ZonesTable({
   };
 
   // Обработчик изменения сортировки
-  const handleSortChange = (field: string) => {
+  const handleSortChange = (field: keyof Zone) => {
     if (!onSortChange) return;
-    
+
     let newDirection: 'asc' | 'desc' | null = 'asc';
     
     if (sortField === field) {
@@ -111,32 +111,31 @@ export function ZonesTable({
         newDirection = null;
       }
     }
-    
     onSortChange(field, newDirection);
   };
 
-  // Функция для отображения иконки сортировки
-  const getSortIcon = (field: string) => {
-    if (sortField !== field) {
+    // Функция для отображения иконки сортировки
+    const getSortIcon = (field: keyof Zone) => {
+      if (sortField !== field) {
+        return <ArrowUpDown className="ml-2 h-4 w-4" />;
+      }
+
+      if (sortDirection === 'asc') {
+        return <ArrowUp className="ml-2 h-4 w-4" />;
+      }
+
+      if (sortDirection === 'desc') {
+        return <ArrowDown className="ml-2 h-4 w-4" />;
+      }
+
       return <ArrowUpDown className="ml-2 h-4 w-4" />;
-    }
-    
-    if (sortDirection === 'asc') {
-      return <ArrowUp className="ml-2 h-4 w-4" />;
-    }
-    
-    if (sortDirection === 'desc') {
-      return <ArrowDown className="ml-2 h-4 w-4" />;
-    }
-    
-    return <ArrowUpDown className="ml-2 h-4 w-4" />;
-  };
+    };
 
   // Функция для создания заголовка с сортировкой
-  const SortableHeader = ({ field, children }: { field: string, children: React.ReactNode }) => (
+    const SortableHeader = ({ field, children }: { field: keyof Zone, children: React.ReactNode }) => (
     <TableHead>
-      <div 
-        className="flex items-center cursor-pointer" 
+      <div
+        className="flex items-center cursor-pointer"
         onClick={() => handleSortChange(field)}
       >
         {children}
