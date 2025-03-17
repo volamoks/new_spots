@@ -16,29 +16,31 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     DMP_REJECTED: "bg-red-100 text-red-800",
   };
 
-    const getStatusText = (status: BookingStatus | RequestStatus | string) => {
-        switch (status) {
-            case "NEW":
-                return "Новая";
-            case "CLOSED":
-                return "Закрыта";
-            case "PENDING_KM":
-                return "Ожидает КМ";
-            case "KM_APPROVED":
-                return "Согласована КМ";
-            case "KM_REJECTED":
-                return "Отклонена КМ";
-            case "DMP_APPROVED":
-                return "Согласована ДМП";
-            case "DMP_REJECTED":
-                return "Отклонена ДМП";
-            default:
-                return "Неизвестный статус";
-        }
+  const getStatusText = (status: BookingStatus | RequestStatus | string) => {
+    switch (status) {
+      case "NEW":
+        return "Новая";
+      case "CLOSED":
+        return "Закрыта";
+      case "PENDING_KM":
+        return "Ожидает КМ";
+      case "KM_APPROVED":
+        return "Согласована КМ";
+      case "KM_REJECTED":
+        return "Отклонена КМ";
+      case "DMP_APPROVED":
+        return "Согласована ДМП";
+      case "DMP_REJECTED":
+        return "Отклонена ДМП";
+      default:
+        return "Неизвестный статус";
     }
+  };
 
   const statusText = getStatusText(status);
-  const style = statusStyles[status as keyof typeof statusStyles] || "bg-gray-100 text-gray-800"; // Default style
+  const style =
+    statusStyles[status as keyof typeof statusStyles] ||
+    "bg-gray-100 text-gray-800"; // Default style
 
   return (
     <span className={cn("px-2 py-1 rounded-full text-xs font-medium", style)}>
