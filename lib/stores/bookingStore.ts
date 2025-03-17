@@ -7,6 +7,7 @@ export type BookingRequestWithBookings = BookingRequest & {
     bookings: (Booking & { zone: Zone; bookingRequest: BookingRequest })[];
     supplier: User | null;
     user: User;
+    supplierName: string;
 };
 
 // Define a SimplifiedUser type
@@ -139,7 +140,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    },
+                },
                 body: JSON.stringify({ 
                     status: "KM_APPROVED",
                     role 
@@ -162,7 +163,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                     return state;
                 }
 
-                const updatedBookings = [...state.filteredBookings]; // Create a copy
+                const updatedBookings = [...state.filteredBookings];
                 const bookingReq = updatedBookings[requestIndex];
 
                 const updatedInnerBookings = bookingReq.bookings.map((b) =>
@@ -174,7 +175,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                     bookings: updatedInnerBookings,
                 };
 
-                return { filteredBookings: updatedBookings, isLoading: false };
+                return { ...state, filteredBookings: updatedBookings, isLoading: false };
             });
         } catch (error: unknown) {
             console.error('Error approving booking:', error);
@@ -250,7 +251,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                     return state;
                 }
 
-                const updatedBookings = [...state.filteredBookings]; // Create a copy
+                const updatedBookings = [...state.filteredBookings];
                 const bookingReq = updatedBookings[requestIndex];
 
                 const updatedInnerBookings = bookingReq.bookings.map((b) =>
@@ -262,7 +263,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                     bookings: updatedInnerBookings,
                 };
 
-                return { filteredBookings: updatedBookings, isLoading: false };
+                return { ...state, filteredBookings: updatedBookings, isLoading: false };
             });
         } catch (error: unknown) {
             console.error('Error approving booking by DMP:', error);
@@ -304,7 +305,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                     return state;
                 }
 
-                const updatedBookings = [...state.filteredBookings]; // Create a copy
+                const updatedBookings = [...state.filteredBookings];
                 const bookingReqIndex = updatedBookings[requestIndex].bookings.findIndex((b) => b.id === bookingId);
 
                 if (bookingReqIndex === -1) {
@@ -330,7 +331,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                 // Update the booking request in the filtered bookings array
                 updatedBookings[requestIndex] = updatedBookingRequest;
 
-                return { filteredBookings: updatedBookings, isLoading: false };
+                return { ...state, filteredBookings: updatedBookings, isLoading: false };
             });
         } catch (error: unknown) {
             console.error('Error rejecting booking:', error);
@@ -390,7 +391,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                     return state;
                 }
 
-                const updatedBookings = [...state.filteredBookings]; // Create a copy
+                const updatedBookings = [...state.filteredBookings];
                 const bookingReq = updatedBookings[requestIndex];
 
                 const updatedInnerBookings = bookingReq.bookings.map((b) =>
@@ -401,7 +402,7 @@ export const useBookingStore = create<BookingState>((set) => ({
                     ...bookingReq,
                     bookings: updatedInnerBookings,
                 };
-                return { filteredBookings: updatedBookings, isLoading: false };
+                return { ...state, filteredBookings: updatedBookings, isLoading: false };
             });
         } catch (error: unknown) {
             console.error('Error rejecting booking by DMP:', error);

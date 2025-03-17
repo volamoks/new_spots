@@ -85,7 +85,6 @@ export function BookingTable({ requests, role, onApprove, onReject }: BookingTab
                     <TableRow>
                         {/* <TableHead>ID заявки</TableHead> */}
                         <TableHead>ID бронирования</TableHead>
-                        <TableHead>Поставщик</TableHead>
                         <TableHead>Зона</TableHead>
                         <TableHead>Город</TableHead>
                         <TableHead>Магазин</TableHead>
@@ -115,7 +114,8 @@ export function BookingTable({ requests, role, onApprove, onReject }: BookingTab
                                                 <ChevronDown size={16} />
                                             )}
                                         </Button>
-                                        Заявка: {request.id} - {formatDate(request.createdAt)}
+                                        Заявка: {request.id} от {request.supplierName} ({' '}
+                                        {formatDate(request.createdAt)})
                                         <StatusBadge status={request.status} />
                                     </TableCell>
                                 </TableRow>
@@ -123,9 +123,7 @@ export function BookingTable({ requests, role, onApprove, onReject }: BookingTab
                                     request.bookings.map(booking => (
                                         <TableRow key={booking.id}>
                                             <TableCell>{booking.id}</TableCell>
-                                            <TableCell>
-                                                {request.supplier?.supplierName || 'N/A'}
-                                            </TableCell>
+                                            {/* <TableCell>{request.supplierName || 'N/A'}</TableCell>s */}
                                             <TableCell>{booking.zone.uniqueIdentifier}</TableCell>
                                             <TableCell>{booking.zone.city}</TableCell>
                                             <TableCell>{booking.zone.market}</TableCell>

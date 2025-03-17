@@ -138,9 +138,37 @@ export async function getAllBookings(status?: string) {
                 },
             },
             supplier: true,
-            user: true,
+            user: {
+                select: {
+                    inn: true,
+                }
+            },
         },
     });
+
+    // Fetch supplier names from InnOrganization table
+    const bookingRequestsWithSupplierNames = await Promise.all(
+        bookingRequests.map(async (bookingRequest) => {
+            if (bookingRequest.user?.inn) {
+                const supplier = await prisma.innOrganization.findUnique({
+                    where: {
+                        inn: bookingRequest.user.inn,
+                    },
+                });
+                return {
+                    ...bookingRequest,
+                    supplierName: supplier?.name || 'N/A',
+                };
+            } else {
+                return {
+                    ...bookingRequest,
+                    supplierName: 'N/A',
+                };
+            }
+        })
+    );
+
+    return bookingRequestsWithSupplierNames;
 
     return bookingRequests;
 }

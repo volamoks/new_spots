@@ -46,7 +46,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
             showErrorToast('Ошибка', error);
             setError(null);
         }
-    }, [error, showErrorToast, setError]);
+    }, [error, showSuccessToast, showErrorToast, setError]);
 
     // Load bookings based on role
     useEffect(() => {

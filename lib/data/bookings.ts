@@ -15,14 +15,11 @@ export async function getBookingRequests(whereClause: Prisma.BookingRequestWhere
           zone: true,
         },
       },
-      user: true,
-      supplier: {
+      user: {
         select: {
-          id: true,
-          name: true,
-          supplierName: true
-        }
-      }
+          inn: true, // Select the inn field
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",
