@@ -64,7 +64,7 @@ export default function CategoryManagerZonesPage() {
         selectedSupplierInn,
         addSelectedZone,
         removeSelectedZone,
-        clearSelectedZones,
+        // clearSelectedZones,
         setSelectedSupplierInn,
         createBooking,
     } = useBookingStore();
@@ -121,7 +121,7 @@ export default function CategoryManagerZonesPage() {
     };
 
     // Sort change handler
-    const handleSortChange = (field:  Zone, direction: 'asc' | 'desc' | null) => {
+    const handleSortChange = (field: Zone, direction: 'asc' | 'desc' | null) => {
         setSorting(field, direction);
     };
 

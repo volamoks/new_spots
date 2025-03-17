@@ -11,18 +11,16 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Получаем только активных поставщиков
-    const suppliers = await prisma.user.findMany({
-      where: {
-        role: "SUPPLIER",
-        status: "ACTIVE"
+    // Получаем поставщиков для бронирования
+    const suppliers = await prisma.innOrganization.findMany({
+      select: {
+        id: true,
+        name: true,
+        inn: true,
       },
-        select: {
-          id: true,
-          name: true,
-          supplierName: true,
-          inn: true, // Add this line
-        },
+      where: {
+        // Добавляем фильтры для бронирования, если необходимо
+      },
       orderBy: {
         name: "asc"
       }

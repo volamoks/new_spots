@@ -3,21 +3,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 
-interface ZoneFilterDropdownProps {
+interface SimpleSelectDropdownProps {
     title: string;
     options: Array<{ value: string; label: string }>;
-    selected: string[];
-    onChange: (values: string[]) => void;
+    selected: string;
+    onChange: (value: string) => void;
     placeholder?: string;
     isDisabled?: boolean;
     className?: string;
 }
 
-export function SimpleZoneFilterDropdown({
+export function SimpleSelectDropdown({
     title,
     options,
     selected,
@@ -25,13 +25,10 @@ export function SimpleZoneFilterDropdown({
     placeholder = 'Поиск...',
     isDisabled = false,
     className = '',
-}: ZoneFilterDropdownProps) {
+}: SimpleSelectDropdownProps) {
     const [open, setOpen] = useState(false);
     const [searchValue, setSearchValue] = useState('');
     const popoverRef = useRef<HTMLDivElement>(null);
-
-    // Ensure selected is an array
-    const safeSelected = Array.isArray(selected) ? selected : [];
 
     // Закрываем попап при клике вне его
     useEffect(() => {
@@ -47,13 +44,10 @@ export function SimpleZoneFilterDropdown({
         };
     }, []);
 
-    // Обработчик выбора/отмены выбора опции
+    // Обработчик выбора опции
     const handleSelect = (value: string) => {
-        const newSelected = safeSelected.includes(value)
-            ? safeSelected.filter(item => item !== value)
-            : [...safeSelected, value];
-
-        onChange(newSelected);
+        onChange(value);
+        setOpen(false);
     };
 
     // Фильтрация опций по поисковому запросу
@@ -75,7 +69,7 @@ export function SimpleZoneFilterDropdown({
                     className={cn('justify-between', className)}
                 >
                     <span className="truncate">
-                        {title} {safeSelected.length > 0 && `(${safeSelected.length})`}
+                        {title} {selected && `: ${options.find(o => o.value === selected)?.label}`}
                     </span>
                     {open ? (
                         <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -110,22 +104,11 @@ export function SimpleZoneFilterDropdown({
                                     key={option.value}
                                     className={cn(
                                         'flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm cursor-pointer hover:bg-accent',
-                                        safeSelected.includes(option.value) ? 'bg-accent' : '',
+                                        selected === option.value ? 'bg-accent' : '',
                                     )}
                                     onClick={() => handleSelect(option.value)}
                                 >
-                                    <div
-                                        className={cn(
-                                            'flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                                            safeSelected.includes(option.value)
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'opacity-50',
-                                        )}
-                                    >
-                                        {safeSelected.includes(option.value) && (
-                                            <Check className="h-3 w-3" />
-                                        )}
-                                    </div>
+                                    
                                     <span>{option.label}</span>
                                 </div>
                             ))}
