@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ColumnSelector } from './ColumnSelector';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { BookingTable } from './booking/BookingTable';
+import BookingRole from '@/lib/enums/BookingRole';
 
 type RequestsTableProps = {
     onApprove: (requestId: string, zoneId: string) => void;
@@ -32,6 +33,7 @@ export function RequestsTable({ onApprove, onReject, role }: RequestsTableProps)
 
     // We no longer need to fetch bookings here since BookingRequestManagement already does it
 
+  const userRole = role === 'КМ' ? BookingRole.KM : role === 'ДМП' ? BookingRole.DMP : BookingRole.SUPPLIER;
 
     const handleColumnToggle = (column: string) => {
         setVisibleColumns((prev) =>
@@ -52,7 +54,7 @@ export function RequestsTable({ onApprove, onReject, role }: RequestsTableProps)
             <BookingTable
                 requests={filteredBookings}
                 visibleColumns={visibleColumns}
-                role={role}
+                userRole={userRole}
                 onApprove={onApprove}
                 onReject={onReject}
             />

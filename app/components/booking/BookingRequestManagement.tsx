@@ -7,37 +7,34 @@ import { useBookingToasts } from '@/lib/stores/bookingStore';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { RequestsTable } from '../RequestsTable';
 import { RequestFilters, type RequestFilterState } from '../RequestFilters';
+import { BookingStatus } from '@prisma/client';
+import BookingRole from '@/lib/enums/BookingRole';
 
 interface BookingRequestManagementProps {
     role?: 'SUPPLIER' | 'CATEGORY_MANAGER' | 'DMP_MANAGER';
 }
 
-const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
-    role: propRole,
-}) => {
-    const { 
-        filteredBookings, 
-        fetchBookings, 
-        isLoading, 
-        approveBooking, 
-        rejectBooking,
-        dmpApproveBooking,
-        dmpRejectBooking,
+const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ role: propRole }) => {
+    const {
+        filteredBookings,
+        fetchBookings,
+        isLoading,
+        updateBookingStatus,
         error,
         setError,
-        applyFilters
+        applyFilters,
     } = useBookingStore();
-    
+
     const { showSuccessToast, showErrorToast } = useBookingToasts();
     const { user } = useAuth();
     const role = propRole || user?.role || 'SUPPLIER';
-    
+
     // State to store filter values
     const [, setFilters] = useState<RequestFilterState>({
         status: [],
-        supplierName: "",
-        dateFrom: "",
-        dateTo: "",
+        supplierName: '',
+        dateFrom: '',
+        dateTo: '',
     });
 
     // Centralized error handling
@@ -51,42 +48,47 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
     // Load bookings based on role
     useEffect(() => {
         let isMounted = true;
-        
+
         const loadBookings = async () => {
             console.log('Current role:', role);
             console.log('Current user:', user);
-            
+
             // For debugging, let's try to fetch all bookings regardless of status
             // This will help us determine if there are any bookings in the database
-            
+
             // Only update state if component is still mounted
             if (isMounted) {
                 try {
                     // Fetch all bookings regardless of status
                     await fetchBookings('');
-                    
+
                     // Log the bookings after they've been fetched
                     const currentBookings = useBookingStore.getState().filteredBookings;
                     console.log('Fetched bookings:', currentBookings);
                     console.log('Fetched bookings length:', currentBookings.length);
-                    
+
                     // Log more details about the bookings
                     if (currentBookings.length > 0) {
                         console.log('First booking request:', currentBookings[0]);
                         if (currentBookings[0].bookings && currentBookings[0].bookings.length > 0) {
-                            console.log('First booking in first request:', currentBookings[0].bookings[0]);
+                            console.log(
+                                'First booking in first request:',
+                                currentBookings[0].bookings[0],
+                            );
                         }
                     } else {
-                        console.log('No bookings found. You may need to create some test bookings.');
+                        console.log(
+                            'No bookings found. You may need to create some test bookings.',
+                        );
                     }
                 } catch (error) {
                     console.error('Error fetching bookings:', error);
                 }
             }
         };
-        
+
         loadBookings();
-        
+
         // Cleanup function to prevent state updates after unmount
         return () => {
             isMounted = false;
@@ -98,23 +100,24 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
 
     const handleFilterChange = async (newFilters: RequestFilterState) => {
         setFilters(newFilters);
-        
+
         // Cancel any previous request
         if (activeFilterRequest.current) {
             activeFilterRequest.current.abort();
         }
-        
+
         // Create a new abort controller for this request
         activeFilterRequest.current = new AbortController();
-        
-        const statusFilter = newFilters.status.length > 0 
-            ? newFilters.status.join(',') 
-            : role === 'CATEGORY_MANAGER' 
-                ? 'PENDING_KM' 
-                : role === 'DMP_MANAGER' 
-                    ? 'KM_APPROVED' 
-                    : '';
-        
+
+        const statusFilter =
+            newFilters.status.length > 0
+                ? newFilters.status.join(',')
+                : role === 'CATEGORY_MANAGER'
+                ? 'PENDING_KM'
+                : role === 'DMP_MANAGER'
+                ? 'KM_APPROVED'
+                : '';
+
         try {
             await fetchBookings(statusFilter);
             applyFilters(newFilters);
@@ -131,10 +134,22 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
     const handleApprove = async (requestId: string, zoneId: string) => {
         try {
             if (role === 'CATEGORY_MANAGER') {
-                await approveBooking(requestId, 'CATEGORY_MANAGER');
+                await updateBookingStatus(
+                    undefined,
+                    requestId,
+                    zoneId,
+                    'KM_APPROVED' as BookingStatus,
+                    BookingRole.KM,
+                );
                 showSuccessToast('Успешно', 'Бронирование одобрено категорийным менеджером');
             } else if (role === 'DMP_MANAGER') {
-                await dmpApproveBooking(requestId, zoneId);
+                await updateBookingStatus(
+                    undefined,
+                    requestId,
+                    zoneId,
+                    'DMP_APPROVED' as BookingStatus,
+                    BookingRole.DMP,
+                );
                 showSuccessToast('Успешно', 'Бронирование одобрено менеджером ДМП');
             }
         } catch {
@@ -146,11 +161,23 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
     const handleReject = async (requestId: string, zoneId: string) => {
         try {
             if (role === 'CATEGORY_MANAGER') {
-                await rejectBooking(requestId, zoneId, '');
+                await updateBookingStatus(
+                    undefined,
+                    requestId,
+                    zoneId,
+                    'KM_REJECTED' as BookingStatus,
+                    BookingRole.KM,
+                );
                 showSuccessToast('Успешно', 'Бронирование отклонено категорийным менеджером');
             } else if (role === 'DMP_MANAGER') {
                 // We don't need zoneId for rejection, only for approval
-                await dmpRejectBooking(requestId, zoneId);
+                await updateBookingStatus(
+                    undefined,
+                    requestId,
+                    zoneId,
+                    'DMP_REJECTED' as BookingStatus,
+                    BookingRole.DMP,
+                );
                 showSuccessToast('Успешно', 'Бронирование отклонено менеджером ДМП');
             }
         } catch {
@@ -207,16 +234,14 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-gray-600">
-                            {getPageDescription()}
-                        </p>
+                        <p className="text-gray-600">{getPageDescription()}</p>
                         <p className="text-gray-600 mt-2">
                             Количество заявок:{' '}
                             <span className="font-semibold">{filteredBookings.length}</span>
                         </p>
                     </CardContent>
                 </Card>
-                
+
                 <Card className="mb-6">
                     <CardHeader>
                         <CardTitle className="text-xl font-semibold">Фильтры</CardTitle>
@@ -225,7 +250,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({
                         <RequestFilters onFilterChange={handleFilterChange} />
                     </CardContent>
                 </Card>
-                
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-xl font-semibold">

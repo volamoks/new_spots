@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { BookingStatus } from "@prisma/client";
+import BookingRole from "@/lib/enums/BookingRole";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -22,11 +23,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     // Validate the role
-    if (role === "CATEGORY_MANAGER" && session.user.role !== "CATEGORY_MANAGER") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    let expectedRole = null;
 
-    if (role === "DMP_MANAGER" && session.user.role !== "DMP_MANAGER") {
+    if (role === BookingRole.KM) {
+      expectedRole = "CATEGORY_MANAGER";
+    } else if (role === BookingRole.DMP) {
+      expectedRole = "DMP_MANAGER";
+    }
+    if (expectedRole && session.user.role !== expectedRole) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -44,12 +48,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     // Validate the status transition
-    if (status === "DMP_APPROVED" && booking.status !== "KM_APPROVED") {
+    if (status === BookingStatus.DMP_APPROVED && booking.status !== BookingStatus.KM_APPROVED) {
       return NextResponse.json(
         { error: "Booking must be approved by KM first" },
         { status: 400 },
       );
     }
+
 
     // Update the booking status
     const updatedBooking = await prisma.booking.update({
@@ -65,14 +70,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     if (bookingRequest) {
       const allBookingsReviewed = bookingRequest.bookings.every(
-        (b) => b.status === "KM_APPROVED" || b.status === "KM_REJECTED" || 
-               b.status === "DMP_APPROVED" || b.status === "DMP_REJECTED"
+        (b) => b.status === BookingStatus.KM_APPROVED || b.status === BookingStatus.KM_REJECTED ||
+          b.status === BookingStatus.DMP_APPROVED || b.status === BookingStatus.DMP_REJECTED
       );
 
       if (allBookingsReviewed) {
         await prisma.bookingRequest.update({
           where: { id: booking.bookingRequestId },
-          data: { status: "CLOSED" },
+          data: { status: "CLOSED" }, // Assuming you have a CLOSED status
         });
       }
     }
@@ -80,8 +85,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json(updatedBooking);
   } catch (error: unknown) {
     console.error('Error updating booking status:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred";
+    let errorMessage = "An unknown error occurred";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else {
+      errorMessage = JSON.stringify(error);
+    }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

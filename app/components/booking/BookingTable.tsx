@@ -16,17 +16,18 @@ import { BookingActionsAndStatus } from './BookingActionsAndStatus';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import BookingRole from '@/lib/enums/BookingRole';
 // import { BookingStatus } from '@prisma/client';
 
 type BookingTableProps = {
     requests: BookingRequestWithBookings[];
     visibleColumns?: string[]; // Make optional since we're not using it
-    role: 'КМ' | 'ДМП' | 'Поставщик';
+    userRole: BookingRole;
     onApprove: (requestId: string, zoneId: string) => void;
     onReject?: (requestId: string, zoneId: string) => void;
 };
 
-export function BookingTable({ requests, role, onApprove, onReject }: BookingTableProps) {
+export function BookingTable({ requests, userRole, onApprove, onReject }: BookingTableProps) {
     const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>(
         requests.reduce((acc: Record<string, boolean>, request) => {
             acc[request.id] = true;
@@ -131,7 +132,7 @@ export function BookingTable({ requests, role, onApprove, onReject }: BookingTab
 
                                             <BookingActionsAndStatus
                                                 booking={booking}
-                                                role={role}
+                                                userRole={userRole}
                                                 requestId={request.id}
                                                 onApprove={memoizedOnApprove}
                                                 onReject={memoizedOnReject}

@@ -4,18 +4,19 @@ import { BookingActions } from './BookingActions';
 import { StatusBadge } from '../StatusBadge';
 import { BookingRequestWithBookings } from '@/lib/stores/bookingStore';
 import { TableCell } from '@/components/ui/table';
+import BookingRole from '@/lib/enums/BookingRole';
 
 type BookingActionsAndStatusProps = {
     booking: BookingRequestWithBookings['bookings'][0];
-    role: 'КМ' | 'ДМП' | 'Поставщик';
+    userRole: BookingRole;
     requestId: string;
-    onApprove: (requestId: string, zoneId: string) => void;
+    onApprove: (bookingId: string, zoneId: string) => void;
     onReject?: (requestId: string, bookingId: string, zoneId: string) => void;
 };
 
 export function BookingActionsAndStatus({
     booking,
-    role,
+    userRole,
     requestId,
     onApprove,
     onReject,
@@ -28,12 +29,10 @@ export function BookingActionsAndStatus({
             <TableCell>
                 <BookingActions
                     booking={booking}
-                    role={role}
+                    userRole={userRole}
                     requestId={requestId}
                     onApprove={onApprove}
-                    onReject={(requestId, bookingId, zoneId) =>
-                        onReject?.(requestId, bookingId, zoneId)
-                    }
+                    onReject={onReject}
                 />
             </TableCell>
         </>
