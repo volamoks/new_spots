@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
-import { BOOKING_ACTIONS_CONFIG } from '@/lib/constants/bookingActions';
 import { toast } from '@/components/ui/use-toast';
 import { useManageBookingsStore } from '@/lib/stores/manageBookingsStore';
 
@@ -70,13 +69,24 @@ export const useBookingActions = ({
                 return;
             }
 
-            const config = BOOKING_ACTIONS_CONFIG[userRole]?.[actionType];
-            if (config) {
-                toast({
-                    title: 'Успешно',
-                    description: config.successMessage,
-                });
-            }
+            // Update the booking status in the local state
+            const updateBookingInStore = useManageBookingsStore.getState();
+            const allBookings = [...updateBookingInStore.allBookings];
+            const filteredBookings = [...updateBookingInStore.filteredBookings];
+
+            // Update both allBookings and filteredBookings
+            [allBookings, filteredBookings].forEach(bookingsList => {
+                for (const bookingRequest of bookingsList) {
+                    for (let i = 0; i < bookingRequest.bookings.length; i++) {
+                        if (bookingRequest.bookings[i].id === booking.id) {
+                            bookingRequest.bookings[i].status = status;
+                        }
+                    }
+                }
+            });
+
+            // Update the store with the modified bookings
+            updateBookingInStore.filteredBookings = filteredBookings;
 
             // Call the callbacks
             if (actionType === 'approve') {
@@ -84,9 +94,6 @@ export const useBookingActions = ({
             } else if (onReject) {
                 onReject(requestId, booking.zone.id, booking.id);
             }
-
-            // Refresh the bookings in the manageBookingsStore to update the UI
-            await fetchBookings();
 
         } catch (error: unknown) {
             console.error('Error performing action:', error);

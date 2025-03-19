@@ -64,7 +64,8 @@ export function BookingActions({
                         <Button
                             onClick={handleClick('approve')}
                             size="sm"
-                            className="bg-green-500 hover:bg-green-600"
+                            className="bg-green-300 hover:bg-green-500"
+                            variant="outline"
                         >
                             <Check className="w-4 h-4" />
                         </Button>
@@ -73,7 +74,8 @@ export function BookingActions({
                         <Button
                             onClick={handleClick('reject')}
                             size="sm"
-                            variant="destructive"
+                            className="bg-red-300 hover:bg-red-600"
+                            variant="outline"
                         >
                             <X className="w-4 h-4" />
                         </Button>
