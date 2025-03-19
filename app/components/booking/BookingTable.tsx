@@ -28,12 +28,28 @@ type BookingTableProps = {
 };
 
 export function BookingTable({ requests, userRole, onApprove, onReject }: BookingTableProps) {
-    const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>(
-        requests.reduce((acc: Record<string, boolean>, request) => {
-            acc[request.id] = true;
-            return acc;
-        }, {}),
-    );
+    // Initialize all requests as expanded by default
+    const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>(() => {
+        const expanded: Record<string, boolean> = {};
+        requests.forEach(request => {
+            expanded[request.id] = true;
+        });
+        return expanded;
+    });
+
+    // Update expanded state when requests change to ensure new requests are expanded by default
+    React.useEffect(() => {
+        setExpandedRequests(prev => {
+            const newExpanded = { ...prev };
+            requests.forEach(request => {
+                // Only set to true if it doesn't exist or was previously true
+                if (!(request.id in prev)) {
+                    newExpanded[request.id] = true;
+                }
+            });
+            return newExpanded;
+        });
+    }, [requests]);
 
     const toggleExpand = (requestId: string) => {
         setExpandedRequests(prev => ({

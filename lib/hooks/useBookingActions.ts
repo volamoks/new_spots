@@ -3,6 +3,7 @@ import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
 import { toast } from '@/components/ui/use-toast';
 import { useManageBookingsStore } from '@/lib/stores/manageBookingsStore';
+import { useLoader } from '@/app/components/GlobalLoader';
 
 const getBookingStatus = (actionType: 'approve' | 'reject', userRole: BookingRole): BookingStatus | undefined => {
     switch (actionType) {
@@ -42,6 +43,7 @@ export const useBookingActions = ({
 }: BookingActionsProps) => {
     // Get the fetchBookings function from the manageBookingsStore
     const fetchBookings = useManageBookingsStore(state => state.fetchBookings);
+    const { setLoading } = useLoader();
 
     const handleAction = useCallback(async (actionType: 'approve' | 'reject', onApprove: (bookingId: string, zoneId: string) => void, onReject?: (requestId: string, zoneId: string, bookingId: string) => void) => {
         const status = getBookingStatus(actionType, userRole);
@@ -51,6 +53,10 @@ export const useBookingActions = ({
         }
 
         try {
+            // Show the loader before making the API call
+            setLoading(true, 'Обновление статуса бронирования...');
+
+            // Make the API call
             const response = await fetch(`/api/bookings/${booking.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -102,8 +108,10 @@ export const useBookingActions = ({
                 description: 'Не удалось обновить статус бронирования',
                 variant: 'destructive',
             });
+        } finally {
+            setLoading(false);
         }
-    }, [booking.id, booking.zone.id, userRole, requestId, fetchBookings]);
+    }, [booking.id, booking.zone.id, userRole, requestId, fetchBookings, setLoading]);
 
     return { handleAction };
 };

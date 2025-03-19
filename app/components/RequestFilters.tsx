@@ -78,23 +78,26 @@ export function RequestFilters({ onFilterChange }: RequestFiltersProps) {
                         onChange={e => handleFilterChange('supplierName', e.target.value)}
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="dateFrom">Дата с</Label>
-                    <Input
-                        id="dateFrom"
-                        type="date"
-                        value={filters.dateFrom}
-                        onChange={e => handleFilterChange('dateFrom', e.target.value)}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="dateTo">Дата по</Label>
-                    <Input
-                        id="dateTo"
-                        type="date"
-                        value={filters.dateTo}
-                        onChange={e => handleFilterChange('dateTo', e.target.value)}
-                    />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                    <div>
+                        <Label htmlFor="dateFrom">Дата с</Label>
+                        <Input
+                            id="dateFrom"
+                            type="date"
+                            value={filters.dateFrom}
+                            onChange={e => handleFilterChange('dateFrom', e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="dateTo">Дата по</Label>
+                        <Input
+                            id="dateTo"
+                            type="date"
+                            value={filters.dateTo}
+                            onChange={e => handleFilterChange('dateTo', e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

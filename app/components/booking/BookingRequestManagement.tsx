@@ -10,6 +10,9 @@ import { RequestsTable } from '../RequestsTable';
 import ManageBookingsFilters from './ManageBookingsFilters';
 import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
+import { useLoader } from '@/app/components/GlobalLoader';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 interface BookingRequestManagementProps {
     role?: 'SUPPLIER' | 'CATEGORY_MANAGER' | 'DMP_MANAGER';
@@ -19,11 +22,12 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
     // Use both stores - bookingStore for CRUD operations and manageBookingsStore for filtering
     const { updateBookingStatus, error, setError } = useBookingStore();
 
-    const { filteredBookings, fetchBookings, isLoading } = useManageBookingsStore();
+    const { filteredBookings, fetchBookings } = useManageBookingsStore();
 
     const { showSuccessToast, showErrorToast } = useBookingToasts();
     const { user } = useAuth();
     const role = propRole || user?.role || 'SUPPLIER';
+    const { setLoading } = useLoader();
 
     // Centralized error handling
     useEffect(() => {
@@ -41,12 +45,25 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
             useManageBookingsStore.getState().setFilters({ supplierInn: user.inn });
         }
 
-        // Fetch all bookings
+        // Fetch all bookings without the loading indicator in the useEffect
         fetchBookings();
     }, [fetchBookings, user]);
 
+    // Separate function to handle manual refresh with loading indicator
+    const handleRefreshBookings = async () => {
+        try {
+            setLoading(true, 'Загрузка бронирований...');
+            await fetchBookings();
+        } catch (error) {
+            console.error('Ошибка при загрузке бронирований:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleApprove = async (requestId: string, zoneId: string) => {
         try {
+            setLoading(true, 'Одобрение бронирования...');
             if (role === 'CATEGORY_MANAGER') {
                 await updateBookingStatus(
                     undefined,
@@ -68,12 +85,15 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
             }
         } catch {
             showErrorToast('Ошибка', 'Не удалось одобрить бронирование');
+        } finally {
+            setLoading(false);
         }
     };
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const handleReject = async (requestId: string, zoneId: string) => {
         try {
+            setLoading(true, 'Отклонение бронирования...');
             if (role === 'CATEGORY_MANAGER') {
                 await updateBookingStatus(
                     undefined,
@@ -96,6 +116,8 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
             }
         } catch {
             showErrorToast('Ошибка', 'Не удалось отклонить бронирование');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -149,10 +171,19 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                     </CardHeader>
                     <CardContent>
                         <p className="text-gray-600">{getPageDescription()}</p>
-                        <p className="text-gray-600 mt-2">
-                            Количество заявок:{' '}
-                            <span className="font-semibold">{filteredBookings.length}</span>
-                        </p>
+                        <div className="flex justify-between items-center">
+                            <p className="text-gray-600 mt-2">
+                                Количество заявок:{' '}
+                                <span className="font-semibold">{filteredBookings.length}</span>
+                            </p>
+                            <Button
+                                onClick={handleRefreshBookings}
+                                className="whitespace-nowrap bg-red-600 hover:bg-red-700"
+                            >
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Обновить
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -172,16 +203,12 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {isLoading ? (
-                            <p>Загрузка...</p>
-                        ) : (
-                            <RequestsTable
-                                onApprove={handleApprove}
-                                onReject={handleReject}
-                                role={getRoleForTable()}
-                                bookings={filteredBookings}
-                            />
-                        )}
+                        <RequestsTable
+                            onApprove={handleApprove}
+                            onReject={handleReject}
+                            role={getRoleForTable()}
+                            bookings={filteredBookings}
+                        />
                     </CardContent>
                 </Card>
             </main>
