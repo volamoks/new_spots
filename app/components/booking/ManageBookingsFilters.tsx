@@ -82,7 +82,7 @@ const ManageBookingsFilters = () => {
             <CardContent className="p-6 space-y-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Выберите фильтры</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                <div className="flex w-full">
                     <div className="flex flex-col">
                         <label className="text-sm font-medium mb-1 text-gray-700">Дата с</label>
                         <div className="flex items-center">

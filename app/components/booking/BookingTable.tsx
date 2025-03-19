@@ -74,12 +74,18 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
         <>
             <div className="mb-4">
                 <Button
+                    variant="outline"
                     onClick={expandAll}
                     className="mr-2"
                 >
                     Раскрыть все
                 </Button>
-                <Button onClick={collapseAll}>Скрыть все</Button>
+                <Button
+                    variant="outline"
+                    onClick={collapseAll}
+                >
+                    Скрыть все
+                </Button>
             </div>
             <Table>
                 <TableHeader>

@@ -3,6 +3,7 @@ import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
 import { BOOKING_ACTIONS_CONFIG } from '@/lib/constants/bookingActions';
 import { toast } from '@/components/ui/use-toast';
+import { useManageBookingsStore } from '@/lib/stores/manageBookingsStore';
 
 const getBookingStatus = (actionType: 'approve' | 'reject', userRole: BookingRole): BookingStatus | undefined => {
     switch (actionType) {
@@ -40,6 +41,8 @@ export const useBookingActions = ({
     userRole,
     requestId,
 }: BookingActionsProps) => {
+    // Get the fetchBookings function from the manageBookingsStore
+    const fetchBookings = useManageBookingsStore(state => state.fetchBookings);
 
     const handleAction = useCallback(async (actionType: 'approve' | 'reject', onApprove: (bookingId: string, zoneId: string) => void, onReject?: (requestId: string, zoneId: string, bookingId: string) => void) => {
         const status = getBookingStatus(actionType, userRole);
@@ -75,14 +78,17 @@ export const useBookingActions = ({
                 });
             }
 
+            // Call the callbacks
             if (actionType === 'approve') {
                 onApprove(booking.id, booking.zone.id);
             } else if (onReject) {
                 onReject(requestId, booking.zone.id, booking.id);
             }
 
+            // Refresh the bookings in the manageBookingsStore to update the UI
+            await fetchBookings();
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error performing action:', error);
             toast({
                 title: 'Ошибка',
@@ -90,7 +96,7 @@ export const useBookingActions = ({
                 variant: 'destructive',
             });
         }
-    }, [booking.id, booking.zone.id, userRole, requestId]);
+    }, [booking.id, booking.zone.id, userRole, requestId, fetchBookings]);
 
     return { handleAction };
 };

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BookingRequest, type Booking, User, Zone, BookingStatus, Role } from '@prisma/client';
+import { BookingRequest, type Booking, User, Zone } from '@prisma/client';
 
 // Add this type definition
 export type BookingRequestWithBookings = BookingRequest & {
@@ -62,18 +62,62 @@ interface ManageBookingsState {
 
 // Helper functions to extract unique values from bookings
 const extractUniqueSuppliers = (bookings: BookingRequestWithBookings[]): Supplier[] => {
-    const suppliersMap = new Map<string, Supplier>();
+    // Use two maps - one keyed by INN and one keyed by name
+    const suppliersByInn = new Map<string, Supplier>();
+    const suppliersByName = new Map<string, Supplier>();
 
     bookings.forEach(booking => {
+        // Get the supplier name, ensuring it's not N/A
+        const supplierName = booking.supplierName && booking.supplierName !== 'N/A'
+            ? booking.supplierName
+            : booking.supplier?.name;
+
+        if (!supplierName) return;
+
+        // Normalize the name to avoid case sensitivity issues
+        const normalizedName = supplierName.trim().toLowerCase();
+
+        // If we have a supplier with an INN, add it to the INN map
         if (booking.supplier && booking.supplier.inn) {
-            suppliersMap.set(booking.supplier.inn, {
+            suppliersByInn.set(booking.supplier.inn, {
                 inn: booking.supplier.inn,
-                name: booking.supplierName || booking.supplier.name || booking.supplier.inn
+                name: supplierName
             });
         }
+        // Otherwise add it to the name map if it's not already in the INN map
+        else if (!Array.from(suppliersByInn.values()).some(s =>
+            s.name.toLowerCase() === normalizedName)) {
+            suppliersByName.set(normalizedName, {
+                inn: normalizedName, // Use the normalized name as the inn
+                name: supplierName
+            });
+        }
+
+        // Check if any of the bookings have a supplier in the zone
+        booking.bookings.forEach(b => {
+            if (b.zone.supplier && !suppliersByInn.has(b.zone.supplier)) {
+                // Only add if we don't already have this supplier by name
+                const zoneSuppName = supplierName || b.zone.supplier;
+                const normalizedZoneName = zoneSuppName.trim().toLowerCase();
+
+                if (!Array.from(suppliersByInn.values()).some(s =>
+                    s.name.toLowerCase() === normalizedZoneName) &&
+                    !suppliersByName.has(normalizedZoneName)) {
+
+                    suppliersByName.set(normalizedZoneName, {
+                        inn: b.zone.supplier,
+                        name: zoneSuppName
+                    });
+                }
+            }
+        });
     });
 
-    return Array.from(suppliersMap.values());
+    // Combine both maps, prioritizing suppliers with INNs
+    return [
+        ...Array.from(suppliersByInn.values()),
+        ...Array.from(suppliersByName.values())
+    ];
 };
 
 const extractUniqueCities = (bookings: BookingRequestWithBookings[]): string[] => {
@@ -286,6 +330,39 @@ export const useManageBookingsStore = create<ManageBookingsState>((set, get) => 
             if (filters.supplierInn) {
                 filtered = filtered.filter(booking => {
                     return booking.supplier?.inn === filters.supplierInn;
+                });
+            }
+
+            // Filter by selected suppliers from the dropdown
+            if (filters.supplier && filters.supplier.length > 0) {
+                filtered = filtered.filter(booking => {
+                    // Check if the booking's supplier matches any of the selected suppliers
+                    // First try to match by INN if available
+                    if (booking.supplier?.inn && filters.supplier!.includes(booking.supplier.inn)) {
+                        return true;
+                    }
+
+                    // Then try to match by name (case insensitive)
+                    if (booking.supplierName) {
+                        return filters.supplier!.some(suppId => {
+                            // If suppId looks like an INN, try to match with booking.supplier.inn
+                            if (/^\d+$/.test(suppId) && booking.supplier?.inn === suppId) {
+                                return true;
+                            }
+
+                            // Otherwise, try to match with booking.supplierName
+                            const normalizedBookingName = booking.supplierName.toLowerCase().trim();
+                            const normalizedSuppId = suppId.toLowerCase().trim();
+                            return normalizedBookingName === normalizedSuppId ||
+                                normalizedBookingName.includes(normalizedSuppId) ||
+                                normalizedSuppId.includes(normalizedBookingName);
+                        });
+                    }
+
+                    // Finally check if any booking in the request has a matching zone supplier
+                    return booking.bookings.some(b =>
+                        b.zone.supplier && filters.supplier!.includes(b.zone.supplier)
+                    );
                 });
             }
 
