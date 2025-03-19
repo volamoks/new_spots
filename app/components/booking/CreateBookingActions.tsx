@@ -2,22 +2,28 @@
 
 import React from 'react';
 import { useBookingStore } from '@/lib/stores/bookingStore';
-import { useZonesStore } from '@/lib/stores/zonesStore';
+import { useBookingZonesStore } from '@/lib/stores/bookingZonesStore';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { Supplier } from '@/types/supplier';
 
 const CreateBookingActions = () => {
     const { createBooking, selectedZones, clearSelectedZones } = useBookingStore();
-    const { isLoading, refreshZones } = useZonesStore();
+    const { isLoading, refreshZones } = useBookingZonesStore();
     const { data: session } = useSession();
 
     const handleCreateBooking = async () => {
-        if (selectedZones.length === 0) return;
+        if (selectedZones.length === 0 || !session?.user) return;
 
         try {
-            await createBooking(selectedZones, session?.user, session?.user?.inn);
+            // Convert session.user to SimplifiedUser
+            const simplifiedUser = {
+                id: session.user.id,
+                role: session.user.role,
+                category: session.user.category,
+            };
+
+            await createBooking(selectedZones, simplifiedUser, session.user.inn);
             clearSelectedZones(); // Clear selected zones after successful booking
         } catch (error) {
             console.error('Ошибка при создании бронирования:', error);

@@ -1,18 +1,13 @@
 import React, { useMemo } from 'react';
-import { useFilterStore } from '@/lib/stores/filterStore';
-import { useZonesStore } from '@/lib/stores/zonesStore';
+import { useBookingZonesStore } from '@/lib/stores/bookingZonesStore';
 import { getCorrespondingMacrozones } from '@/lib/filterData';
 import { SimpleZoneFilterDropdown } from '@/app/components/zones/SimpleZoneFilterDropdown';
-
-interface Props {
-    selectedCategory: string;
-}
 import { ZoneSelectedFilters } from '@/app/components/zones/ZoneSelectedFilters';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-const BookingFilters = ({ selectedCategory }: Props) => {
+const BookingFilters = () => {
     const {
         searchTerm,
         cityFilters,
@@ -20,13 +15,16 @@ const BookingFilters = ({ selectedCategory }: Props) => {
         macrozoneFilters,
         equipmentFilters,
         supplierFilters,
-        debouncedSetSearchTerm,
+        categoryFilter,
+        uniqueCities,
+        uniqueMarkets,
+        uniqueEquipments,
+        isLoading,
+        setSearchTerm,
         toggleFilter,
         removeFilter,
         resetFilters,
-    } = useFilterStore();
-
-    const { uniqueCities, uniqueMarkets, uniqueEquipments, isLoading } = useZonesStore();
+    } = useBookingZonesStore();
 
     const cityOptions = Array.isArray(uniqueCities)
         ? uniqueCities.map(city => ({ value: city, label: city }))
@@ -35,29 +33,28 @@ const BookingFilters = ({ selectedCategory }: Props) => {
         ? uniqueMarkets.map(market => ({ value: market, label: market }))
         : [];
     const macrozoneOptions = useMemo(() => {
-        const macrozones = getCorrespondingMacrozones(selectedCategory);
+        if (!categoryFilter) return [];
+
+        const macrozones = getCorrespondingMacrozones(categoryFilter);
         return macrozones.map(macrozone => ({
             value: macrozone,
             label: macrozone,
         }));
-    }, [selectedCategory]);
+    }, [categoryFilter]);
     const equipmentOptions = Array.isArray(uniqueEquipments)
         ? uniqueEquipments.map(equipment => ({
               value: equipment,
               label: equipment,
           }))
         : [];
-    // const supplierOptions = Array.isArray(uniqueSuppliers)
-    //     // ? uniqueSuppliers.map(supplier => ({
-    //     //       value: supplier,
-    //     //       label: supplier,
-    //     //   }))
-    //     // : [];
 
+    // Handle filter changes
     const handleFilterChange = (
         type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier',
         values: string[],
     ) => {
+        // For each value that was previously selected but is no longer in the values array,
+        // remove it from the filter
         const currentFilters =
             type === 'city'
                 ? cityFilters
@@ -75,6 +72,7 @@ const BookingFilters = ({ selectedCategory }: Props) => {
             }
         });
 
+        // For each value that is newly selected, add it to the filter
         values.forEach(value => {
             if (!currentFilters.includes(value)) {
                 toggleFilter(type, value);
@@ -92,7 +90,7 @@ const BookingFilters = ({ selectedCategory }: Props) => {
                             type="text"
                             placeholder="Поиск по городу, магазину, макрозоне..."
                             value={searchTerm}
-                            onChange={e => debouncedSetSearchTerm(e.target.value)}
+                            onChange={e => setSearchTerm(e.target.value)}
                             disabled={isLoading}
                             className="w-full"
                         />
