@@ -111,19 +111,32 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                         className="font-bold"
                                         onClick={() => toggleExpand(request.id)}
                                     >
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                        >
-                                            {expandedRequests[request.id] ? (
-                                                <ChevronUp size={16} />
-                                            ) : (
-                                                <ChevronDown size={16} />
-                                            )}
-                                        </Button>
-                                        Заявка: {request.id} от {request.supplierName} ({' '}
-                                        {formatDate(request.createdAt)})
-                                        <StatusBadge status={request.status} />
+                                        <div className="flex">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                            >
+                                                {expandedRequests[request.id] ? (
+                                                    <ChevronUp size={16} />
+                                                ) : (
+                                                    <ChevronDown size={16} />
+                                                )}
+                                            </Button>
+                                            <div>
+                                                <div className="flex justify-self-auto">
+                                                    <label className="text-sm font-bold mb-1 block text-gray-700">
+                                                        Заявка N: {request.id.slice(-4)} от{' '}
+                                                        {formatDate(request.createdAt)}
+                                                    </label>{' '}
+                                                    <StatusBadge status={request.status} />
+                                                </div>
+
+                                                <label className="text-sm font-bold mb-1 block text-gray-700">
+                                                    {' '}
+                                                    Поставщик: {request.supplierName}{' '}
+                                                </label>
+                                            </div>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 {expandedRequests[request.id] &&

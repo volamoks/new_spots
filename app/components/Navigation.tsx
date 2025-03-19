@@ -62,9 +62,9 @@ export default function Navigation() {
                         <Link href="/dmp-manager/zones">
                             <Button variant="ghost">Управление зонами</Button>
                         </Link>
-                        <Link href="/dmp-manager/upload">
+                        {/* <Link href="/dmp-manager/upload">
                             <Button variant="ghost">Загрузка данных</Button>
-                        </Link>
+                        </Link> */}
                         <Link href="/dmp-manager/export">
                             <Button variant="ghost">Экспорт/Импорт</Button>
                         </Link>

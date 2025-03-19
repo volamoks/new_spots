@@ -52,7 +52,7 @@ const SupplierSelection = () => {
 
     const supplierOptions = suppliers.map(supplier => ({
         value: supplier.inn,
-        label: `${supplier.name} (INN: ${supplier.inn})`,
+        label: `${supplier.name}`, // Simplify to just show the name
     }));
 
     return (

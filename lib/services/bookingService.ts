@@ -3,6 +3,14 @@ import { createBooking, findZoneByUniqueIdentifier } from '../data/bookings';
 import { prisma } from '../prisma';
 import { Prisma } from '@prisma/client';
 
+// Helper function to generate a simple human-readable ID
+function generateSimpleId(prefix: string) {
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    const randomPart = Math.floor(1000 + Math.random() * 9000); // 4-digit number
+    return `${prefix}${dateStr}-${randomPart}`;
+}
+
 /**
  * Создает новый запрос на бронирование с несколькими бронированиями зон
  * @param userId ID пользователя
@@ -24,7 +32,7 @@ export async function createBookingRequest(
             throw new Error('Для бронирования необходимо выбрать поставщика');
         }
 
-        // Find the supplier organization to verify it exists
+        // Find the supplier organization to verify it exists and get its name
         const supplierOrg = await prisma.innOrganization.findUnique({
             where: {
                 inn: supplierInn,
@@ -35,10 +43,14 @@ export async function createBookingRequest(
             throw new Error(`Supplier with INN ${supplierInn} not found`);
         }
 
+        // Generate a simple ID for the booking request
+        const simpleId = generateSimpleId('BR');
+
         // For Category Managers, we'll use their own userId as the supplierId
         // since we might not have a User record for the supplier
         const bookingRequest = await prisma.bookingRequest.create({
             data: {
+                id: simpleId, // Use our simple ID
                 userId,
                 status: 'NEW' as RequestStatus,
                 category: userCategory, // Always defined for CATEGORY_MANAGER
@@ -61,22 +73,26 @@ export async function createBookingRequest(
                 );
             }
 
-            // Pass supplierInn to createBooking
+            // Generate a simple ID for the booking
+            const bookingSimpleId = generateSimpleId('B');
+
+            // Pass supplier name to createBooking
             const booking = await createBooking(
                 bookingRequest.id,
                 zone.id,
                 'KM_APPROVED' as BookingStatus,
                 userId,
-                supplierInn, // Pass the supplier INN to associate with the booking
+                supplierOrg.name, // Pass the supplier NAME instead of INN
+                bookingSimpleId // Pass the simple ID
             );
             bookings.push(booking);
 
-            // Update zone status and set the supplier
+            // Update zone status and set the supplier name
             await prisma.zone.update({
                 where: { id: zone.id },
                 data: {
                     status: 'BOOKED',
-                    supplier: supplierInn, // Use the supplier INN
+                    supplier: supplierOrg.name, // Use the supplier NAME instead of INN
                 },
             });
         }
@@ -85,9 +101,21 @@ export async function createBookingRequest(
         // For non-CATEGORY_MANAGER users (suppliers)
         // The supplier is the current user, so we use their ID directly
 
+        // Get the supplier name from the user record
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { supplierName: true, name: true }
+        });
+
+        const supplierName = user?.supplierName || user?.name || 'Unknown Supplier';
+
+        // Generate a simple ID for the booking request
+        const simpleId = generateSimpleId('BR');
+
         // Create booking request with supplier's ID
         const bookingRequest = await prisma.bookingRequest.create({
             data: {
+                id: simpleId, // Use our simple ID
                 userId,
                 status: 'NEW' as RequestStatus,
                 category: userRole === 'CATEGORY_MANAGER' ? userCategory : undefined,
@@ -110,12 +138,16 @@ export async function createBookingRequest(
                 );
             }
 
+            // Generate a simple ID for the booking
+            const bookingSimpleId = generateSimpleId('B');
+
             const booking = await createBooking(
                 bookingRequest.id,
                 zone.id,
                 'PENDING_KM' as BookingStatus,
                 userId,
-                userId, // For suppliers, use their ID
+                supplierName, // Use the supplier NAME
+                bookingSimpleId // Pass the simple ID
             );
             bookings.push(booking);
 
@@ -123,7 +155,7 @@ export async function createBookingRequest(
                 where: { id: zone.id },
                 data: {
                     status: 'BOOKED',
-                    supplier: userId, // For suppliers, use their ID
+                    supplier: supplierName, // Use the supplier NAME
                 },
             });
         }
@@ -153,57 +185,55 @@ export async function getAllBookings(status?: string) {
                     zone: true,
                     bookingRequest: true,
                 },
+                orderBy: {
+                    createdAt: 'desc', // Sort bookings from newest to oldest
+                },
             },
             supplier: true,
             user: {
                 select: {
                     inn: true,
+                    supplierName: true,
+                    name: true
                 }
             },
         },
+        orderBy: {
+            createdAt: 'desc', // Sort booking requests from newest to oldest
+        },
     });
 
-    // Fetch supplier names from InnOrganization table
-    const bookingRequestsWithSupplierNames = await Promise.all(
-        bookingRequests.map(async (bookingRequest) => {
-            // Check if any of the bookings have a supplier INN in the zone
-            const supplierInn = bookingRequest.bookings.length > 0 ?
-                bookingRequest.bookings[0].zone.supplier : null;
+    // Process booking requests to include supplier names
+    const bookingRequestsWithSupplierNames = bookingRequests.map((bookingRequest) => {
+        // The supplier name is now directly stored in the zone.supplier field
+        const supplierName = bookingRequest.bookings.length > 0 ?
+            bookingRequest.bookings[0].zone.supplier : null;
 
-            if (supplierInn) {
-                // Try to find the supplier organization by INN
-                const supplier = await prisma.innOrganization.findUnique({
-                    where: {
-                        inn: supplierInn,
-                    },
-                });
-                if (supplier) {
-                    return {
-                        ...bookingRequest,
-                        supplierName: supplier.name,
-                    };
-                }
-            }
+        if (supplierName) {
+            return {
+                ...bookingRequest,
+                supplierName: supplierName,
+            };
+        }
 
-            // Fallback to the user's inn if zone supplier is not available
-            if (bookingRequest.user?.inn) {
-                const supplier = await prisma.innOrganization.findUnique({
-                    where: {
-                        inn: bookingRequest.user.inn,
-                    },
-                });
-                return {
-                    ...bookingRequest,
-                    supplierName: supplier?.name || 'N/A',
-                };
-            } else {
-                return {
-                    ...bookingRequest,
-                    supplierName: 'N/A',
-                };
-            }
-        })
-    );
+        // Fallback to the user's supplierName or name if zone supplier is not available
+        if (bookingRequest.user?.supplierName) {
+            return {
+                ...bookingRequest,
+                supplierName: bookingRequest.user.supplierName,
+            };
+        } else if (bookingRequest.user?.name) {
+            return {
+                ...bookingRequest,
+                supplierName: bookingRequest.user.name,
+            };
+        } else {
+            return {
+                ...bookingRequest,
+                supplierName: 'N/A',
+            };
+        }
+    });
 
     return bookingRequestsWithSupplierNames;
 }

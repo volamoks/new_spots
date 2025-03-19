@@ -11,8 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { BookingStatus } from '@prisma/client';
-import StatusBadge from '@/app/components/StatusBadge';
+import { StatusBadge } from '@/app/components/StatusBadge';
 
 const ManageBookingsTable = () => {
     const { user } = useAuth();
@@ -26,42 +25,6 @@ const ManageBookingsTable = () => {
             month: 'long',
             day: 'numeric',
         });
-    };
-
-    // Function to get status label
-    const getStatusLabel = (status: BookingStatus) => {
-        switch (status) {
-            case 'PENDING_KM':
-                return 'Ожидает КМ';
-            case 'KM_APPROVED':
-                return 'Одобрено КМ';
-            case 'KM_REJECTED':
-                return 'Отклонено КМ';
-            case 'DMP_APPROVED':
-                return 'Одобрено DMP';
-            case 'DMP_REJECTED':
-                return 'Отклонено DMP';
-            default:
-                return status;
-        }
-    };
-
-    // Function to get status color
-    const getStatusColor = (status: BookingStatus) => {
-        switch (status) {
-            case 'PENDING_KM':
-                return 'yellow';
-            case 'KM_APPROVED':
-                return 'green';
-            case 'KM_REJECTED':
-                return 'red';
-            case 'DMP_APPROVED':
-                return 'green';
-            case 'DMP_REJECTED':
-                return 'red';
-            default:
-                return 'gray';
-        }
     };
 
     return (
@@ -98,7 +61,7 @@ const ManageBookingsTable = () => {
                             {filteredBookings.map(bookingRequest =>
                                 bookingRequest.bookings.map(booking => (
                                     <TableRow key={booking.id}>
-                                        <TableCell>{booking.id.substring(0, 8)}...</TableCell>
+                                        <TableCell>{booking.id}</TableCell>
                                         <TableCell>{booking.zone.uniqueIdentifier}</TableCell>
                                         <TableCell>{bookingRequest.supplierName}</TableCell>
                                         <TableCell>

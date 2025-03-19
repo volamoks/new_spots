@@ -58,7 +58,9 @@ export async function getBookingRequestById(id: string) {
  * @param bookingRequestId ID запроса на бронирование
  * @param zoneId ID зоны
  * @param status Статус бронирования
- * @param supplierId ID поставщика (опционально)
+ * @param userId ID пользователя
+ * @param supplierName Имя поставщика (опционально)
+ * @param bookingId Простой ID для бронирования (опционально)
  * @returns Созданное бронирование
  */
 export async function createBooking(
@@ -66,21 +68,23 @@ export async function createBooking(
   zoneId: string,
   status: BookingStatus,
   userId: string,
-  supplierId?: string,
+  supplierName?: string,
+  bookingId?: string,
 ) {
   const booking = await prisma.booking.create({
     data: {
+      id: bookingId, // Use the provided simple ID if available
       bookingRequestId,
       zoneId,
       status,
     },
   });
 
-  // Update the zone's supplier if supplierId is provided
-  if (supplierId) {
+  // Update the zone's supplier if supplierName is provided
+  if (supplierName) {
     await prisma.zone.update({
       where: { id: zoneId },
-      data: { supplier: supplierId },
+      data: { supplier: supplierName },
     });
   }
 
