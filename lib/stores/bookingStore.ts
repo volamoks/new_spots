@@ -43,7 +43,7 @@ interface BookingState {
     setFilteredBookings: (bookings: BookingRequestWithBookings[]) => void; // Update the setter too
     fetchBookings: (status?: string) => Promise<void>;
     updateBookingStatus: (bookingId: string | undefined, bookingRequestId: string | undefined, zoneId: string | undefined, status: BookingStatus, role: BookingRole) => Promise<void>;
-     updateRequestStatus: (requestId: string) => Promise<void>;
+    updateRequestStatus: (requestId: string) => Promise<void>;
     applyFilters: (filters: BookingFilters) => void;
 }
 
@@ -66,7 +66,7 @@ export const useBookingStore = create<BookingState>((set) => ({
     setFilteredBookings: (bookings: BookingRequestWithBookings[]) =>
         set({ filteredBookings: bookings as BookingRequestWithBookings[] }),
 
-    createBooking: async (zoneIds, user, selectedSupplierInn) => {
+    createBooking: async (zoneIds: string[], user: SimplifiedUser | null, selectedSupplierInn: string | null) => {
         set({ isLoading: true, error: null });
         try {
             if (!user) {
@@ -75,7 +75,7 @@ export const useBookingStore = create<BookingState>((set) => ({
             // Prepare data for the API request
             const requestData = {
                 zoneIds: zoneIds,
-                supplierId: selectedSupplierInn,
+                supplierId: selectedSupplierInn, // Use the selected supplier's INN
                 userId: user?.id,
             };
 
@@ -130,89 +130,89 @@ export const useBookingStore = create<BookingState>((set) => ({
             });
         }
     },
-   updateBookingStatus: async (bookingId, bookingRequestId, zoneId, status, role) => {
-    set({ isLoading: true, error: null });
-    try {
-        let idToUpdate = bookingId;
+    updateBookingStatus: async (bookingId, bookingRequestId, zoneId, status, role) => {
+        set({ isLoading: true, error: null });
+        try {
+            let idToUpdate = bookingId;
 
-        // If bookingId is not provided, but bookingRequestId and zoneId are, find the bookingId
-        if (!bookingId && bookingRequestId && zoneId) {
-            const { filteredBookings } = useBookingStore.getState();
-            filteredBookings.forEach(bookingRequest => {
-                bookingRequest.bookings.forEach(booking => {
-                    if (booking.bookingRequestId === bookingRequestId && booking.zoneId === zoneId) {
-                        idToUpdate = booking.id;
-                    }
+            // If bookingId is not provided, but bookingRequestId and zoneId are, find the bookingId
+            if (!bookingId && bookingRequestId && zoneId) {
+                const { filteredBookings } = useBookingStore.getState();
+                filteredBookings.forEach(bookingRequest => {
+                    bookingRequest.bookings.forEach(booking => {
+                        if (booking.bookingRequestId === bookingRequestId && booking.zoneId === zoneId) {
+                            idToUpdate = booking.id;
+                        }
+                    });
                 });
+                if (!idToUpdate) {
+                    console.error('Could not find bookingId for bookingRequestId:', bookingRequestId, 'and zoneId:', zoneId);
+                    return;
+                }
+            }
+
+            if (!idToUpdate) {
+                console.error('No bookingId or bookingRequestId/zoneId provided');
+                return
+            }
+
+
+            // Use API route instead of direct database access
+            const response = await fetch(`/api/bookings/${idToUpdate}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    status,
+                    role,
+                }),
             });
-             if (!idToUpdate) {
-                console.error('Could not find bookingId for bookingRequestId:', bookingRequestId, 'and zoneId:', zoneId);
-                return;
-            }
-        }
 
-        if (!idToUpdate) {
-            console.error('No bookingId or bookingRequestId/zoneId provided');
-            return
-        }
-
-
-        // Use API route instead of direct database access
-        const response = await fetch(`/api/bookings/${idToUpdate}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                status,
-                role,
-            }),
-        });
-
-        if (!response.ok) {
-            let errorData;
-            try {
-                errorData = await response.json();
-            } catch (parseError) {
-                throw new Error('Failed to parse error response');
-            }
-            throw new Error(errorData.error || 'Failed to update booking status');
-        }
-
-        // Update the local state
-        set((state: BookingState) => {
-            const requestIndex = state.filteredBookings.findIndex(
-                (bookingReq) => bookingReq.bookings.some((b) => b.id === idToUpdate)
-            );
-
-            if (requestIndex === -1) {
-                // Booking request not found, log a warning and return current state
-                console.warn(`Booking request with bookingId ${idToUpdate} not found in local state. Consider refreshing bookings.`);
-                return state;
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (parseError) {
+                    throw new Error('Failed to parse error response');
+                }
+                throw new Error(errorData.error || 'Failed to update booking status');
             }
 
-            const updatedBookings = [...state.filteredBookings];
-            const bookingReq = updatedBookings[requestIndex];
-            const updatedInnerBookings = bookingReq.bookings.map((b) =>
-                b.id === idToUpdate ? { ...b, status: status as BookingStatus } : b
-            );
+            // Update the local state
+            set((state: BookingState) => {
+                const requestIndex = state.filteredBookings.findIndex(
+                    (bookingReq) => bookingReq.bookings.some((b) => b.id === idToUpdate)
+                );
 
-            updatedBookings[requestIndex] = {
-                ...bookingReq,
-                bookings: updatedInnerBookings,
-            };
+                if (requestIndex === -1) {
+                    // Booking request not found, log a warning and return current state
+                    console.warn(`Booking request with bookingId ${idToUpdate} not found in local state. Consider refreshing bookings.`);
+                    return state;
+                }
 
-            return { ...state, filteredBookings: updatedBookings, isLoading: false };
-        });
-    } catch (error: unknown) {
-        console.error('Error updating booking status:', error);
-        set({
-            error:
-                error instanceof Error ? error.message : "An unknown error occurred",
-            isLoading: false,
-        });
-    }
-},
+                const updatedBookings = [...state.filteredBookings];
+                const bookingReq = updatedBookings[requestIndex];
+                const updatedInnerBookings = bookingReq.bookings.map((b) =>
+                    b.id === idToUpdate ? { ...b, status: status as BookingStatus } : b
+                );
+
+                updatedBookings[requestIndex] = {
+                    ...bookingReq,
+                    bookings: updatedInnerBookings,
+                };
+
+                return { ...state, filteredBookings: updatedBookings, isLoading: false };
+            });
+        } catch (error: unknown) {
+            console.error('Error updating booking status:', error);
+            set({
+                error:
+                    error instanceof Error ? error.message : "An unknown error occurred",
+                isLoading: false,
+            });
+        }
+    },
 
     updateRequestStatus: async (requestId: string) => {
         set({ isLoading: true, error: null });

@@ -8,7 +8,8 @@ import { RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 const CreateBookingActions = () => {
-    const { createBooking, selectedZones, clearSelectedZones } = useBookingStore();
+    const { createBooking, selectedZones, clearSelectedZones, selectedSupplierInn } =
+        useBookingStore();
     const { isLoading, refreshZones } = useBookingZonesStore();
     const { data: session } = useSession();
 
@@ -23,7 +24,14 @@ const CreateBookingActions = () => {
                 category: session.user.category,
             };
 
-            await createBooking(selectedZones, simplifiedUser, session.user.inn);
+            // For Category Managers, use the selected supplier INN
+            // For Suppliers, use their own INN from the session
+            const supplierInnToUse =
+                session.user.role === 'CATEGORY_MANAGER'
+                    ? selectedSupplierInn
+                    : session.user.inn || null;
+
+            await createBooking(selectedZones, simplifiedUser, supplierInnToUse);
             clearSelectedZones(); // Clear selected zones after successful booking
         } catch (error) {
             console.error('Ошибка при создании бронирования:', error);

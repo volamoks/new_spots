@@ -24,23 +24,25 @@ export async function createBookingRequest(
             throw new Error('Для бронирования необходимо выбрать поставщика');
         }
 
-        const supplier = await prisma.innOrganization.findUnique({
+        // Find the supplier organization to verify it exists
+        const supplierOrg = await prisma.innOrganization.findUnique({
             where: {
                 inn: supplierInn,
             },
         });
 
-        if (!supplier) {
+        if (!supplierOrg) {
             throw new Error(`Supplier with INN ${supplierInn} not found`);
         }
 
-        // Use the KM's userId for the booking request
+        // For Category Managers, we'll use their own userId as the supplierId
+        // since we might not have a User record for the supplier
         const bookingRequest = await prisma.bookingRequest.create({
             data: {
                 userId,
                 status: 'NEW' as RequestStatus,
                 category: userCategory, // Always defined for CATEGORY_MANAGER
-                supplierId: null, // No longer setting supplierId on the request
+                supplierId: userId, // Use the Category Manager's ID
             },
         });
 
@@ -59,23 +61,37 @@ export async function createBookingRequest(
                 );
             }
 
-            // Pass supplierId to createBooking
+            // Pass supplierInn to createBooking
             const booking = await createBooking(
                 bookingRequest.id,
                 zone.id,
                 'KM_APPROVED' as BookingStatus,
                 userId,
+                supplierInn, // Pass the supplier INN to associate with the booking
             );
             bookings.push(booking);
+
+            // Update zone status and set the supplier
+            await prisma.zone.update({
+                where: { id: zone.id },
+                data: {
+                    status: 'BOOKED',
+                    supplier: supplierInn, // Use the supplier INN
+                },
+            });
         }
         return { bookingRequest, bookings };
     } else {
-        // For non-CATEGORY_MANAGER users, keep the existing logic
+        // For non-CATEGORY_MANAGER users (suppliers)
+        // The supplier is the current user, so we use their ID directly
+
+        // Create booking request with supplier's ID
         const bookingRequest = await prisma.bookingRequest.create({
             data: {
                 userId,
                 status: 'NEW' as RequestStatus,
                 category: userRole === 'CATEGORY_MANAGER' ? userCategory : undefined,
+                supplierId: userId, // For suppliers, they are both the user and the supplier
             },
         });
 
@@ -99,6 +115,7 @@ export async function createBookingRequest(
                 zone.id,
                 'PENDING_KM' as BookingStatus,
                 userId,
+                userId, // For suppliers, use their ID
             );
             bookings.push(booking);
 
@@ -106,7 +123,7 @@ export async function createBookingRequest(
                 where: { id: zone.id },
                 data: {
                     status: 'BOOKED',
-                    supplier: userId,
+                    supplier: userId, // For suppliers, use their ID
                 },
             });
         }
@@ -149,6 +166,26 @@ export async function getAllBookings(status?: string) {
     // Fetch supplier names from InnOrganization table
     const bookingRequestsWithSupplierNames = await Promise.all(
         bookingRequests.map(async (bookingRequest) => {
+            // Check if any of the bookings have a supplier INN in the zone
+            const supplierInn = bookingRequest.bookings.length > 0 ?
+                bookingRequest.bookings[0].zone.supplier : null;
+
+            if (supplierInn) {
+                // Try to find the supplier organization by INN
+                const supplier = await prisma.innOrganization.findUnique({
+                    where: {
+                        inn: supplierInn,
+                    },
+                });
+                if (supplier) {
+                    return {
+                        ...bookingRequest,
+                        supplierName: supplier.name,
+                    };
+                }
+            }
+
+            // Fallback to the user's inn if zone supplier is not available
             if (bookingRequest.user?.inn) {
                 const supplier = await prisma.innOrganization.findUnique({
                     where: {
@@ -169,8 +206,6 @@ export async function getAllBookings(status?: string) {
     );
 
     return bookingRequestsWithSupplierNames;
-
-    return bookingRequests;
 }
 
 export async function updateBookingStatus(bookingId: string, status: BookingStatus, role?: string) {
