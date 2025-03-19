@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useBookingToasts } from '@/lib/stores/bookingStore';
+import { useManageBookingsStore } from '@/lib/stores/manageBookingsStore';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { RequestsTable } from '../RequestsTable';
-import { RequestFilters, type RequestFilterState } from '../RequestFilters';
+import ManageBookingsFilters from './ManageBookingsFilters';
 import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
 
@@ -15,27 +16,14 @@ interface BookingRequestManagementProps {
 }
 
 const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ role: propRole }) => {
-    const {
-        filteredBookings,
-        fetchBookings,
-        isLoading,
-        updateBookingStatus,
-        error,
-        setError,
-        applyFilters,
-    } = useBookingStore();
+    // Use both stores - bookingStore for CRUD operations and manageBookingsStore for filtering
+    const { updateBookingStatus, error, setError } = useBookingStore();
+
+    const { filteredBookings, fetchBookings, isLoading } = useManageBookingsStore();
 
     const { showSuccessToast, showErrorToast } = useBookingToasts();
     const { user } = useAuth();
     const role = propRole || user?.role || 'SUPPLIER';
-
-    // State to store filter values
-    const [, setFilters] = useState<RequestFilterState>({
-        status: [],
-        supplierName: '',
-        dateFrom: '',
-        dateTo: '',
-    });
 
     // Centralized error handling
     useEffect(() => {
@@ -47,89 +35,15 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
 
     // Load bookings based on role
     useEffect(() => {
-        let isMounted = true;
-
-        const loadBookings = async () => {
-            console.log('Current role:', role);
-            console.log('Current user:', user);
-
-            // For debugging, let's try to fetch all bookings regardless of status
-            // This will help us determine if there are any bookings in the database
-
-            // Only update state if component is still mounted
-            if (isMounted) {
-                try {
-                    // Fetch all bookings regardless of status
-                    await fetchBookings('');
-
-                    // Log the bookings after they've been fetched
-                    const currentBookings = useBookingStore.getState().filteredBookings;
-                    console.log('Fetched bookings:', currentBookings);
-                    console.log('Fetched bookings length:', currentBookings.length);
-
-                    // Log more details about the bookings
-                    if (currentBookings.length > 0) {
-                        console.log('First booking request:', currentBookings[0]);
-                        if (currentBookings[0].bookings && currentBookings[0].bookings.length > 0) {
-                            console.log(
-                                'First booking in first request:',
-                                currentBookings[0].bookings[0],
-                            );
-                        }
-                    } else {
-                        console.log(
-                            'No bookings found. You may need to create some test bookings.',
-                        );
-                    }
-                } catch (error) {
-                    console.error('Error fetching bookings:', error);
-                }
-            }
-        };
-
-        loadBookings();
-
-        // Cleanup function to prevent state updates after unmount
-        return () => {
-            isMounted = false;
-        };
-    }, [fetchBookings, role, user]); // Remove filteredBookings from the dependency array to avoid infinite loops
-
-    // Use useRef to store the latest filter request
-    const activeFilterRequest = React.useRef<AbortController | null>(null);
-
-    const handleFilterChange = async (newFilters: RequestFilterState) => {
-        setFilters(newFilters);
-
-        // Cancel any previous request
-        if (activeFilterRequest.current) {
-            activeFilterRequest.current.abort();
+        // If user is a supplier, set the supplierInn filter
+        if (user && user.role === 'SUPPLIER' && user.inn) {
+            // This will automatically filter bookings to show only those for this supplier
+            useManageBookingsStore.getState().setFilters({ supplierInn: user.inn });
         }
 
-        // Create a new abort controller for this request
-        activeFilterRequest.current = new AbortController();
-
-        const statusFilter =
-            newFilters.status.length > 0
-                ? newFilters.status.join(',')
-                : role === 'CATEGORY_MANAGER'
-                ? 'PENDING_KM'
-                : role === 'DMP_MANAGER'
-                ? 'KM_APPROVED'
-                : '';
-
-        try {
-            await fetchBookings(statusFilter);
-            applyFilters(newFilters);
-        } catch (error) {
-            // Ignore aborted requests
-            if (error instanceof DOMException && error.name === 'AbortError') {
-                console.log('Filter request aborted');
-            } else {
-                console.error('Error applying filters:', error);
-            }
-        }
-    };
+        // Fetch all bookings
+        fetchBookings();
+    }, [fetchBookings, user]);
 
     const handleApprove = async (requestId: string, zoneId: string) => {
         try {
@@ -247,7 +161,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                         <CardTitle className="text-xl font-semibold">Фильтры</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <RequestFilters onFilterChange={handleFilterChange} />
+                        <ManageBookingsFilters />
                     </CardContent>
                 </Card>
 
@@ -265,6 +179,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                                 onApprove={handleApprove}
                                 onReject={handleReject}
                                 role={getRoleForTable()}
+                                bookings={filteredBookings}
                             />
                         )}
                     </CardContent>

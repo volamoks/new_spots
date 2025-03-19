@@ -24,6 +24,7 @@ export interface BookingFilters {
     supplierName?: string;
     dateFrom?: string;
     dateTo?: string;
+    supplierInn?: string; // Added for filtering by supplier INN
     [key: string]: string | string[] | undefined; // Allow for additional filter properties with specific types
 }
 
@@ -242,9 +243,62 @@ export const useBookingStore = create<BookingState>((set) => ({
         }
     },
     applyFilters: (filters: BookingFilters) => {
-        // This function would apply filters to the filteredBookings
-        // For now, it's a placeholder
-        console.log('Applying filters:', filters);
+        set((state) => {
+            // Get all bookings from the API response
+            const { filteredBookings: allBookings } = state;
+
+            // Apply filters
+            let filtered = [...allBookings];
+
+            // Filter by status
+            if (filters.status && filters.status.length > 0) {
+                filtered = filtered.filter(booking => {
+                    // Check if any booking in the request has the selected status
+                    return booking.bookings.some(b => filters.status.includes(b.status));
+                });
+            }
+
+            // Filter by supplier name
+            if (filters.supplierName && filters.supplierName.trim() !== '') {
+                filtered = filtered.filter(booking => {
+                    return booking.supplierName.toLowerCase().includes(filters.supplierName!.toLowerCase());
+                });
+            }
+            // Filter by date range (using createdAt as a proxy for booking date)
+            if (filters.dateFrom) {
+                const fromDate = new Date(filters.dateFrom);
+                filtered = filtered.filter(booking => {
+                    // Check if any booking in the request was created after dateFrom
+                    return booking.bookings.some(b => {
+                        const bookingDate = new Date(b.createdAt);
+                        return bookingDate >= fromDate;
+                    });
+                });
+            }
+
+            if (filters.dateTo) {
+                const toDate = new Date(filters.dateTo);
+                filtered = filtered.filter(booking => {
+                    // Check if any booking in the request was created before dateTo
+                    return booking.bookings.some(b => {
+                        const bookingDate = new Date(b.createdAt);
+                        return bookingDate <= toDate;
+                    });
+                });
+            }
+
+            // Filter by supplier ID (for supplier role - only show their own bookings)
+            if (filters.supplierInn) {
+                filtered = filtered.filter(booking => {
+                    return booking.supplier?.inn === filters.supplierInn;
+                });
+            }
+
+            console.log('Applied filters:', filters);
+            console.log('Filtered bookings count:', filtered.length);
+
+            return { filteredBookings: filtered };
+        });
     },
 }));
 

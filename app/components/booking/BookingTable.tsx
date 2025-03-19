@@ -10,7 +10,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { StatusBadge } from '../StatusBadge';
-import { BookingRequestWithBookings } from '@/lib/stores/bookingStore';
+import { BookingRequestWithBookings } from '@/lib/stores/manageBookingsStore';
 import { BookingActionsAndStatus } from './BookingActionsAndStatus';
 // import { BookingActions } from './BookingActions';
 import { useState } from 'react';

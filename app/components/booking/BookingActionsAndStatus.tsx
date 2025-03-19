@@ -2,7 +2,7 @@
 
 import { BookingActions } from './BookingActions';
 import { StatusBadge } from '../StatusBadge';
-import { BookingRequestWithBookings } from '@/lib/stores/bookingStore';
+import { BookingRequestWithBookings } from '@/lib/stores/manageBookingsStore';
 import { TableCell } from '@/components/ui/table';
 import BookingRole from '@/lib/enums/BookingRole';
 

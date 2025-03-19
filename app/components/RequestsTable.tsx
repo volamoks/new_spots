@@ -6,12 +6,14 @@ import { useBookingStore } from '@/lib/stores/bookingStore';
 import { BookingTable } from './booking/BookingTable';
 import BookingRole from '@/lib/enums/BookingRole';
 
+import { BookingRequestWithBookings } from '@/lib/stores/manageBookingsStore';
+
 type RequestsTableProps = {
     onApprove: (requestId: string, zoneId: string) => void;
     onReject?: (requestId: string, zoneId: string) => void;
     role: 'КМ' | 'ДМП' | 'Поставщик';
+    bookings?: BookingRequestWithBookings[]; // Добавляем пропс для передачи бронирований
 };
-
 
 const allColumns = [
     'ID',
@@ -27,20 +29,22 @@ const allColumns = [
     'Действия',
 ];
 
-export function RequestsTable({ onApprove, onReject, role }: RequestsTableProps) {
-    const { filteredBookings } = useBookingStore();
+export function RequestsTable({ onApprove, onReject, role, bookings }: RequestsTableProps) {
+    // Используем переданные бронирования или получаем их из bookingStore как запасной вариант
+    const { filteredBookings: storeBookings } = useBookingStore();
     const [visibleColumns, setVisibleColumns] = useState(allColumns);
 
-    // We no longer need to fetch bookings here since BookingRequestManagement already does it
+    // Используем переданные бронирования, если они есть, иначе используем бронирования из стора
+    const filteredBookings = bookings || storeBookings;
 
-  const userRole = role === 'КМ' ? BookingRole.KM : role === 'ДМП' ? BookingRole.DMP : BookingRole.SUPPLIER;
+    const userRole =
+        role === 'КМ' ? BookingRole.KM : role === 'ДМП' ? BookingRole.DMP : BookingRole.SUPPLIER;
 
     const handleColumnToggle = (column: string) => {
-        setVisibleColumns((prev) =>
-            prev.includes(column) ? prev.filter((col) => col !== column) : [...prev, column]
+        setVisibleColumns(prev =>
+            prev.includes(column) ? prev.filter(col => col !== column) : [...prev, column],
         );
     };
-
 
     return (
         <div>
