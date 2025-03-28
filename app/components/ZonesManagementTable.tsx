@@ -9,6 +9,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button'; // Добавлено
+import { Trash2 } from 'lucide-react'; // Добавлена иконка
 // Удалены неиспользуемые импорты Select компонентов
 import { Input } from '@/components/ui/input';
 import { Zone } from '@/types/zone';
@@ -27,8 +29,8 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
     const { withLoading } = useLoader();
     const { toast } = useToast();
 
-    // Используем ref для отслеживания, идет ли обновление в данный момент
-    const isUpdatingRef = useRef(false);
+    // Используем ref для отслеживания, идет ли обновление/удаление в данный момент
+    const isProcessingRef = useRef(false); // Переименовано для ясности
     // Ref для хранения текущих статусов зон
     const zoneStatusesRef = useRef<Record<string, ZoneStatus>>({});
 
@@ -75,7 +77,7 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
         }
 
         // Устанавливаем флаг, что идет обновление
-        isUpdatingRef.current = true;
+        isProcessingRef.current = true; // Используем переименованный ref
 
         try {
             await withLoading(
@@ -115,8 +117,67 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
         } finally {
             // Сбрасываем флаг обновления
             setTimeout(() => {
-                isUpdatingRef.current = false;
+                isProcessingRef.current = false; // Используем переименованный ref
             }, 100); // Небольшая задержка для завершения всех обновлений
+        }
+    };
+
+    // Обработчик удаления зоны
+    const handleDeleteZone = async (zoneId: string, zoneIdentifier: string) => {
+        if (isProcessingRef.current) return; // Не удалять, если уже идет процесс
+
+        const confirmed = window.confirm(
+            `Вы уверены, что хотите удалить зону "${zoneIdentifier}"? Это действие необратимо.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        isProcessingRef.current = true; // Устанавливаем флаг, что идет удаление
+
+        try {
+            await withLoading(
+                fetch(`/api/zones/${zoneId}`, {
+                    method: 'DELETE',
+                }).then(async response => {
+                    if (!response.ok) {
+                        const error = await response.json();
+                        // Обработка ошибки внешнего ключа
+                        if (response.status === 409 && error.code === 'P2003') {
+                            throw new Error(
+                                `Невозможно удалить зону "${zoneIdentifier}", так как она используется в бронированиях. Сначала удалите связанные бронирования.`,
+                            );
+                        }
+                        throw new Error(error.error || `Failed to delete zone ${zoneIdentifier}`);
+                    }
+                    // Не обязательно парсить JSON для DELETE, если бэкенд возвращает 204 No Content
+                    // return response.json();
+                }),
+                `Удаление зоны "${zoneIdentifier}"...`,
+            );
+
+            toast({
+                title: 'Зона удалена',
+                description: `Зона "${zoneIdentifier}" успешно удалена.`,
+                variant: 'default',
+            });
+
+            onRefresh(); // Обновляем список зон после успешного удаления
+        } catch (error) {
+            toast({
+                title: 'Ошибка удаления',
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : `Произошла ошибка при удалении зоны "${zoneIdentifier}"`,
+                variant: 'destructive',
+            });
+        } finally {
+            // Сбрасываем флаг
+            setTimeout(() => {
+                isProcessingRef.current = false;
+            }, 100);
         }
     };
 
@@ -172,7 +233,7 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                     <button
                         onClick={onRefresh}
                         className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                        disabled={isUpdatingRef.current}
+                        disabled={isProcessingRef.current} // Используем переименованный ref
                     >
                         Обновить данные
                     </button>
@@ -235,7 +296,8 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                             <TableHead>Магазин</TableHead>
                             <TableHead>Макрозона</TableHead>
                             <TableHead>Статус</TableHead>
-                            <TableHead>Действия</TableHead>
+                            <TableHead>Смена статуса</TableHead> {/* Изменен заголовок */}
+                            <TableHead>Удалить</TableHead> {/* Добавлен заголовок */}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -267,8 +329,11 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                                             )}
                                         </span>
                                     </TableCell>
+                                    {/* Ячейка для смены статуса */}
                                     <TableCell>
-                                        <div className="flex flex-col space-y-1">
+                                        <div className="flex flex-col space-y-1 w-28">
+                                            {' '}
+                                            {/* Ограничение ширины */}
                                             <button
                                                 onClick={() =>
                                                     handleStatusChange(
@@ -278,7 +343,7 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                                                 }
                                                 disabled={
                                                     zone.status === 'AVAILABLE' ||
-                                                    isUpdatingRef.current
+                                                    isProcessingRef.current // Используем переименованный ref
                                                 }
                                                 className={`text-xs px-2 py-1 rounded ${
                                                     zone.status === 'AVAILABLE'
@@ -294,7 +359,7 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                                                 }
                                                 disabled={
                                                     zone.status === 'BOOKED' ||
-                                                    isUpdatingRef.current
+                                                    isProcessingRef.current // Используем переименованный ref
                                                 }
                                                 className={`text-xs px-2 py-1 rounded ${
                                                     zone.status === 'BOOKED'
@@ -313,7 +378,7 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                                                 }
                                                 disabled={
                                                     zone.status === 'UNAVAILABLE' ||
-                                                    isUpdatingRef.current
+                                                    isProcessingRef.current // Используем переименованный ref
                                                 }
                                                 className={`text-xs px-2 py-1 rounded ${
                                                     zone.status === 'UNAVAILABLE'
@@ -325,12 +390,26 @@ export function ZonesManagementTable({ zones, onRefresh }: ZonesManagementTableP
                                             </button>
                                         </div>
                                     </TableCell>
+                                    {/* Ячейка для кнопки удаления */}
+                                    <TableCell>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleDeleteZone(zone.id, zone.uniqueIdentifier)
+                                            }
+                                            disabled={isProcessingRef.current} // Блокируем во время обработки
+                                            aria-label={`Удалить зону ${zone.uniqueIdentifier}`}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
                                 <TableCell
-                                    colSpan={6}
+                                    colSpan={7} // Увеличено на 1 из-за нового столбца
                                     className="text-center py-4 text-gray-500"
                                 >
                                     {zones.length === 0

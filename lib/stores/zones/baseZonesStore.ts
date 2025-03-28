@@ -1,14 +1,18 @@
 "use client";
 
 import { create } from 'zustand';
-import { Zone, ZoneStatus } from "@/types/zone";
-import { useToast as useToastHook } from '@/components/ui/use-toast';
-import { useCallback } from 'react';
+// Объединяем импорты из @/types/zone
+import { Zone, ZoneStatus, ZoneKeys } from "@/types/zone";
+// Убираем неиспользуемые импорты useToastHook и useCallback
+// import { useToast as useToastHook } from '@/components/ui/use-toast';
+// import { useCallback } from 'react';
+
 
 export interface ZonesState {
   // Данные
   zones: Zone[];
   filteredZones: Zone[];
+  selectedZoneIds: string[]; // Добавлено состояние для выбранных зон
 
   // Фильтры
   activeTab: string;
@@ -20,7 +24,7 @@ export interface ZonesState {
   supplierFilters: string[];
 
   // Сортировка
-  sortField: string | null;
+  sortField: ZoneKeys | null; // Исправлен тип
   sortDirection: 'asc' | 'desc' | null;
 
   // Пагинация
@@ -44,9 +48,12 @@ export interface ZonesState {
   setSearchTerm: (term: string) => void;
   toggleFilter: (type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', value: string) => void;
   removeFilter: (type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', value: string) => void;
-  setSorting: (field: string, direction: 'asc' | 'desc' | null) => void;
+  setSorting: (field: ZoneKeys, direction: 'asc' | 'desc' | null) => void; // Исправлен тип
   setCurrentPage: (page: number) => void;
   setItemsPerPage: (count: number) => void;
+  toggleZoneSelection: (zoneId: string) => void; // Добавлено действие
+  toggleSelectAll: (select: boolean, zoneIds: string[]) => void; // Добавлено действие
+  clearSelection: () => void; // Добавлено действие
   setIsLoading: (isLoading: boolean) => void;
   updateZoneStatus: (zoneId: string, newStatus: ZoneStatus) => void;
   resetFilters: () => void;
@@ -57,6 +64,7 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
   // Начальные значения
   zones: [],
   filteredZones: [],
+  selectedZoneIds: [], // Добавлено начальное состояние
   activeTab: 'all',
   searchTerm: '',
   cityFilters: [],
@@ -80,22 +88,22 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
   setZones: (zones) => {
     // Обновляем состояние zones в сторе
     set({ zones });
-    
+
     // Обновляем уникальные значения для фильтров
     const uniqueCities = Array.from(new Set(zones.map(zone => zone.city || ''))).filter(Boolean).sort();
     const uniqueMarkets = Array.from(new Set(zones.map(zone => zone.market || ''))).filter(Boolean).sort();
     const uniqueMacrozones = Array.from(new Set(zones.map(zone => zone.mainMacrozone || ''))).filter(Boolean).sort();
     const uniqueEquipments = Array.from(new Set(zones.map(zone => zone.equipment || ''))).filter(Boolean).sort();
     const uniqueSuppliers = Array.from(new Set(zones.map(zone => zone.supplier || ''))).filter(Boolean).sort();
-    
-    set({ 
-      uniqueCities, 
-      uniqueMarkets, 
-      uniqueMacrozones, 
+
+    set({
+      uniqueCities,
+      uniqueMarkets,
+      uniqueMacrozones,
       uniqueEquipments,
       uniqueSuppliers
     });
-    
+
     // Применяем фильтры к новым данным
     const state = get();
     const filteredZones = applyFilters(zones, state);
@@ -115,12 +123,38 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
     const filteredZones = applyFilters(state.zones, { ...state, searchTerm });
     set({ filteredZones });
   },
-  
-  setSorting: (field, direction) => {
+
+  setSorting: (field: ZoneKeys, direction) => { // Исправлен тип field
     set({ sortField: field, sortDirection: direction });
     const state = get();
+    // Передаем правильные типы в applyFilters
     const filteredZones = applyFilters(state.zones, { ...state, sortField: field, sortDirection: direction });
     set({ filteredZones });
+  },
+
+  toggleZoneSelection: (zoneId) => {
+    set((state) => {
+      const selectedZoneIds = state.selectedZoneIds.includes(zoneId)
+        ? state.selectedZoneIds.filter((id) => id !== zoneId)
+        : [...state.selectedZoneIds, zoneId];
+      return { selectedZoneIds };
+    });
+  },
+
+  toggleSelectAll: (select, zoneIds) => {
+    set((state) => {
+      const currentSelection = new Set(state.selectedZoneIds);
+      if (select) {
+        zoneIds.forEach(id => currentSelection.add(id));
+      } else {
+        zoneIds.forEach(id => currentSelection.delete(id));
+      }
+      return { selectedZoneIds: Array.from(currentSelection) };
+    });
+  },
+
+  clearSelection: () => {
+    set({ selectedZoneIds: [] });
   },
 
   toggleFilter: (type, value) => {
@@ -167,36 +201,36 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
 
   removeFilter: (type, value) => {
     const state = get();
-    
+
     switch (type) {
       case 'city':
-        set({ 
-          cityFilters: state.cityFilters.filter(item => item !== value), 
-          currentPage: 1 
+        set({
+          cityFilters: state.cityFilters.filter(item => item !== value),
+          currentPage: 1
         });
         break;
       case 'market':
-        set({ 
-          marketFilters: state.marketFilters.filter(item => item !== value), 
-          currentPage: 1 
+        set({
+          marketFilters: state.marketFilters.filter(item => item !== value),
+          currentPage: 1
         });
         break;
       case 'macrozone':
-        set({ 
-          macrozoneFilters: state.macrozoneFilters.filter(item => item !== value), 
-          currentPage: 1 
+        set({
+          macrozoneFilters: state.macrozoneFilters.filter(item => item !== value),
+          currentPage: 1
         });
         break;
       case 'equipment':
-        set({ 
-          equipmentFilters: state.equipmentFilters.filter(item => item !== value), 
-          currentPage: 1 
+        set({
+          equipmentFilters: state.equipmentFilters.filter(item => item !== value),
+          currentPage: 1
         });
         break;
       case 'supplier':
-        set({ 
-          supplierFilters: state.supplierFilters.filter(item => item !== value), 
-          currentPage: 1 
+        set({
+          supplierFilters: state.supplierFilters.filter(item => item !== value),
+          currentPage: 1
         });
         break;
     }
@@ -243,6 +277,7 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
       sortField: null,
       sortDirection: null,
       currentPage: 1,
+      selectedZoneIds: [], // Сбрасываем выбор
     });
 
     const state = get();
@@ -265,53 +300,53 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       console.log(`fetchZones: Начало загрузки зон для роли ${role}`);
-      
+
       // Используем API для получения данных
       let url = '/api/zones';
       let params = new URLSearchParams();
-      
+
       // Для поставщика и категорийного менеджера показываем только доступные зоны
       if (role === "SUPPLIER" || role === "CATEGORY_MANAGER") {
         params.append("status", ZoneStatus.AVAILABLE);
         console.log(`fetchZones: Добавлен параметр status=AVAILABLE для роли ${role}`);
       }
-      
+
       // Если указана категория в параметрах запроса, добавляем её
       // Но не добавляем категорию автоматически для категорийного менеджера
-      
+
       // Добавляем параметры к URL
       const paramsString = params.toString();
       if (paramsString) {
         url += `?${paramsString}`;
       }
-      
+
       console.log(`fetchZones: Запрос к API: ${url}`);
-      
+
       const response = await fetch(url);
       if (!response.ok) {
         const errorData = await response.json();
         console.error("fetchZones: Ошибка от API:", response.status, errorData);
         throw new Error(errorData.error || 'Ошибка при загрузке зон из API');
       }
-      
+
       const fetchedZones = await response.json();
       console.log(`fetchZones: Получено ${fetchedZones.length} зон из API`);
-      
+
       // Обновляем состояние в сторе
       get().setZones(fetchedZones);
-      
+
       return fetchedZones;
     } catch (error) {
       console.error("Ошибка при загрузке зон из API:", error);
       const errorMessage = error instanceof Error ? error.message : "Неизвестная ошибка при загрузке данных";
       console.error("Сообщение об ошибке:", errorMessage);
-      
+
       set({
         error: errorMessage,
         zones: [], // Очищаем зоны при ошибке
         filteredZones: []
       });
-      
+
       throw error;
     } finally {
       set({ isLoading: false });
@@ -370,25 +405,25 @@ function applyFilters(zones: Zone[], state: Partial<ZonesState>): Zone[] {
   if (state.sortField && state.sortDirection) {
     const field = state.sortField as keyof Zone;
     const direction = state.sortDirection;
-    
+
     result.sort((a, b) => {
       const valueA = a[field] || '';
       const valueB = b[field] || '';
-      
+
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        return direction === 'asc' 
-          ? valueA.localeCompare(valueB) 
+        return direction === 'asc'
+          ? valueA.localeCompare(valueB)
           : valueB.localeCompare(valueA);
       } else if (typeof valueA === 'number' && typeof valueB === 'number') {
-        return direction === 'asc' 
-          ? valueA - valueB 
+        return direction === 'asc'
+          ? valueA - valueB
           : valueB - valueA;
       } else if (valueA instanceof Date && valueB instanceof Date) {
-        return direction === 'asc' 
-          ? valueA.getTime() - valueB.getTime() 
+        return direction === 'asc'
+          ? valueA.getTime() - valueB.getTime()
           : valueB.getTime() - valueA.getTime();
       }
-      
+
       // Если типы разные или не поддерживаются, возвращаем 0 (без сортировки)
       return 0;
     });

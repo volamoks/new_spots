@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
 import { ZoneStatus } from "@/types/zone"
-import { Role, UserStatus } from "@prisma/client"
+import { } from "@prisma/client" // Removed unused Role, UserStatus
 
 // Общий интерфейс для данных из Excel
 interface ExcelData {
@@ -111,25 +111,37 @@ export async function POST(req: NextRequest) {
     // Validate data based on type
     const validationErrors: string[] = []
 
+    let dataToProcess = data; // Use original data by default
+
     if (type === "zones") {
-      data.forEach((row, index) => {
-        const rowNum = index + 2 // +2 because Excel starts from 1 and we have header row
+      // Filter rows for 'zones' type first
+      const filteredData = data.filter(row =>
+        row["Поставщик"] && row["Brand"] && row["Категория товара"]
+      );
+      dataToProcess = filteredData; // Use filtered data for validation and saving
+
+      // Validate the filtered data
+      dataToProcess.forEach((row, index) => {
+        // Note: rowNum might not correspond to original Excel row anymore if rows are filtered.
+        // Consider if this index needs adjustment or if error messages should change.
+        const rowNum = index + 2 // Placeholder, might need adjustment based on how you want to report errors for filtered data.
 
         if (!row["Уникальный идентификатор"]) {
-          validationErrors.push(`Строка ${rowNum}: Отсутствует уникальный идентификатор`)
+          validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует уникальный идентификатор`)
         }
         if (!row["Город"]) {
-          validationErrors.push(`Строка ${rowNum}: Отсутствует город`)
+          validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует город`)
         }
         if (!row["Маркет"]) {
-          validationErrors.push(`Строка ${rowNum}: Отсутствует маркет`)
+          validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует маркет`)
         }
         if (!row["Основная Макрозона"]) {
-          validationErrors.push(`Строка ${rowNum}: Отсутствует основная макрозона`)
+          validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует основная макрозона`)
         }
       })
     } else if (type === "inn") {
-      data.forEach((row, index) => {
+      // Validate all data for 'inn' type
+      dataToProcess.forEach((row, index) => {
         const rowNum = index + 2 // +2 because Excel starts from 1 and we have header row
 
         if (!row["Поставщик"]) {
@@ -146,18 +158,20 @@ export async function POST(req: NextRequest) {
         {
           error: "Ошибки валидации",
           details: validationErrors,
-          firstRow: data[0], // Debug: Include first row in error response
+          // Debug: Include first row of the *original* data in error response
+          firstRow: data[0],
         },
         { status: 400 },
       )
     }
 
-    // Save data to database based on type
+    // Save data to database based on type using the potentially filtered data
     let savedData
     if (type === "zones") {
-      savedData = await Promise.all(data.map(row => createOrUpdateZone(row as ZoneData)))
+      savedData = await Promise.all(dataToProcess.map(row => createOrUpdateZone(row as ZoneData)))
     } else if (type === "inn") {
-      savedData = await Promise.all(data.map(row => createOrUpdateSupplier(row as InnData)))
+      // For 'inn', dataToProcess is the original 'data'
+      savedData = await Promise.all(dataToProcess.map(row => createOrUpdateSupplier(row as InnData)))
     } else {
       return NextResponse.json({ error: "Неизвестный тип импорта" }, { status: 400 })
     }
@@ -179,7 +193,7 @@ export async function POST(req: NextRequest) {
 
 async function createOrUpdateZone(zoneData: ZoneData) {
   const status = getZoneStatus(zoneData["Статус"] || "");
-  
+
   // Преобразуем цену в число или undefined (не null)
   let price: number | undefined = undefined;
   if (zoneData["Цена"] !== undefined && zoneData["Цена"] !== null) {
@@ -187,7 +201,7 @@ async function createOrUpdateZone(zoneData: ZoneData) {
     price = typeof zoneData["Цена"] === 'number'
       ? zoneData["Цена"]
       : parseFloat(zoneData["Цена"].toString());
-    
+
     // Проверяем, что получилось валидное число
     if (isNaN(price)) {
       price = undefined;
@@ -199,7 +213,7 @@ async function createOrUpdateZone(zoneData: ZoneData) {
   if (!uniqueIdentifier) {
     throw new Error("Уникальный идентификатор обязателен");
   }
-  
+
   // Создаем объект с данными для сохранения
   const zoneDataToSave = {
     city: zoneData["Город"] || "",

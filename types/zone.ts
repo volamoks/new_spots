@@ -32,6 +32,9 @@ export interface Zone {
   updatedAt: Date;
 }
 
+// Добавляем тип для ключей Zone
+export type ZoneKeys = keyof Zone;
+
 export interface ZoneData {
   Область: string
   Город: string

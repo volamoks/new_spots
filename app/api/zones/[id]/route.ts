@@ -1,67 +1,70 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+// File: app/api/zones/[id]/route.ts
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma'; // Исправлено: используем именованный импорт
+import { Prisma } from '@prisma/client';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const session = await getServerSession(authOptions)
+// Обработчик DELETE запроса для удаления зоны по ID
+export async function DELETE(
+    request: Request,
+    { params }: { params: { id: string } },
+) {
+    const zoneId = params.id;
 
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!zoneId) {
+        return NextResponse.json(
+            { error: 'Zone ID is required' },
+            { status: 400 },
+        );
     }
 
-    const zone = await prisma.zone.findUnique({
-      where: { id: params.id },
-      include: {
-        bookings: {
-          include: {
-            bookingRequest: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    role: true,
-                  },
-                },
-              },
+    try {
+        // Пытаемся удалить зону
+        await prisma.zone.delete({
+            where: {
+                id: zoneId,
             },
-          },
-        },
-      },
-    })
+        });
 
-    if (!zone) {
-      return NextResponse.json({ error: "Zone not found" }, { status: 404 })
+        // Возвращаем успешный ответ без содержимого
+        return new NextResponse(null, { status: 204 });
+
+    } catch (error) {
+        console.error(`Error deleting zone ${zoneId}:`, error);
+
+        // Обработка специфических ошибок Prisma
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            // Ошибка: Запись для удаления не найдена
+            if (error.code === 'P2025') {
+                return NextResponse.json(
+                    { error: `Zone with ID ${zoneId} not found` },
+                    { status: 404 },
+                );
+            }
+            // Ошибка: Нарушение ограничения внешнего ключа (зона связана с другими записями, например, Bookings)
+            if (error.code === 'P2003') {
+                // Возвращаем статус 409 Conflict, чтобы фронтенд мог это обработать
+                return NextResponse.json(
+                    {
+                        error: `Cannot delete zone ${zoneId} because it is associated with existing bookings. Please delete the bookings first.`,
+                        code: 'P2003', // Передаем код ошибки для фронтенда
+                    },
+                    { status: 409 }, // 409 Conflict
+                );
+            }
+        }
+
+        // Общая ошибка сервера
+        return NextResponse.json(
+            { error: 'Failed to delete zone' },
+            { status: 500 },
+        );
+    } finally {
+        // Отключение от Prisma не требуется в контексте Next.js API routes,
+        // так как Prisma Client управляет соединениями.
+        // await prisma.$disconnect();
     }
-
-    return NextResponse.json(zone)
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 })
-  }
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const session = await getServerSession(authOptions)
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const zone = await prisma.zone.update({
-      where: { id: params.id },
-      data: body,
-    })
-
-    return NextResponse.json(zone)
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 })
-  }
-}
-
+// Можно добавить обработчики для других методов (GET, PATCH), если они нужны в этом файле
+// export async function GET(...) {}
+// export async function PATCH(...) {}
