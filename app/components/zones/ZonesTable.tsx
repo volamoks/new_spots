@@ -16,6 +16,9 @@ import { ZonePagination } from './ZonePagination';
 import { Button } from '@/components/ui/button';
 import { ArrowUpDown, ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+// Импортируем компоненты редактируемых ячеек (будут созданы позже)
+import { EditableSupplierCell } from './EditableSupplierCell';
+import { EditableBrandCell } from './EditableBrandCell';
 import {
     Select,
     SelectContent,
@@ -32,10 +35,16 @@ interface ZonesTableProps {
     onSelectSupplier?: (supplierId: string) => void;
     selectedZones?: string[];
     selectedSupplier?: string | null;
-    uniqueSuppliers?: string[];
+    uniqueSuppliers?: string[]; // Уникальные поставщики из текущих зон (для фильтра)
+    uniqueSuppliersFromDB?: string[]; // Уникальные поставщики из БД (для выбора)
     showActions?: boolean;
     isLoading?: boolean;
     role?: string;
+    onUpdateZoneField?: (
+        zoneId: string,
+        field: 'supplier' | 'brand',
+        value: string | null,
+    ) => Promise<void>; // Добавлен пропс для обновления
     className?: string;
     sortField?: keyof Zone | null;
     sortDirection?: 'asc' | 'desc' | null;
@@ -51,10 +60,12 @@ export function ZonesTable({
     onSelectSupplier,
     selectedZones = [],
     selectedSupplier = null,
-    uniqueSuppliers = [],
+    uniqueSuppliers = [], // Для фильтра
+    uniqueSuppliersFromDB = [], // Для выбора в ячейке
     showActions = true,
     isLoading = false,
     role = 'DMP_MANAGER',
+    onUpdateZoneField, // Добавлен пропс
     className = '',
     sortField = null,
     sortDirection = null,
@@ -244,6 +255,9 @@ export function ZonesTable({
                             <SortableHeader field="market">Магазин</SortableHeader>
                             <SortableHeader field="mainMacrozone">Макрозона</SortableHeader>
                             <SortableHeader field="equipment">Оборудование</SortableHeader>
+                            <SortableHeader field="supplier">Поставщик</SortableHeader>{' '}
+                            {/* Добавлено */}
+                            <SortableHeader field="brand">Бренд</SortableHeader> {/* Добавлено */}
                             <SortableHeader field="status">Статус</SortableHeader>
                             {showStatusActions && <TableHead>Действия</TableHead>}
                         </TableRow>
@@ -288,6 +302,37 @@ export function ZonesTable({
                                     <TableCell>{zone.market}</TableCell>
                                     <TableCell>{zone.mainMacrozone}</TableCell>
                                     <TableCell>{zone.equipment || '-'}</TableCell>
+                                    {/* Ячейка Поставщик */}
+                                    <TableCell>
+                                        {isDmpManager && onUpdateZoneField ? (
+                                            <EditableSupplierCell
+                                                zoneId={zone.id}
+                                                currentValue={zone.supplier}
+                                                supplierList={uniqueSuppliersFromDB}
+                                                onSave={value =>
+                                                    onUpdateZoneField(zone.id, 'supplier', value)
+                                                }
+                                                isDisabled={isLoading}
+                                            />
+                                        ) : (
+                                            zone.supplier || '-'
+                                        )}
+                                    </TableCell>
+                                    {/* Ячейка Бренд */}
+                                    <TableCell>
+                                        {isDmpManager && onUpdateZoneField ? (
+                                            <EditableBrandCell
+                                                zoneId={zone.id}
+                                                currentValue={zone.brand}
+                                                onSave={value =>
+                                                    onUpdateZoneField(zone.id, 'brand', value)
+                                                }
+                                                isDisabled={isLoading}
+                                            />
+                                        ) : (
+                                            zone.brand || '-'
+                                        )}
+                                    </TableCell>
                                     <TableCell>
                                         <ZoneStatusBadge status={zone.status} />
                                     </TableCell>
@@ -307,8 +352,8 @@ export function ZonesTable({
                             <TableRow>
                                 <TableCell
                                     colSpan={
-                                        // Обновляем colSpan с учетом того, что showStatusActions теперь false для DMP
-                                        showSelectionColumn ? 7 : 6
+                                        // Обновляем colSpan с учетом новых колонок и showStatusActions=false для DMP
+                                        showSelectionColumn ? 9 : 8
                                     }
                                     className="text-center py-4 text-gray-500"
                                 >

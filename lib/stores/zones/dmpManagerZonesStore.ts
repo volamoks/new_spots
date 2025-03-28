@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from 'zustand';
-import { useZonesStore, createSuccessToast, createErrorToast, ZonesState } from './baseZonesStore';
+import { useZonesStore, createSuccessToast, createErrorToast } from './baseZonesStore';
 import { ZoneStatus } from '@/types/zone';
 import { useLoader } from '@/app/components/GlobalLoader';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,9 +18,10 @@ interface DmpManagerZonesState {
   refreshZones: (toast: { toast: ToastFunction }) => Promise<void>; // withLoading не нужен
   bulkUpdateZoneStatus: (zoneIds: string[], newStatus: ZoneStatus, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<void>;
   bulkDeleteZones: (zoneIds: string[], toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<void>;
+  updateZoneField: (zoneId: string, field: 'supplier' | 'brand', value: string | null, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<void>; // Добавлено
 }
 
-export const useDmpManagerZonesStore = create<DmpManagerZonesState>((set, get) => ({
+export const useDmpManagerZonesStore = create<DmpManagerZonesState>(() => ({
   // Методы для DMP-менеджера
   changeZoneStatus: async (zoneId, newStatus, toast, withLoading) => { // Принимаем withLoading
     const showSuccessToast = createSuccessToast(toast);
@@ -175,6 +176,54 @@ export const useDmpManagerZonesStore = create<DmpManagerZonesState>((set, get) =
       throw error; // Пробрасываем ошибку для обработки в компоненте
     }
   },
+
+  updateZoneField: async (zoneId, field, value, toast, withLoading) => {
+    const showSuccessToast = createSuccessToast(toast);
+    const showErrorToast = createErrorToast(toast);
+    const { setZones } = useZonesStore.getState(); // Нужен setZones для обновления
+
+    const fieldName = field === 'supplier' ? 'Поставщик' : 'Бренд';
+
+    try {
+      const updatedZone = await withLoading(
+        fetch(`/api/zones/${zoneId}`, { // Используем PATCH эндпоинт
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ [field]: value }), // Динамически устанавливаем поле
+        }).then(async response => {
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `Failed to update zone ${field}`);
+          }
+          return response.json();
+        }),
+        `Обновление поля "${fieldName}"...`,
+      );
+
+      // Обновляем состояние в сторе, включая статус
+      const currentState = useZonesStore.getState();
+      const updatedZones = currentState.zones.map(zone =>
+        zone.id === zoneId ? { ...zone, [field]: value, status: ZoneStatus.UNAVAILABLE } : zone
+      );
+      setZones(updatedZones); // Используем setZones для пересчета
+
+      showSuccessToast(
+        'Поле обновлено',
+        `${fieldName} для зоны ${updatedZone.uniqueIdentifier || zoneId} успешно обновлен.`
+      );
+    } catch (error) {
+      console.error(`Ошибка при обновлении поля ${field} для зоны ${zoneId}:`, error);
+      showErrorToast(
+        'Ошибка обновления',
+        error instanceof Error
+          ? error.message
+          : `Произошла ошибка при обновлении поля ${fieldName}`
+      );
+      throw error;
+    }
+  },
 }));
 
 // Хук для удобного доступа ко всем методам и состояниям
@@ -203,5 +252,7 @@ export const useDmpManagerZones = () => {
       dmpStore.bulkUpdateZoneStatus(zoneIds, newStatus, toast, withLoading),
     bulkDeleteZones: (zoneIds: string[]) =>
       dmpStore.bulkDeleteZones(zoneIds, toast, withLoading),
+    updateZoneField: (zoneId: string, field: 'supplier' | 'brand', value: string | null) =>
+      dmpStore.updateZoneField(zoneId, field, value, toast, withLoading), // Добавлена обертка
   };
 };

@@ -30,7 +30,8 @@ export default function DmpManagerZonesPage() {
         uniqueMarkets,
         uniqueMacrozones,
         uniqueEquipments,
-        uniqueSuppliers,
+        uniqueSuppliers, // Уникальные из текущих зон
+        uniqueSuppliersFromDB, // Уникальные из БД
         isLoading,
         selectedZoneIds, // Добавлено
         setActiveTab,
@@ -46,6 +47,7 @@ export default function DmpManagerZonesPage() {
         toggleSelectAll, // Добавлено
         bulkUpdateZoneStatus, // Добавлено
         bulkDeleteZones, // Добавлено
+        updateZoneField, // Добавлено
     } = useDmpManagerZones();
 
     // Загружаем зоны при инициализации
@@ -206,7 +208,7 @@ export default function DmpManagerZonesPage() {
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-300"
+                                    className="bg-red-100 text-red-800 hover:bg-red-200 border-red-300" // Заменены классы на красные
                                     onClick={() => handleBulkStatusChange(ZoneStatus.UNAVAILABLE)}
                                     disabled={isLoading}
                                 >
@@ -240,6 +242,8 @@ export default function DmpManagerZonesPage() {
                     selectedZones={selectedZoneIds} // Исправлено: используем пропс selectedZones
                     onZoneSelect={toggleZoneSelection} // Передаем обработчик выбора
                     onSelectAll={toggleSelectAll} // Передаем обработчик выбора всех
+                    uniqueSuppliersFromDB={uniqueSuppliersFromDB} // Передаем список поставщиков из БД
+                    onUpdateZoneField={updateZoneField} // Передаем обработчик обновления поля
                 />
             </main>
         </div>

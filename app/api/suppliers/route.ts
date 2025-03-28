@@ -1,33 +1,26 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { handleApiError } from "@/lib/utils/api";
+// File: app/api/suppliers/route.ts
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    try {
+        // Получаем все организации (поставщиков) из таблицы InnOrganization
+        const organizations = await prisma.innOrganization.findMany({
+            select: {
+                name: true, // Выбираем только поле name
+            },
+            orderBy: {
+                name: 'asc', // Сортируем по имени
+            }
+        });
+
+        // Извлекаем только имена
+        const supplierNames = organizations.map(org => org.name);
+
+        return NextResponse.json(supplierNames, { status: 200 });
+
+    } catch (error) {
+        console.error('Error fetching unique suppliers:', error);
+        return NextResponse.json({ error: 'Failed to fetch suppliers' }, { status: 500 });
     }
-
-    // Получаем поставщиков для бронирования
-    const suppliers = await prisma.innOrganization.findMany({
-      select: {
-        id: true,
-        name: true,
-        inn: true,
-      },
-      where: {
-        // Добавляем фильтры для бронирования, если необходимо
-      },
-      orderBy: {
-        name: "asc"
-      }
-    });
-
-    return NextResponse.json(suppliers);
-  } catch (error) {
-    return handleApiError(error);
-  }
 }

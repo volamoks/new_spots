@@ -40,10 +40,12 @@ export interface ZonesState {
   uniqueMarkets: string[];
   uniqueMacrozones: string[];
   uniqueEquipments: string[];
-  uniqueSuppliers: string[];
+  uniqueSuppliers: string[]; // Уникальные поставщики из текущих загруженных зон
+  uniqueSuppliersFromDB: string[]; // Уникальные поставщики из БД для выбора
 
   // Действия
   setZones: (zones: Zone[]) => void;
+  fetchUniqueSuppliers: () => Promise<void>; // Добавлено действие
   setActiveTab: (tab: string) => void;
   setSearchTerm: (term: string) => void;
   toggleFilter: (type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier', value: string) => void;
@@ -83,6 +85,7 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
   uniqueMacrozones: [],
   uniqueEquipments: [],
   uniqueSuppliers: [],
+  uniqueSuppliersFromDB: [], // Добавлено начальное состояние
 
   // Действия
   setZones: (zones) => {
@@ -335,6 +338,9 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
       // Обновляем состояние в сторе
       get().setZones(fetchedZones);
 
+      // Загружаем уникальных поставщиков после загрузки зон
+      await get().fetchUniqueSuppliers();
+
       return fetchedZones;
     } catch (error) {
       console.error("Ошибка при загрузке зон из API:", error);
@@ -350,6 +356,21 @@ export const useZonesStore = create<ZonesState>((set, get) => ({
       throw error;
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  fetchUniqueSuppliers: async () => {
+    try {
+      const response = await fetch('/api/suppliers');
+      if (!response.ok) {
+        throw new Error('Failed to fetch unique suppliers');
+      }
+      const suppliers = await response.json();
+      set({ uniqueSuppliersFromDB: suppliers });
+    } catch (error) {
+      console.error("Error fetching unique suppliers:", error);
+      // Ошибку не пробрасываем, чтобы не прерывать загрузку зон
+      set({ uniqueSuppliersFromDB: [] });
     }
   },
 }));

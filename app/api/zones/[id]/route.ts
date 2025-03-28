@@ -1,7 +1,7 @@
 // File: app/api/zones/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Исправлено: используем именованный импорт
-import { Prisma } from '@prisma/client';
+import { Prisma, ZoneStatus } from '@prisma/client'; // Добавлен ZoneStatus
 
 // Обработчик DELETE запроса для удаления зоны по ID
 export async function DELETE(
@@ -65,6 +65,62 @@ export async function DELETE(
     }
 }
 
-// Можно добавить обработчики для других методов (GET, PATCH), если они нужны в этом файле
+// Обработчик PATCH запроса для обновления полей зоны (supplier, brand)
+export async function PATCH(
+    request: Request,
+    { params }: { params: { id: string } },
+) {
+    const zoneId = params.id;
+
+    if (!zoneId) {
+        return NextResponse.json({ error: 'Zone ID is required' }, { status: 400 });
+    }
+
+    try {
+        const body = await request.json();
+        const { supplier, brand } = body;
+
+        // Определяем, какие данные обновлять
+        // Добавляем status в тип
+        const dataToUpdate: { supplier?: string | null; brand?: string | null; status?: ZoneStatus } = {};
+        let updatedField = '';
+
+        if (supplier !== undefined) {
+            // Разрешаем установку null или пустой строки (которая станет null в БД, если поле nullable)
+            dataToUpdate.supplier = supplier === '' ? null : supplier;
+            dataToUpdate.status = ZoneStatus.UNAVAILABLE; // Устанавливаем статус UNAVAILABLE
+            updatedField = 'supplier';
+        } else if (brand !== undefined) {
+            // Разрешаем установку null или пустой строки
+            dataToUpdate.brand = brand === '' ? null : brand;
+            dataToUpdate.status = ZoneStatus.UNAVAILABLE; // Устанавливаем статус UNAVAILABLE
+            updatedField = 'brand';
+        } else {
+            return NextResponse.json({ error: 'No valid field (supplier or brand) provided for update' }, { status: 400 });
+        }
+
+        // Обновляем зону
+        const updatedZone = await prisma.zone.update({
+            where: { id: zoneId },
+            data: dataToUpdate,
+        });
+
+        console.log(`Updated ${updatedField} for zone ${zoneId}`);
+
+        return NextResponse.json(updatedZone, { status: 200 });
+
+    } catch (error) {
+        console.error(`Error updating zone ${zoneId}:`, error);
+
+        // Обработка ошибки, если зона не найдена
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            return NextResponse.json({ error: `Zone with ID ${zoneId} not found` }, { status: 404 });
+        }
+
+        // Общая ошибка сервера
+        return NextResponse.json({ error: 'Failed to update zone' }, { status: 500 });
+    }
+}
+
+// Можно добавить обработчик GET, если нужно получать данные одной зоны
 // export async function GET(...) {}
-// export async function PATCH(...) {}
