@@ -4,13 +4,15 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+// Убираем импорты стандартного Select
+// import {
+//     Select,
+//     SelectContent,
+//     SelectItem,
+//     SelectTrigger,
+//     SelectValue,
+// } from '@/components/ui/select';
+import { SearchableSelect } from './SearchableSelect'; // Импортируем новый компонент
 import { Check, X, Edit2 } from 'lucide-react';
 
 interface EditableSupplierCellProps {
@@ -135,28 +137,16 @@ export function EditableSupplierCell({
 
     return (
         <div className="flex flex-col space-y-1">
-            <Select
-                value={selectedValue ?? ''}
-                onValueChange={handleSelectChange}
-                disabled={isLoading}
-            >
-                <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Выберите или введите" />
-                </SelectTrigger>
-                <SelectContent>
-                    {/* Используем '__NONE__' вместо пустой строки */}
-                    <SelectItem value="__NONE__">- Нет -</SelectItem>
-                    {supplierList.map(supplier => (
-                        <SelectItem
-                            key={supplier}
-                            value={supplier}
-                        >
-                            {supplier}
-                        </SelectItem>
-                    ))}
-                    <SelectItem value={OTHER_SUPPLIER_VALUE}>Другой...</SelectItem>
-                </SelectContent>
-            </Select>
+            {/* Заменяем Select на SearchableSelect */}
+            <SearchableSelect
+                options={supplierList.map(s => ({ value: s, label: s }))} // Преобразуем список строк в нужный формат
+                value={selectedValue}
+                onChange={handleSelectChange}
+                isDisabled={isLoading}
+                triggerPlaceholder="Выберите или введите"
+                noValueOption={{ value: '__NONE__', label: '- Нет -' }}
+                otherOption={{ value: OTHER_SUPPLIER_VALUE, label: 'Другой...' }}
+            />
 
             {showInput && (
                 <Input
