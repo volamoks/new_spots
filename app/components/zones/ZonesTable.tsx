@@ -1,363 +1,205 @@
 'use client';
 
-import { useState } from 'react';
-import { Zone, ZoneStatus } from '@/types/zone';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { ZoneStatusBadge } from './ZoneStatusBadge';
-import { ZoneStatusActions } from './ZoneStatusActions';
+// Removed useState as pagination is now in store
+import { ZoneStatus, ZoneKeys } from '@/types/zone'; // Removed unused Zone import
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { ZonePagination } from './ZonePagination';
-import { Button } from '@/components/ui/button';
-import { ArrowUpDown, ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-// Импортируем компоненты редактируемых ячеек (будут созданы позже)
-import { EditableSupplierCell } from './EditableSupplierCell';
-import { EditableBrandCell } from './EditableBrandCell';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { ZonesTableHeader } from './ZonesTableHeader';
+import { ZonesTableRow } from './ZonesTableRow';
+import { ZoneSelectionActionsPanel } from './ZoneSelectionActionsPanel';
+// Import the appropriate composition hook (using DMP as default/example)
+import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Correct hook name
+// import { useCategoryManagerData } from '@/lib/stores/zones/categoryManagerZonesStore';
+// import { useSupplierData } from '@/lib/stores/zones/supplierZonesStore';
+import { useEffect } from 'react'; // Import useEffect for potential initial fetch
 
+// --- Simplified Props ---
 interface ZonesTableProps {
-    zones: Zone[];
-    onStatusChange?: (zoneId: string, newStatus: ZoneStatus) => Promise<void>;
-    onZoneSelect?: (zoneId: string) => void;
+    // Actions/Data potentially coming from parent context, not the base store
     onCreateBooking?: (zoneIds: string[]) => Promise<void>;
-    onSelectSupplier?: (supplierId: string) => void;
-    selectedZones?: string[];
-    selectedSupplier?: string | null;
-    uniqueSuppliers?: string[]; // Уникальные поставщики из текущих зон (для фильтра)
-    uniqueSuppliersFromDB?: string[]; // Уникальные поставщики из БД (для выбора)
-    showActions?: boolean;
-    isLoading?: boolean;
-    role?: string;
+    onStatusChange?: (zoneId: string, newStatus: ZoneStatus) => Promise<void>; // Example: API call wrapper
     onUpdateZoneField?: (
         zoneId: string,
         field: 'supplier' | 'brand',
         value: string | null,
-    ) => Promise<void>; // Добавлен пропс для обновления
+    ) => Promise<void>; // Example: API call wrapper
+    onSelectSupplier?: (supplierId: string) => void; // If needed for booking context
+    selectedSupplier?: string | null; // If needed for booking context
+
+    // Configuration props
+    showActions?: boolean; // Controls if status actions column is shown
+    role?: string; // Role might still be needed for conditional UI not covered by store logic
     className?: string;
-    sortField?: keyof Zone | null;
-    sortDirection?: 'asc' | 'desc' | null;
-    onSortChange?: (field: keyof Zone, direction: 'asc' | 'desc' | null) => void;
-    onSelectAll?: (select: boolean, zoneIds: string[]) => void; // Добавлен пропс для выбора всех
+    initialFetchRole?: string; // Optional: Role to use for initial data fetch
 }
 
 export function ZonesTable({
-    zones,
-    onStatusChange,
-    onZoneSelect,
+    // Keep external action handlers and config
     onCreateBooking,
+    onStatusChange,
+    onUpdateZoneField,
     onSelectSupplier,
-    selectedZones = [],
-    selectedSupplier = null,
-    uniqueSuppliers = [], // Для фильтра
-    uniqueSuppliersFromDB = [], // Для выбора в ячейке
+    selectedSupplier,
+    // Config props
     showActions = true,
-    isLoading = false,
     role = 'DMP_MANAGER',
-    onUpdateZoneField, // Добавлен пропс
     className = '',
-    sortField = null,
-    sortDirection = null,
-    onSortChange,
-    onSelectAll, // Добавлен пропс
+    initialFetchRole, // Use this for fetching if provided
 }: ZonesTableProps) {
-    // Состояние для пагинации
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    // --- Get State and Actions from Store ---
+    // Use the composition hook (adjust based on actual usage context if needed)
+    const {
+        zones, // Raw zones list
+        paginatedZones, // Use this for rendering the current page
+        selectedZoneIds, // Now a Set<string>
+        sortCriteria, // Contains field and direction
+        paginationCriteria, // Contains currentPage and itemsPerPage
+        isLoading,
+        uniqueFilterValues, // Contains unique suppliers, etc.
+        totalFilteredCount, // Total count after filtering
+        error, // Handle potential errors
 
-    // Определяем, какие действия показывать в зависимости от роли
+        // Actions from zonesStore (via hook)
+        fetchZones,
+        toggleZoneSelection,
+        setSortCriteria,
+        toggleSelectAll,
+        setPaginationCriteria,
+
+        // Actions from dmpManagerActionsStore (via hook)
+        // updateZoneField, // This is passed as a prop, no need to get from hook here
+        // Other DMP actions if needed by the table directly
+    } = useDmpManagerZones(); // Use the correct hook
+
+    // Destructure further for convenience
+    const { field: sortField, direction: sortDirection } = sortCriteria;
+    const { currentPage, itemsPerPage } = paginationCriteria;
+    // Assuming uniqueSuppliersFromDB might still be needed for editable cell, get from store if available
+    const { suppliers: uniqueSuppliers } = uniqueFilterValues; // Destructure suppliers for panel
+    // TODO: Need to clarify source for uniqueSuppliersFromDB if still needed
+
+    // --- Role-based UI logic ---
     const isDmpManager = role === 'DMP_MANAGER';
     const isSupplier = role === 'SUPPLIER';
     const isCategoryManager = role === 'CATEGORY_MANAGER';
 
-    // Определяем, показывать ли чекбоксы для выбора зон
-    const showSelectionColumn = isSupplier || isCategoryManager || isDmpManager; // Добавлено isDmpManager
+    const showSelectionColumn = isSupplier || isCategoryManager || isDmpManager;
+    const showStatusActions = (isSupplier || isCategoryManager) && showActions;
 
-    // Определяем, показывать ли индивидуальные действия со статусами в строке
-    // Для DMP менеджера они будут заменены массовыми действиями
-    const showStatusActions = (isSupplier || isCategoryManager) && showActions; // Убрано isDmpManager
-
-    // Вычисляем общее количество страниц
-    const totalPages = Math.max(1, Math.ceil(zones.length / itemsPerPage));
-
-    // Получаем текущую страницу зон
-    const currentZones = zones.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-    // Обработчик изменения статуса зоны
-    const handleStatusChange = async (zoneId: string, newStatus: ZoneStatus) => {
-        if (onStatusChange) {
-            await onStatusChange(zoneId, newStatus);
+    // --- Fetch initial data (optional, depends on where fetch is usually triggered) ---
+    useEffect(() => {
+        // Example: Fetch zones when the component mounts if not already loaded
+        // Adjust the condition based on your app's data loading strategy
+        if (zones.length === 0 && !isLoading) {
+            fetchZones(initialFetchRole || role);
         }
-    };
+        // Add dependencies if needed, e.g., [fetchZones, initialFetchRole, role, zones.length, isLoading]
+    }, [fetchZones, initialFetchRole, role, zones.length, isLoading]); // Basic dependency array
 
-    // Обработчик выбора зоны
-    const handleZoneSelect = (zoneId: string) => {
-        if (onZoneSelect) {
-            onZoneSelect(zoneId);
-        }
-    };
+    // --- Pagination Logic (using store state) ---
+    const totalItems = totalFilteredCount; // Use totalFilteredCount from store
+    const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+    // Use paginatedZones directly from the store
+    const currentZonesOnPage = paginatedZones;
 
-    // Обработчик создания бронирования
+    // --- Handlers ---
+    // Handler for creating booking (still needs external prop)
     const handleCreateBooking = async () => {
-        if (onCreateBooking && selectedZones.length > 0) {
-            await onCreateBooking(selectedZones);
+        if (onCreateBooking && selectedZoneIds.size > 0) {
+            // Use .size for Set
+            await onCreateBooking(Array.from(selectedZoneIds)); // Convert Set to Array
         }
     };
 
-    // Обработчик изменения сортировки
-    const handleSortChange = (field: keyof Zone) => {
-        if (!onSortChange) return;
-
-        let newDirection: 'asc' | 'desc' | null = 'asc';
-
-        if (sortField === field) {
-            if (sortDirection === 'asc') {
-                newDirection = 'desc';
-            } else if (sortDirection === 'desc') {
-                newDirection = null;
-            }
-        }
-        onSortChange(field, newDirection);
-    };
-
-    // Функция для отображения иконки сортировки
-    const getSortIcon = (field: keyof Zone) => {
-        if (sortField !== field) {
-            return <ArrowUpDown className="ml-2 h-4 w-4" />;
-        }
-
-        if (sortDirection === 'asc') {
-            return <ArrowUp className="ml-2 h-4 w-4" />;
-        }
-
-        if (sortDirection === 'desc') {
-            return <ArrowDown className="ml-2 h-4 w-4" />;
-        }
-
-        return <ArrowUpDown className="ml-2 h-4 w-4" />;
-    };
-
-    // Функция для создания заголовка с сортировкой
-    const SortableHeader = ({
-        field,
-        children,
-    }: {
-        field: keyof Zone;
-        children: React.ReactNode;
-    }) => (
-        <TableHead>
-            <div
-                className="flex items-center cursor-pointer"
-                onClick={() => handleSortChange(field)}
-            >
-                {children}
-                {onSortChange && getSortIcon(field)}
-            </div>
-        </TableHead>
-    );
-
-    // Обработчик выбора/снятия выбора всех зон на текущей странице
+    // Select All handler (uses store action)
     const handleSelectAll = (checked: boolean) => {
-        if (onSelectAll) {
-            const currentZoneIds = currentZones.map(zone => zone.id);
-            onSelectAll(checked, currentZoneIds);
-        }
+        const currentZoneIdsOnPage = currentZonesOnPage.map(zone => zone.id);
+        toggleSelectAll(checked, currentZoneIdsOnPage);
     };
 
-    // Определяем, все ли зоны на текущей странице выбраны
+    // Check if all zones on the current page are selected (uses store state)
     const areAllCurrentZonesSelected =
-        currentZones.length > 0 && currentZones.every(zone => selectedZones.includes(zone.id));
+        currentZonesOnPage.length > 0 &&
+        currentZonesOnPage.every(zone => selectedZoneIds.has(zone.id)); // Use .has() for Set
+
+    // --- Calculate ColSpan for Empty State ---
+    // Base columns: ID, City, Market, Macrozone, Equipment, Supplier, Brand, Status = 8
+    let colSpan = 8;
+    if (showSelectionColumn) colSpan++;
+    if (showStatusActions) colSpan++;
+    // Note: Supplier/Brand are always shown now based on header, adjust if needed
+
+    // --- Render ---
+    if (error) {
+        return <div className="text-red-500 p-4">Ошибка загрузки зон: {error}</div>;
+    }
 
     return (
         <div className={`space-y-4 ${className}`}>
-            {/* Панель действий для выбранных зон */}
-            {showSelectionColumn &&
-                selectedZones.length > 0 &&
-                !isDmpManager && ( // Скрываем для DMP, т.к. у него будет своя панель
-                    <div className="bg-primary-50 p-4 rounded-md mb-4 border border-primary-200">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div>
-                                <p className="font-medium">Выбрано зон: {selectedZones.length}</p>
-                                <p className="text-sm text-gray-500">
-                                    {isSupplier
-                                        ? 'Выберите зоны для создания заявки на бронирование'
-                                        : 'Выберите зоны и поставщика для создания заявки на бронирование'}
-                                </p>
-                            </div>
-
-                            <div className="flex flex-col md:flex-row gap-2 items-start md:items-center">
-                                {isCategoryManager && (
-                                    <Select
-                                        value={selectedSupplier || ''}
-                                        onValueChange={value =>
-                                            onSelectSupplier && onSelectSupplier(value)
-                                        }
-                                    >
-                                        <SelectTrigger className="w-[200px]">
-                                            <SelectValue placeholder="Выберите поставщика" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {uniqueSuppliers.map(supplier => (
-                                                <SelectItem
-                                                    key={supplier}
-                                                    value={supplier}
-                                                >
-                                                    {supplier}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-
-                                <Button
-                                    onClick={handleCreateBooking}
-                                    disabled={
-                                        selectedZones.length === 0 ||
-                                        isLoading ||
-                                        (isCategoryManager && !selectedSupplier)
-                                    }
-                                >
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Создать бронирование
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+            {/* Render the selection actions panel (only shown for Supplier/Category Manager) */}
+            {showSelectionColumn && !isDmpManager && onCreateBooking && (
+                <ZoneSelectionActionsPanel
+                    selectedZonesCount={selectedZoneIds.size} // Use .size for Set
+                    isSupplier={isSupplier}
+                    isCategoryManager={isCategoryManager}
+                    selectedSupplier={selectedSupplier ?? null} // Provide default null
+                    uniqueSuppliers={uniqueSuppliers} // From store (filtered data)
+                    onSelectSupplier={onSelectSupplier} // Prop from parent context
+                    onCreateBooking={handleCreateBooking} // Local handler using prop
+                    isLoading={isLoading} // From store
+                />
+            )}
 
             <div className="rounded-md border">
                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            {showSelectionColumn && (
-                                <TableHead className="w-[50px]">
-                                    <Checkbox
-                                        checked={areAllCurrentZonesSelected}
-                                        onCheckedChange={handleSelectAll}
-                                        aria-label="Выбрать все на странице"
-                                        disabled={currentZones.length === 0} // Блокируем, если нет зон на странице
-                                    />
-                                </TableHead>
-                            )}
-                            <SortableHeader field="uniqueIdentifier">ID</SortableHeader>
-                            <SortableHeader field="city">Город</SortableHeader>
-                            <SortableHeader field="market">Магазин</SortableHeader>
-                            <SortableHeader field="mainMacrozone">Макрозона</SortableHeader>
-                            <SortableHeader field="equipment">Оборудование</SortableHeader>
-                            <SortableHeader field="supplier">Поставщик</SortableHeader>{' '}
-                            {/* Добавлено */}
-                            <SortableHeader field="brand">Бренд</SortableHeader> {/* Добавлено */}
-                            <SortableHeader field="status">Статус</SortableHeader>
-                            {showStatusActions && <TableHead>Действия</TableHead>}
-                        </TableRow>
-                    </TableHeader>
+                    {/* Render the Table Header (pass store state/actions) */}
+                    <ZonesTableHeader
+                        showSelectionColumn={showSelectionColumn}
+                        areAllCurrentZonesSelected={areAllCurrentZonesSelected} // Calculated from store state
+                        onSelectAll={handleSelectAll} // Local handler using store action
+                        sortField={sortField as ZoneKeys | null} // From store (cast needed)
+                        sortDirection={sortDirection} // From store
+                        onSortChange={(field, direction) => {
+                            // Wrap setSortCriteria
+                            setSortCriteria({ field, direction });
+                        }}
+                        showStatusActions={showStatusActions}
+                        disableSelectAll={currentZonesOnPage.length === 0}
+                    />
                     <TableBody>
-                        {currentZones.length > 0 ? (
-                            currentZones.map(zone => (
-                                <TableRow
-                                    key={zone.id}
-                                    className={
-                                        showSelectionColumn && selectedZones.includes(zone.id)
-                                            ? 'bg-primary-50'
-                                            : ''
-                                    }
-                                    onClick={() =>
-                                        showSelectionColumn &&
-                                        zone.status === ZoneStatus.AVAILABLE &&
-                                        handleZoneSelect(zone.id)
-                                    }
-                                    style={showSelectionColumn ? { cursor: 'pointer' } : {}}
+                        {isLoading && currentZonesOnPage.length === 0 ? ( // Show loading indicator
+                            <TableRow>
+                                <TableCell
+                                    colSpan={colSpan}
+                                    className="text-center py-4 text-gray-500"
                                 >
-                                    {showSelectionColumn && (
-                                        <TableCell>
-                                            <Checkbox
-                                                checked={selectedZones.includes(zone.id)}
-                                                onCheckedChange={() => handleZoneSelect(zone.id)}
-                                                // Для DMP менеджера разрешаем выбор любых зон
-                                                disabled={
-                                                    !isDmpManager &&
-                                                    zone.status !== ZoneStatus.AVAILABLE
-                                                }
-                                                onClick={(e: React.MouseEvent) =>
-                                                    e.stopPropagation()
-                                                }
-                                            />
-                                        </TableCell>
-                                    )}
-                                    <TableCell className="font-medium">
-                                        {zone.uniqueIdentifier}
-                                    </TableCell>
-                                    <TableCell>{zone.city}</TableCell>
-                                    <TableCell>{zone.market}</TableCell>
-                                    <TableCell>{zone.mainMacrozone}</TableCell>
-                                    <TableCell>{zone.equipment || '-'}</TableCell>
-                                    {/* Ячейка Поставщик */}
-                                    <TableCell>
-                                        {isDmpManager && onUpdateZoneField ? (
-                                            <EditableSupplierCell
-                                                zoneId={zone.id}
-                                                currentValue={zone.supplier}
-                                                supplierList={uniqueSuppliersFromDB}
-                                                onSave={value =>
-                                                    onUpdateZoneField(zone.id, 'supplier', value)
-                                                }
-                                                isDisabled={isLoading}
-                                            />
-                                        ) : (
-                                            zone.supplier || '-'
-                                        )}
-                                    </TableCell>
-                                    {/* Ячейка Бренд */}
-                                    <TableCell>
-                                        {isDmpManager && onUpdateZoneField ? (
-                                            <EditableBrandCell
-                                                zoneId={zone.id}
-                                                currentValue={zone.brand}
-                                                onSave={value =>
-                                                    onUpdateZoneField(zone.id, 'brand', value)
-                                                }
-                                                isDisabled={isLoading}
-                                            />
-                                        ) : (
-                                            zone.brand || '-'
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <ZoneStatusBadge status={zone.status} />
-                                    </TableCell>
-                                    {showStatusActions && (
-                                        <TableCell>
-                                            <ZoneStatusActions
-                                                zoneId={zone.id}
-                                                currentStatus={zone.status}
-                                                onStatusChange={handleStatusChange}
-                                                isDisabled={isLoading}
-                                            />
-                                        </TableCell>
-                                    )}
-                                </TableRow>
+                                    Загрузка зон...
+                                </TableCell>
+                            </TableRow>
+                        ) : currentZonesOnPage.length > 0 ? (
+                            currentZonesOnPage.map(zone => (
+                                // Render Table Row (pass store state/actions and external handlers)
+                                <ZonesTableRow
+                                    key={zone.id}
+                                    zone={zone}
+                                    isSelected={selectedZoneIds.has(zone.id)} // Use .has() for Set
+                                    showSelectionColumn={showSelectionColumn}
+                                    onZoneSelect={toggleZoneSelection} // Store action
+                                    isDmpManager={isDmpManager}
+                                    showStatusActions={showStatusActions}
+                                    onStatusChange={onStatusChange} // Prop from parent
+                                    onUpdateZoneField={onUpdateZoneField} // Prop from parent
+                                    // uniqueSuppliersFromDB prop removed - ZonesTableRow should fetch if needed
+                                    isLoading={isLoading} // From store
+                                />
                             ))
                         ) : (
                             <TableRow>
                                 <TableCell
-                                    colSpan={
-                                        // Обновляем colSpan с учетом новых колонок и showStatusActions=false для DMP
-                                        showSelectionColumn ? 9 : 8
-                                    }
+                                    colSpan={colSpan}
                                     className="text-center py-4 text-gray-500"
                                 >
-                                    {zones.length === 0
+                                    {zones.length === 0 && !isLoading // Check original zones length
                                         ? 'Зоны не найдены'
                                         : 'Нет зон, соответствующих фильтрам'}
                                 </TableCell>
@@ -367,15 +209,16 @@ export function ZonesTable({
                 </Table>
             </div>
 
+            {/* Render Pagination (pass store state/actions) */}
             <ZonePagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-                itemsPerPage={itemsPerPage}
-                onItemsPerPageChange={setItemsPerPage}
-                totalItems={zones.length}
-                filteredItems={zones.length}
-                isDisabled={isLoading}
+                currentPage={currentPage} // From store
+                totalPages={totalPages} // Calculated from store state
+                onPageChange={page => setPaginationCriteria({ currentPage: page })} // Use setPaginationCriteria
+                itemsPerPage={itemsPerPage} // From store
+                onItemsPerPageChange={count => setPaginationCriteria({ itemsPerPage: count })} // Use setPaginationCriteria
+                totalItems={totalItems} // Calculated from store state
+                filteredItems={totalItems} // Pass the total filtered count
+                isDisabled={isLoading} // From store
             />
         </div>
     );

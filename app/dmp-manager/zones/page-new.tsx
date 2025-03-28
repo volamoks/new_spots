@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
-import { Zone, ZoneStatus } from '@/types/zone'; // Добавлен импорт Zone
+import { ZoneStatus } from '@/types/zone'; // Убран неиспользуемый Zone
 import { ZonesSummaryCard } from '@/app/components/zones/ZonesSummaryCard';
 import { ZonesFilters } from '@/app/components/zones/ZonesFilters';
 import { ZonesTable } from '@/app/components/zones/ZonesTable';
@@ -15,101 +15,79 @@ export default function DmpManagerZonesPage() {
 
     // Получаем состояние и методы из стора
     const {
-        zones,
-        filteredZones,
-        activeTab,
-        searchTerm,
-        cityFilters,
-        marketFilters,
-        macrozoneFilters,
-        equipmentFilters,
-        supplierFilters,
-        sortField,
-        sortDirection,
-        uniqueCities,
-        uniqueMarkets,
-        uniqueMacrozones,
-        uniqueEquipments,
-        uniqueSuppliers, // Уникальные из текущих зон
-        uniqueSuppliersFromDB, // Уникальные из БД
+        zones, // Raw zones list
+        // paginatedZones, // Unused: ZonesTable gets this from store
+        // filterCriteria, // Unused: ZonesFilters gets this from store
+        // uniqueFilterValues, // Object containing unique values for filters (used by ZonesFilters)
         isLoading,
-        selectedZoneIds, // Добавлено
-        setActiveTab,
-        setSearchTerm,
-        toggleFilter,
-        removeFilter,
-        setSorting,
-        resetFilters,
+        selectedZoneIds, // Now a Set<string>
+        totalFilteredCount, // Total count after filtering, before pagination
+
+        // Actions from zonesStore
         fetchZones,
-        changeZoneStatus, // Оставляем для возможных индивидуальных действий в будущем, но не используем в таблице
-        refreshZones,
-        toggleZoneSelection, // Добавлено
-        toggleSelectAll, // Добавлено
-        bulkUpdateZoneStatus, // Добавлено
-        bulkDeleteZones, // Добавлено
-        updateZoneField, // Добавлено
+        setFilterCriteria, // New action to set filters
+        // toggleFilter, // Replaced by setFilterCriteria
+        // removeFilter, // Replaced by setFilterCriteria
+
+        // Actions from dmpManagerActionsStore (wrapped by the hook)
+        bulkUpdateZoneStatus,
+        bulkDeleteZones,
+        updateZoneField,
     } = useDmpManagerZones();
 
     // Загружаем зоны при инициализации
     useEffect(() => {
         if (session) {
-            fetchZones('DMP_MANAGER');
+            fetchZones(); // Removed argument as fetchZones no longer accepts role
         }
     }, [session, fetchZones]);
 
     // Обработчик изменения статуса зоны
-    const handleStatusChange = async (zoneId: string, newStatus: ZoneStatus) => {
-        try {
-            await changeZoneStatus(zoneId, newStatus);
-        } catch (error) {
-            console.error('Ошибка при изменении статуса зоны:', error);
-        }
-    };
+    // const handleStatusChange = async (zoneId: string, newStatus: ZoneStatus) => {
+    //     try {
+    //         await changeZoneStatus(zoneId, newStatus);
+    //     } catch (error) {
+    //         console.error('Ошибка при изменении статуса зоны:', error);
+    //     }
+    // };
 
-    // Обработчик изменения сортировки
-    const handleSortChange = (field: keyof Zone, direction: 'asc' | 'desc' | null) => {
-        // Исправлен тип field
-        setSorting(field, direction);
-    };
+    // Обработчик изменения сортировки (Removed - Handled by store/table)
+    // const handleSortChange = (field: keyof Zone, direction: 'asc' | 'desc' | null) => {
+    //     // Исправлен тип field
+    //     setSorting(field, direction);
+    // };
 
-    // Обработчик изменения фильтра
+    // Обработчик изменения фильтра (Refactored for new store structure)
     const handleFilterChange = (
         type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier',
-        values: string[],
+        values: string[], // values is the complete new array for this filter type
     ) => {
-        // Сбрасываем текущие фильтры этого типа
-        const currentFilters =
-            type === 'city'
-                ? cityFilters || []
-                : type === 'market'
-                ? marketFilters || []
-                : type === 'macrozone'
-                ? macrozoneFilters || []
-                : type === 'equipment'
-                ? equipmentFilters || []
-                : supplierFilters || [];
-
-        // Проверяем, что values - это массив
+        // Ensure values is always an array
         const newValues = Array.isArray(values) ? values : [];
 
-        // Удаляем старые фильтры
-        currentFilters.forEach(value => {
-            if (!newValues.includes(value)) {
-                removeFilter(type, value);
-            }
-        });
-
-        // Добавляем новые фильтры
-        newValues.forEach(value => {
-            if (!currentFilters.includes(value)) {
-                toggleFilter(type, value);
-            }
-        });
+        // Update the specific filter array within filterCriteria using setFilterCriteria
+        switch (type) {
+            case 'city':
+                setFilterCriteria({ cityFilters: newValues });
+                break;
+            case 'market':
+                setFilterCriteria({ marketFilters: newValues });
+                break;
+            case 'macrozone':
+                setFilterCriteria({ macrozoneFilters: newValues });
+                break;
+            case 'equipment':
+                setFilterCriteria({ equipmentFilters: newValues });
+                break;
+            case 'supplier':
+                setFilterCriteria({ supplierFilters: newValues });
+                break;
+        }
     };
 
     // Обработчик массового изменения статуса
     const handleBulkStatusChange = async (newStatus: ZoneStatus) => {
-        if (selectedZoneIds.length === 0) return;
+        if (selectedZoneIds.size === 0) return; // Use .size for Set
 
         const statusMap = {
             [ZoneStatus.AVAILABLE]: 'Доступна',
@@ -119,25 +97,25 @@ export default function DmpManagerZonesPage() {
         const statusText = statusMap[newStatus] || newStatus;
 
         const confirmed = window.confirm(
-            `Вы уверены, что хотите изменить статус ${selectedZoneIds.length} зон на "${statusText}"?`,
+            `Вы уверены, что хотите изменить статус ${selectedZoneIds.size} зон на "${statusText}"?`, // Use .size for Set
         );
 
         if (confirmed) {
-            await bulkUpdateZoneStatus(selectedZoneIds, newStatus);
+            await bulkUpdateZoneStatus(Array.from(selectedZoneIds), newStatus); // Convert Set to Array
             // Очистка выбора не нужна, т.к. стор сам это сделает при успехе
         }
     };
 
     // Обработчик массового удаления
     const handleBulkDelete = async () => {
-        if (selectedZoneIds.length === 0) return;
+        if (selectedZoneIds.size === 0) return; // Use .size for Set
 
         const confirmed = window.confirm(
-            `Вы уверены, что хотите удалить ${selectedZoneIds.length} зон? Это действие необратимо.`,
+            `Вы уверены, что хотите удалить ${selectedZoneIds.size} зон? Это действие необратимо.`, // Use .size for Set
         );
 
         if (confirmed) {
-            await bulkDeleteZones(selectedZoneIds);
+            await bulkDeleteZones(Array.from(selectedZoneIds)); // Convert Set to Array
             // Очистка выбора не нужна, т.к. стор сам это сделает при успехе
         }
     };
@@ -148,40 +126,31 @@ export default function DmpManagerZonesPage() {
                 {/* Карточка с информацией */}
                 <ZonesSummaryCard
                     totalCount={zones.length}
-                    filteredCount={filteredZones.length}
+                    filteredCount={totalFilteredCount} // Use totalFilteredCount from store
                 />
 
                 {/* Фильтры */}
                 <ZonesFilters
-                    activeTab={activeTab}
-                    searchTerm={searchTerm}
-                    cityFilters={cityFilters}
-                    marketFilters={marketFilters}
-                    macrozoneFilters={macrozoneFilters}
-                    equipmentFilters={equipmentFilters}
-                    supplierFilters={supplierFilters}
-                    uniqueCities={uniqueCities}
-                    uniqueMarkets={uniqueMarkets}
-                    uniqueMacrozones={uniqueMacrozones}
-                    uniqueEquipments={uniqueEquipments}
-                    uniqueSuppliers={uniqueSuppliers}
-                    onTabChange={setActiveTab}
-                    onSearchChange={setSearchTerm}
-                    onFilterChange={handleFilterChange}
-                    onFilterRemove={removeFilter}
-                    onResetFilters={resetFilters}
-                    onRefresh={refreshZones}
-                    isLoading={isLoading}
+                    // Props removed as they are now accessed via useDmpManagerZones hook inside ZonesFilters:
+                    // activeTab, searchTerm, cityFilters, marketFilters, macrozoneFilters,
+                    // equipmentFilters, supplierFilters, uniqueCities, uniqueMarkets,
+                    // uniqueMacrozones, uniqueEquipments, uniqueSuppliers, onTabChange,
+                    // onSearchChange, onResetFilters, onRefresh, isLoading
+
+                    // Keep props with custom handlers or specific config needed by ZonesFilters
+                    onFilterChange={handleFilterChange} // Custom handler in this component
+                    // onFilterRemove={removeFilter} // Removed - removeFilter action no longer exists
                     role="DMP_MANAGER"
                     className="mb-6"
+                    // selectedCategory={/* Pass category if needed for macrozone logic */}
                 />
 
                 {/* Панель массовых действий */}
-                {selectedZoneIds.length > 0 && (
+                {selectedZoneIds.size > 0 && ( // Use .size for Set
                     <div className="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200 shadow-sm">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <p className="font-medium text-blue-800">
-                                Выбрано зон: {selectedZoneIds.length}
+                                Выбрано зон: {selectedZoneIds.size} {/* Use .size for Set */}
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 <Button
@@ -231,19 +200,23 @@ export default function DmpManagerZonesPage() {
 
                 {/* Таблица зон */}
                 <ZonesTable
-                    zones={filteredZones}
+                    // zones prop removed - table gets data from store
                     // onStatusChange больше не нужен для DMP в таблице
                     showActions={false} // Скрываем индивидуальные действия для DMP
-                    isLoading={isLoading}
+                    // isLoading prop removed - table gets data from store
                     role="DMP_MANAGER"
-                    sortField={sortField}
-                    sortDirection={sortDirection}
-                    onSortChange={handleSortChange}
-                    selectedZones={selectedZoneIds} // Исправлено: используем пропс selectedZones
-                    onZoneSelect={toggleZoneSelection} // Передаем обработчик выбора
-                    onSelectAll={toggleSelectAll} // Передаем обработчик выбора всех
-                    uniqueSuppliersFromDB={uniqueSuppliersFromDB} // Передаем список поставщиков из БД
-                    onUpdateZoneField={updateZoneField} // Передаем обработчик обновления поля
+                    // sortField prop removed - table gets data from store
+                    // sortDirection prop removed - table gets data from store
+                    // onSortChange prop removed - table uses store action
+                    // selectedZones prop removed - table gets data from store
+                    // onZoneSelect prop removed - table uses store action
+                    // onSelectAll prop removed - table uses store action
+                    // uniqueSuppliersFromDB prop removed - table gets data from store
+                    onUpdateZoneField={async (zoneId, field, value) => {
+                        // Wrap to match Promise<void>
+                        await updateZoneField(zoneId, field, value);
+                    }}
+                    initialFetchRole="DMP_MANAGER" // Pass role for initial fetch if needed
                 />
             </main>
         </div>

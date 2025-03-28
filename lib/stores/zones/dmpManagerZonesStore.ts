@@ -1,45 +1,52 @@
 "use client";
 
 import { create } from 'zustand';
-import { useZonesStore, createSuccessToast, createErrorToast } from './baseZonesStore';
+// Import the NEW primary zones store
+import { useZonesStore } from '../zonesStore';
 import { ZoneStatus } from '@/types/zone';
+// Keep loader and toast hooks for injection in the composition hook
 import { useLoader } from '@/app/components/GlobalLoader';
 import { useToast } from '@/components/ui/use-toast';
 
-// Определяем тип для toast функции
+// Define types for injected dependencies (toast and loader)
 type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void;
-// Определяем тип для withLoading функции
 type WithLoadingFunction = <T>(promise: Promise<T>, message?: string) => Promise<T>;
 
-interface DmpManagerZonesState {
-  // Дополнительные методы для DMP-менеджера
-  // Добавляем withLoading в аргументы
-  changeZoneStatus: (zoneId: string, newStatus: ZoneStatus, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<void>;
-  refreshZones: (toast: { toast: ToastFunction }) => Promise<void>; // withLoading не нужен
-  bulkUpdateZoneStatus: (zoneIds: string[], newStatus: ZoneStatus, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<void>;
-  bulkDeleteZones: (zoneIds: string[], toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<void>;
-  updateZoneField: (zoneId: string, field: 'supplier' | 'brand', value: string | null, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<void>; // Добавлено
+// Define the state containing only the DMP-specific actions
+interface DmpManagerActionsState {
+  changeZoneStatus: (zoneId: string, newStatus: ZoneStatus, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
+  refreshZones: (toast: { toast: ToastFunction }) => Promise<void>;
+  bulkUpdateZoneStatus: (zoneIds: string[], newStatus: ZoneStatus, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
+  bulkDeleteZones: (zoneIds: string[], toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
+  updateZoneField: (zoneId: string, field: 'supplier' | 'brand', value: string | null, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
 }
 
-export const useDmpManagerZonesStore = create<DmpManagerZonesState>(() => ({
-  // Методы для DMP-менеджера
-  changeZoneStatus: async (zoneId, newStatus, toast, withLoading) => { // Принимаем withLoading
+// Helper functions for toasts (consider moving to a dedicated UI utility file)
+const createSuccessToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => {
+  toast.toast({ title, description });
+};
+const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => {
+  toast.toast({ title, description, variant: "destructive" });
+};
+
+// Create the store containing only actions
+export const useDmpManagerActionsStore = create<DmpManagerActionsState>(() => ({
+
+  changeZoneStatus: async (zoneId, newStatus, toast, withLoading) => {
     const showSuccessToast = createSuccessToast(toast);
     const showErrorToast = createErrorToast(toast);
-    // const { withLoading } = useLoader(); // Убираем вызов хука
-    const { updateZoneStatus } = useZonesStore.getState();
+    // Get the action from the primary store
+    const updateLocal = useZonesStore.getState().updateZoneLocally;
 
     try {
       await withLoading(
         fetch(`/api/zones/${zoneId}/status`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus }),
         }).then(async response => {
           if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({ error: 'Failed to update zone status' }));
             throw new Error(error.error || 'Failed to update zone status');
           }
           return response.json();
@@ -47,154 +54,129 @@ export const useDmpManagerZonesStore = create<DmpManagerZonesState>(() => ({
         'Обновление статуса зоны...',
       );
 
-      // Обновляем состояние в сторе
-      updateZoneStatus(zoneId, newStatus);
+      // Update state in the primary store
+      updateLocal(zoneId, { status: newStatus });
 
-      showSuccessToast(
-        'Статус обновлен',
-        `Статус зоны успешно изменен на ${newStatus}`
-      );
+      showSuccessToast('Статус обновлен', `Статус зоны успешно изменен на ${newStatus}`);
+      return true;
     } catch (error) {
       console.error('Ошибка при обновлении статуса зоны:', error);
-      showErrorToast(
-        'Ошибка',
-        error instanceof Error
-          ? error.message
-          : 'Произошла ошибка при обновлении статуса'
-      );
-      throw error;
+      const message = error instanceof Error ? error.message : 'Произошла ошибка при обновлении статуса';
+      showErrorToast('Ошибка', message);
+      // throw error; // Re-throwing might be useful depending on UI handling
+      return false;
     }
   },
 
   refreshZones: async (toast) => {
-    const { fetchZones } = useZonesStore.getState();
     const showErrorToast = createErrorToast(toast);
+    // Get fetch action from the primary store
+    const fetchZonesPrimary = useZonesStore.getState().fetchZones;
 
     try {
-      await fetchZones("DMP_MANAGER");
+      // No role needed if API doesn't require it for DMP
+      await fetchZonesPrimary();
     } catch (error) {
       console.error('Ошибка при обновлении зон:', error);
-      showErrorToast(
-        'Ошибка',
-        error instanceof Error
-          ? error.message
-          : 'Произошла ошибка при обновлении зон'
-      );
+      const message = error instanceof Error ? error.message : 'Произошла ошибка при обновлении зон';
+      showErrorToast('Ошибка', message);
     }
   },
 
-  bulkUpdateZoneStatus: async (zoneIds, newStatus, toast, withLoading) => { // Принимаем withLoading
+  bulkUpdateZoneStatus: async (zoneIds, newStatus, toast, withLoading) => {
     const showSuccessToast = createSuccessToast(toast);
     const showErrorToast = createErrorToast(toast);
-    // const { withLoading } = useLoader(); // Убираем вызов хука
-    const { updateZoneStatus, clearSelection } = useZonesStore.getState();
+    // Get actions from the primary store
+    const updateLocal = useZonesStore.getState().updateZoneLocally;
+    const clearSelectionPrimary = useZonesStore.getState().clearSelection;
 
     try {
       await withLoading(
-        fetch(`/api/zones/bulk-update`, { // Новый API эндпоинт
+        fetch(`/api/zones/bulk-update`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ zoneIds, status: newStatus }),
         }).then(async response => {
           if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({ error: 'Failed to bulk update zone statuses' }));
             throw new Error(error.error || 'Failed to bulk update zone statuses');
           }
-          return response.json(); // Ожидаем ответ с количеством обновленных зон
+          return response.json();
         }),
         `Обновление статуса ${zoneIds.length} зон...`,
       );
 
-      // Обновляем состояние в сторе для каждой зоны
-      zoneIds.forEach(zoneId => updateZoneStatus(zoneId, newStatus));
-      clearSelection(); // Очищаем выбор после успеха
+      // Update state in the primary store for each zone
+      zoneIds.forEach(zoneId => updateLocal(zoneId, { status: newStatus }));
+      clearSelectionPrimary(); // Clear selection in the primary store
 
-      showSuccessToast(
-        'Статусы обновлены',
-        `Статус ${zoneIds.length} зон успешно изменен на ${newStatus}`
-      );
+      showSuccessToast('Статусы обновлены', `Статус ${zoneIds.length} зон успешно изменен на ${newStatus}`);
+      return true;
     } catch (error) {
       console.error('Ошибка при массовом обновлении статусов зон:', error);
-      showErrorToast(
-        'Ошибка обновления',
-        error instanceof Error
-          ? error.message
-          : 'Произошла ошибка при массовом обновлении статусов'
-      );
-      throw error; // Пробрасываем ошибку для обработки в компоненте
+      const message = error instanceof Error ? error.message : 'Произошла ошибка при массовом обновлении статусов';
+      showErrorToast('Ошибка обновления', message);
+      return false;
     }
   },
 
-  bulkDeleteZones: async (zoneIds, toast, withLoading) => { // Принимаем withLoading
+  bulkDeleteZones: async (zoneIds, toast, withLoading) => {
     const showSuccessToast = createSuccessToast(toast);
     const showErrorToast = createErrorToast(toast);
-    // const { withLoading } = useLoader(); // Убираем вызов хука
-    const { setZones, clearSelection } = useZonesStore.getState(); // Нужен setZones для обновления списка
+    // Get actions from the primary store
+    const fetchZonesPrimary = useZonesStore.getState().fetchZones;
+    const clearSelectionPrimary = useZonesStore.getState().clearSelection;
 
     try {
       const result = await withLoading(
-        fetch(`/api/zones/bulk-delete`, { // Новый API эндпоинт
+        fetch(`/api/zones/bulk-delete`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ zoneIds }),
         }).then(async response => {
           if (!response.ok) {
-            const error = await response.json();
-            // Обработка ошибки внешнего ключа
+            const error = await response.json().catch(() => ({ error: 'Failed to bulk delete zones' }));
             if (response.status === 409 && error.code === 'P2003') {
               throw new Error(`Невозможно удалить некоторые зоны, так как они используются в бронированиях.`);
             }
             throw new Error(error.error || 'Failed to bulk delete zones');
           }
-          return response.json(); // Ожидаем ответ с количеством удаленных зон
+          return response.json();
         }),
         `Удаление ${zoneIds.length} зон...`,
       );
 
-      // Обновляем состояние в сторе, удаляя зоны
-      const currentState = useZonesStore.getState();
-      const remainingZones = currentState.zones.filter(zone => !zoneIds.includes(zone.id));
-      setZones(remainingZones); // Используем setZones для пересчета фильтров и уникальных значений
-      clearSelection(); // Очищаем выбор после успеха
+      // Refresh the entire list from the primary store after deletion
+      await fetchZonesPrimary();
+      clearSelectionPrimary(); // Clear selection in the primary store
 
-      showSuccessToast(
-        'Зоны удалены',
-        `Успешно удалено ${result.count || zoneIds.length} зон.` // Используем count из ответа API, если есть
-      );
+      showSuccessToast('Зоны удалены', `Успешно удалено ${result.count || zoneIds.length} зон.`);
+      return true;
     } catch (error) {
       console.error('Ошибка при массовом удалении зон:', error);
-      showErrorToast(
-        'Ошибка удаления',
-        error instanceof Error
-          ? error.message
-          : 'Произошла ошибка при массовом удалении зон'
-      );
-      throw error; // Пробрасываем ошибку для обработки в компоненте
+      const message = error instanceof Error ? error.message : 'Произошла ошибка при массовом удалении зон';
+      showErrorToast('Ошибка удаления', message);
+      return false;
     }
   },
 
   updateZoneField: async (zoneId, field, value, toast, withLoading) => {
     const showSuccessToast = createSuccessToast(toast);
     const showErrorToast = createErrorToast(toast);
-    const { setZones } = useZonesStore.getState(); // Нужен setZones для обновления
+    // Get action from the primary store
+    const updateLocal = useZonesStore.getState().updateZoneLocally;
 
     const fieldName = field === 'supplier' ? 'Поставщик' : 'Бренд';
 
     try {
       const updatedZone = await withLoading(
-        fetch(`/api/zones/${zoneId}`, { // Используем PATCH эндпоинт
+        fetch(`/api/zones/${zoneId}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ [field]: value }), // Динамически устанавливаем поле
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [field]: value }),
         }).then(async response => {
           if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({ error: `Failed to update zone ${field}` }));
             throw new Error(error.error || `Failed to update zone ${field}`);
           }
           return response.json();
@@ -202,57 +184,47 @@ export const useDmpManagerZonesStore = create<DmpManagerZonesState>(() => ({
         `Обновление поля "${fieldName}"...`,
       );
 
-      // Обновляем состояние в сторе, включая статус
-      const currentState = useZonesStore.getState();
-      const updatedZones = currentState.zones.map(zone =>
-        zone.id === zoneId ? { ...zone, [field]: value, status: ZoneStatus.UNAVAILABLE } : zone
-      );
-      setZones(updatedZones); // Используем setZones для пересчета
+      // Update state in the primary store, including status change
+      // Assuming status always becomes UNAVAILABLE after field update, adjust if needed
+      updateLocal(zoneId, { [field]: value, status: ZoneStatus.UNAVAILABLE });
 
-      showSuccessToast(
-        'Поле обновлено',
-        `${fieldName} для зоны ${updatedZone.uniqueIdentifier || zoneId} успешно обновлен.`
-      );
+      showSuccessToast('Поле обновлено', `${fieldName} для зоны ${updatedZone.uniqueIdentifier || zoneId} успешно обновлен.`);
+      return true;
     } catch (error) {
       console.error(`Ошибка при обновлении поля ${field} для зоны ${zoneId}:`, error);
-      showErrorToast(
-        'Ошибка обновления',
-        error instanceof Error
-          ? error.message
-          : `Произошла ошибка при обновлении поля ${fieldName}`
-      );
-      throw error;
+      const message = error instanceof Error ? error.message : `Произошла ошибка при обновлении поля ${fieldName}`;
+      showErrorToast('Ошибка обновления', message);
+      return false;
     }
   },
 }));
 
-// Хук для удобного доступа ко всем методам и состояниям
+// Composition Hook: Combines state from primary store and actions from this store
 export const useDmpManagerZones = () => {
-  // Получаем состояние и методы из базового стора
-  const baseStore = useZonesStore();
+  // Get state and basic actions from the NEW primary zones store
+  const zonesDataStore = useZonesStore();
 
-  // Получаем методы из стора DMP-менеджера
-  const dmpStore = useDmpManagerZonesStore();
+  // Get DMP-specific actions
+  const dmpActionsStore = useDmpManagerActionsStore();
 
-  // Получаем toast
+  // Get dependencies (toast, loader) - these hooks must be called within a React component context
   const toast = useToast();
-
-  // Получаем withLoading здесь
   const { withLoading } = useLoader();
 
-  // Объединяем их в один объект и создаем обертки для методов, требующих toast
+  // Combine state and wrapped actions
   return {
-    ...baseStore,
-    ...dmpStore,
-    // Обертки для передачи toast и withLoading в методы
+    // State and basic actions from primary store
+    ...zonesDataStore,
+
+    // Wrapped DMP-specific actions with dependencies injected
     changeZoneStatus: (zoneId: string, newStatus: ZoneStatus) =>
-      dmpStore.changeZoneStatus(zoneId, newStatus, toast, withLoading),
-    refreshZones: () => dmpStore.refreshZones(toast), // withLoading не нужен
+      dmpActionsStore.changeZoneStatus(zoneId, newStatus, toast, withLoading),
+    refreshZones: () => dmpActionsStore.refreshZones(toast),
     bulkUpdateZoneStatus: (zoneIds: string[], newStatus: ZoneStatus) =>
-      dmpStore.bulkUpdateZoneStatus(zoneIds, newStatus, toast, withLoading),
+      dmpActionsStore.bulkUpdateZoneStatus(zoneIds, newStatus, toast, withLoading),
     bulkDeleteZones: (zoneIds: string[]) =>
-      dmpStore.bulkDeleteZones(zoneIds, toast, withLoading),
+      dmpActionsStore.bulkDeleteZones(zoneIds, toast, withLoading),
     updateZoneField: (zoneId: string, field: 'supplier' | 'brand', value: string | null) =>
-      dmpStore.updateZoneField(zoneId, field, value, toast, withLoading), // Добавлена обертка
+      dmpActionsStore.updateZoneField(zoneId, field, value, toast, withLoading),
   };
 };

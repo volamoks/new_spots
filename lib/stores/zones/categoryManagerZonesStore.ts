@@ -1,166 +1,102 @@
 "use client";
 
 import { create } from 'zustand';
-import { useZonesStore, createSuccessToast, createErrorToast, ZonesState } from './baseZonesStore';
-import { ZoneStatus } from '@/types/zone';
-import { useLoader } from '@/app/components/GlobalLoader';
+// Import the NEW primary zones store
+import { useZonesStore } from '../zonesStore';
+// Import the NEW booking actions store
+import { useBookingActionsStore } from '../bookingActionsStore';
+// Keep hooks for dependencies
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/use-toast';
+// Import SimplifiedUser type if needed by createBookingRequest
+import type { SimplifiedUser } from '../bookingActionsStore';
 
-interface CategoryManagerZonesState {
-  // Дополнительные состояния для КМ
-  selectedZones: string[];
-  selectedSupplier: string | null;
-  selectedCategory: string | null; // New state for selected category
+// Define types for injected dependencies
+type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void;
 
-  // Дополнительные методы для КМ
-  selectZone: (zoneId: string) => void;
-  deselectZone: (zoneId: string) => void;
-  clearSelectedZones: () => void;
-  selectSupplier: (supplierId: string) => void;
-  selectCategory: (categoryId: string) => void; // New action
-  createBooking: (supplierId: string | undefined, toast: any) => Promise<void>;
-  refreshZones: (toast: any) => Promise<void>;
+// Helper for error toast (consider moving to utils)
+const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => {
+  toast.toast({ title, description, variant: "destructive" });
+};
+
+// Define the state containing only the CM-specific actions
+interface CategoryManagerActionsState {
+  refreshZones: (toast: { toast: ToastFunction }) => Promise<void>;
+  // createBooking is now handled by bookingActionsStore
+  // Selection state is handled by zonesStore (general) or bookingActionsStore (creation)
 }
 
-export const useCategoryManagerZonesStore = create<CategoryManagerZonesState>((set, get) => ({
-  // Начальные значения
-  selectedZones: [],
-  selectedSupplier: null,
-  selectedCategory: null, // Initial value
-
-  // Методы для КМ
-  selectZone: (zoneId) => {
-    set(state => ({
-      selectedZones: [...state.selectedZones, zoneId]
-    }));
-  },
-
-  deselectZone: (zoneId) => {
-    set(state => ({
-      selectedZones: state.selectedZones.filter(id => id !== zoneId)
-    }));
-  },
-
-  clearSelectedZones: () => {
-    set({ selectedZones: [] });
-  },
-
-  selectSupplier: (supplierId) => {
-    set({ selectedSupplier: supplierId });
-  },
-
-  selectCategory: (categoryId) => {  // New action implementation
-    set({ selectedCategory: categoryId });
-  },
-
-  createBooking: async (supplierId, toast) => {
-    const { selectedZones, selectedSupplier } = get();
-    const showSuccessToast = createSuccessToast(toast);
-    const showErrorToast = createErrorToast(toast);
-    const { withLoading } = useLoader();
-
-    // Проверяем, что выбраны зоны
-    if (selectedZones.length === 0) {
-      showErrorToast(
-        'Ошибка',
-        'Выберите хотя бы одну зону для бронирования'
-      );
-      return;
-    }
-
-    // Проверяем, что выбран поставщик
-    const supplierToUse = supplierId || selectedSupplier;
-    if (!supplierToUse) {
-      showErrorToast(
-        'Ошибка',
-        'Выберите поставщика для бронирования'
-      );
-      return;
-    }
-
-    try {
-      await withLoading(
-        fetch("/api/bookings", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            zoneIds: selectedZones,
-            supplierId: supplierToUse
-          }),
-        }).then(async response => {
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Ошибка при создании бронирования");
-          }
-          return response.json();
-        }),
-        "Создание бронирования..."
-      );
-
-      showSuccessToast(
-        'Бронирование создано',
-        'Заявка на бронирование успешно создана'
-      );
-
-      // Очищаем выбранные зоны
-      get().clearSelectedZones();
-
-      // Обновляем список зон после создания бронирования
-      await get().refreshZones(toast);
-    } catch (error) {
-      console.error('Ошибка при создании бронирования:', error);
-      showErrorToast(
-        'Ошибка',
-        error instanceof Error
-          ? error.message
-          : 'Произошла ошибка при создании бронирования'
-      );
-      throw error;
-    }
-  },
+// Create the store containing only actions
+export const useCategoryManagerActionsStore = create<CategoryManagerActionsState>(() => ({
 
   refreshZones: async (toast) => {
-    const { fetchZones } = useZonesStore.getState();
     const showErrorToast = createErrorToast(toast);
+    // Get fetch action from the primary store
+    const fetchZonesPrimary = useZonesStore.getState().fetchZones;
 
     try {
-      await fetchZones("CATEGORY_MANAGER");
+      // Fetch zones appropriate for CM (API might handle role implicitly or need a param)
+      await fetchZonesPrimary();
     } catch (error) {
       console.error('Ошибка при обновлении зон:', error);
-      showErrorToast(
-        'Ошибка',
-        error instanceof Error
-          ? error.message
-          : 'Произошла ошибка при обновлении зон'
-      );
+      const message = error instanceof Error ? error.message : 'Произошла ошибка при обновлении зон';
+      showErrorToast('Ошибка', message);
     }
   },
 }));
 
-// Хук для удобного доступа ко всем методам и состояниям
-export const useCategoryManagerZones = () => {
-  // Получаем состояние и методы из базового стора
-  const baseStore = useZonesStore();
+// Composition Hook: Combines state from primary stores and actions from this store
+export const useCategoryManagerData = () => {
+  // Get state and basic actions from the primary zones store
+  const zonesDataStore = useZonesStore();
 
-  // Получаем методы из стора КМ
-  const cmStore = useCategoryManagerZonesStore();
+  // Get state and actions related to booking creation
+  const bookingActions = useBookingActionsStore();
 
-  // Получаем сессию пользователя
+  // Get CM-specific actions
+  const cmActionsStore = useCategoryManagerActionsStore();
+
+  // Get dependencies
   const { data: session } = useSession();
-
-  // Получаем toast
   const toast = useToast();
 
-  // Объединяем их в один объект и создаем обертки для методов, требующих toast
+  // Prepare user object for createBookingRequest
+  // Ensure SimplifiedUser matches the type expected by bookingActionsStore
+  const userForBooking: SimplifiedUser | null = session?.user
+    ? { id: session.user.id, role: session.user.role /* Add other needed fields */ }
+    : null;
+
+  // Combine state and wrapped actions
   return {
-    ...baseStore,
-    ...cmStore,
-    createBooking: (supplierId?: string) =>
-      cmStore.createBooking(supplierId, toast),
-    refreshZones: () => cmStore.refreshZones(toast),
-    userCategory: session?.user?.category, // Keep this for potential future use (e.g., displaying the category)
+    // State and basic actions from primary zones store
+    ...zonesDataStore,
+
+    // State and actions from booking actions store (relevant for CM)
+    selectedZonesForCreation: bookingActions.selectedZonesForCreation,
+    selectedSupplierInnForCreation: bookingActions.selectedSupplierInnForCreation,
+    isCreatingBooking: bookingActions.isCreating, // Renamed for clarity
+    createBookingError: bookingActions.createError,
+    setSelectedZonesForCreation: bookingActions.setSelectedZonesForCreation,
+    addSelectedZoneForCreation: bookingActions.addSelectedZoneForCreation,
+    removeSelectedZoneForCreation: bookingActions.removeSelectedZoneForCreation,
+    clearSelectedZonesForCreation: bookingActions.clearSelectedZonesForCreation,
+    setSelectedSupplierInnForCreation: bookingActions.setSelectedSupplierInnForCreation,
+    // Wrap createBookingRequest to inject the user object
+    createBookingRequest: async () => {
+        if (!userForBooking) {
+            console.error("User not available for booking creation.");
+            // Optionally show a toast error
+            createErrorToast(toast)('Ошибка', 'Пользователь не авторизован.');
+            return false;
+        }
+        return bookingActions.createBookingRequest(userForBooking);
+    },
+
+
+    // Wrapped CM-specific actions
+    refreshZones: () => cmActionsStore.refreshZones(toast),
+
+    // Other relevant data
+    userCategory: session?.user?.category,
   };
 };

@@ -2,9 +2,9 @@
 
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useBookingStore } from '@/lib/stores/bookingStore';
-import { useBookingToasts } from '@/lib/stores/bookingStore';
-import { useManageBookingsStore } from '@/lib/stores/manageBookingsStore';
+import { useBookingRequestStore } from '@/lib/stores/bookingRequestStore';
+import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
+import { useToast } from '@/components/ui/use-toast'; // Import useToast directly
 import { useAuth } from '@/lib/hooks/useAuth';
 import { RequestsTable } from '../RequestsTable';
 import ManageBookingsFilters from './ManageBookingsFilters';
@@ -19,103 +19,171 @@ interface BookingRequestManagementProps {
 }
 
 const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ role: propRole }) => {
-    // Use both stores - bookingStore for CRUD operations and manageBookingsStore for filtering
-    const { updateBookingStatus, error, setError } = useBookingStore();
+    // Get state/actions from new stores
+    const {
+        filteredBookingRequests, // Renamed state
+        fetchBookingRequests, // Renamed action
+        setFilterCriteria, // New action for filtering
+        error: requestError, // Error from fetching requests
+    } = useBookingRequestStore();
 
-    const { filteredBookings, fetchBookings } = useManageBookingsStore();
+    const {
+        updateBookingStatus, // Action remains the same name
+        updateStatusError, // Error specifically from update actions
+    } = useBookingActionsStore();
 
-    const { showSuccessToast, showErrorToast } = useBookingToasts();
+    const { toast } = useToast(); // Initialize toast
     const { user } = useAuth();
     const role = propRole || user?.role || 'SUPPLIER';
-    const { setLoading } = useLoader();
+    const { setLoading } = useLoader(); // Keep using global loader
 
-    // Centralized error handling
+    // Centralized error handling for both stores
     useEffect(() => {
-        if (error) {
-            showErrorToast('Ошибка', error);
-            setError(null);
+        const combinedError = requestError || updateStatusError;
+        if (combinedError) {
+            toast({
+                title: 'Ошибка',
+                description: combinedError,
+                variant: 'destructive',
+            });
         }
-    }, [error, showSuccessToast, showErrorToast, setError]);
+    }, [requestError, updateStatusError, toast]);
 
-    // Load bookings based on role
+    // Load bookings and set initial filter
     useEffect(() => {
         // If user is a supplier, set the supplierInn filter
         if (user && user.role === 'SUPPLIER' && user.inn) {
-            // This will automatically filter bookings to show only those for this supplier
-            useManageBookingsStore.getState().setFilters({ supplierInn: user.inn });
+            // Use setFilterCriteria from the new store
+            setFilterCriteria({ supplierInn: user.inn });
         }
 
-        // Fetch all bookings without the loading indicator in the useEffect
-        fetchBookings();
-    }, [fetchBookings, user]);
+        // Fetch all bookings using the new action name
+        fetchBookingRequests();
+    }, [fetchBookingRequests, user, setFilterCriteria]); // Add setFilterCriteria dependency
 
     // Separate function to handle manual refresh with loading indicator
     const handleRefreshBookings = async () => {
         try {
             setLoading(true, 'Загрузка бронирований...');
-            await fetchBookings();
+            await fetchBookingRequests(); // Use new action name
         } catch (error) {
+            // Error handling can be improved, maybe show toast via store error state
             console.error('Ошибка при загрузке бронирований:', error);
         } finally {
             setLoading(false);
         }
     };
 
+    // Helper to find bookingId
+    const findBookingId = (requestId: string, zoneId: string): string | undefined => {
+        const request = filteredBookingRequests.find(req => req.id === requestId);
+        const booking = request?.bookings.find(b => b.zoneId === zoneId);
+        return booking?.id;
+    };
+
     const handleApprove = async (requestId: string, zoneId: string) => {
+        const bookingId = findBookingId(requestId, zoneId);
+        if (!bookingId) {
+            toast({
+                title: 'Ошибка',
+                description: 'Не удалось найти ID бронирования.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setLoading(true, 'Одобрение бронирования...');
+        let success = false;
         try {
-            setLoading(true, 'Одобрение бронирования...');
             if (role === 'CATEGORY_MANAGER') {
-                await updateBookingStatus(
-                    undefined,
-                    requestId,
-                    zoneId,
+                success = await updateBookingStatus(
+                    bookingId,
                     'KM_APPROVED' as BookingStatus,
                     BookingRole.KM,
                 );
-                showSuccessToast('Успешно', 'Бронирование одобрено категорийным менеджером');
+                if (success)
+                    toast({
+                        title: 'Успешно',
+                        description: 'Бронирование одобрено категорийным менеджером',
+                    });
             } else if (role === 'DMP_MANAGER') {
-                await updateBookingStatus(
-                    undefined,
-                    requestId,
-                    zoneId,
+                success = await updateBookingStatus(
+                    bookingId,
                     'DMP_APPROVED' as BookingStatus,
                     BookingRole.DMP,
                 );
-                showSuccessToast('Успешно', 'Бронирование одобрено менеджером ДМП');
+                if (success)
+                    toast({
+                        title: 'Успешно',
+                        description: 'Бронирование одобрено менеджером ДМП',
+                    });
             }
+            if (!success) throw new Error('Update action returned false'); // Trigger catch block if update failed
         } catch {
-            showErrorToast('Ошибка', 'Не удалось одобрить бронирование');
+            // Removed unused 'err'
+            // Error is already logged/handled by the useEffect hook watching updateStatusError
+            // We show a generic message here if needed, or rely on the hook
+            if (!updateStatusError) {
+                // Show generic only if specific error isn't already shown
+                toast({
+                    title: 'Ошибка',
+                    description: 'Не удалось одобрить бронирование',
+                    variant: 'destructive',
+                });
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const handleReject = async (requestId: string, zoneId: string) => {
+        const bookingId = findBookingId(requestId, zoneId);
+        if (!bookingId) {
+            toast({
+                title: 'Ошибка',
+                description: 'Не удалось найти ID бронирования.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setLoading(true, 'Отклонение бронирования...');
+        let success = false;
         try {
-            setLoading(true, 'Отклонение бронирования...');
             if (role === 'CATEGORY_MANAGER') {
-                await updateBookingStatus(
-                    undefined,
-                    requestId,
-                    zoneId,
+                success = await updateBookingStatus(
+                    bookingId,
                     'KM_REJECTED' as BookingStatus,
                     BookingRole.KM,
                 );
-                showSuccessToast('Успешно', 'Бронирование отклонено категорийным менеджером');
+                if (success)
+                    toast({
+                        title: 'Успешно',
+                        description: 'Бронирование отклонено категорийным менеджером',
+                    });
             } else if (role === 'DMP_MANAGER') {
-                // We don't need zoneId for rejection, only for approval
-                await updateBookingStatus(
-                    undefined,
-                    requestId,
-                    zoneId,
+                success = await updateBookingStatus(
+                    bookingId,
                     'DMP_REJECTED' as BookingStatus,
                     BookingRole.DMP,
                 );
-                showSuccessToast('Успешно', 'Бронирование отклонено менеджером ДМП');
+                if (success)
+                    toast({
+                        title: 'Успешно',
+                        description: 'Бронирование отклонено менеджером ДМП',
+                    });
             }
+            if (!success) throw new Error('Update action returned false'); // Trigger catch block if update failed
         } catch {
-            showErrorToast('Ошибка', 'Не удалось отклонить бронирование');
+            // Removed unused 'err'
+            if (!updateStatusError) {
+                // Show generic only if specific error isn't already shown
+                toast({
+                    title: 'Ошибка',
+                    description: 'Не удалось отклонить бронирование',
+                    variant: 'destructive',
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -174,7 +242,10 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                         <div className="flex justify-between items-center">
                             <p className="text-gray-600 mt-2">
                                 Количество заявок:{' '}
-                                <span className="font-semibold">{filteredBookings.length}</span>
+                                <span className="font-semibold">
+                                    {filteredBookingRequests.length}
+                                </span>{' '}
+                                {/* Use new state name */}
                             </p>
                             <Button
                                 onClick={handleRefreshBookings}
@@ -207,7 +278,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                             onApprove={handleApprove}
                             onReject={handleReject}
                             role={getRoleForTable()}
-                            bookings={filteredBookings}
+                            bookings={filteredBookingRequests} // Use new state name
                         />
                     </CardContent>
                 </Card>

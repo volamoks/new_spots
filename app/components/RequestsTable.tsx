@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { ColumnSelector } from './ColumnSelector';
-import { useBookingStore } from '@/lib/stores/bookingStore';
+import { useBookingRequestStore } from '@/lib/stores/bookingRequestStore'; // Import new store
 import { BookingTable } from './booking/BookingTable';
 import BookingRole from '@/lib/enums/BookingRole';
 
-import { BookingRequestWithBookings } from '@/lib/stores/manageBookingsStore';
+// Import type from new store
+import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore';
 
 type RequestsTableProps = {
     onApprove: (requestId: string, zoneId: string) => void;
@@ -28,12 +29,12 @@ const allColumns = [
     'Статус',
     'Действия',
 ];
-
 export function RequestsTable({ onApprove, onReject, role, bookings }: RequestsTableProps) {
-    // Используем переданные бронирования или получаем их из bookingStore как запасной вариант
-    const { filteredBookings: storeBookings } = useBookingStore();
+    // Используем переданные бронирования или получаем их из bookingRequestStore как запасной вариант
+    const { filteredBookingRequests: storeBookings } = useBookingRequestStore(); // Use new store and state name
     const [visibleColumns, setVisibleColumns] = useState(allColumns);
 
+    // Используем переданные бронирования, если они есть, иначе используем бронирования из стора
     // Используем переданные бронирования, если они есть, иначе используем бронирования из стора
     const filteredBookings = bookings || storeBookings;
 

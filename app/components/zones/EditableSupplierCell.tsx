@@ -4,62 +4,75 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-// Убираем импорты стандартного Select
-// import {
-//     Select,
-//     SelectContent,
-//     SelectItem,
-//     SelectTrigger,
-//     SelectValue,
-// } from '@/components/ui/select';
 import { SearchableSelect } from './SearchableSelect'; // Импортируем новый компонент
 import { Check, X, Edit2 } from 'lucide-react';
+import { useSupplierStore } from '@/lib/stores/supplierStore'; // Import the new supplier store (Removed unused Supplier type)
 
 interface EditableSupplierCellProps {
     zoneId: string;
     currentValue: string | null | undefined;
-    supplierList: string[];
+    // supplierList prop removed
     onSave: (value: string | null) => Promise<void>;
     isDisabled?: boolean;
 }
 
 const OTHER_SUPPLIER_VALUE = '__OTHER__';
+const NONE_SUPPLIER_VALUE = '__NONE__'; // Consistent value for 'no supplier'
 
 export function EditableSupplierCell({
     zoneId,
     currentValue,
-    supplierList,
+    // supplierList, // Removed
     onSave,
     isDisabled = false,
 }: EditableSupplierCellProps) {
+    // --- Store State ---
+    const { suppliers, fetchSuppliers, isLoading: isLoadingSuppliers } = useSupplierStore();
+
+    // --- Component State ---
     const [isEditing, setIsEditing] = useState(false);
     const [selectedValue, setSelectedValue] = useState<string | null>(currentValue || null);
     const [inputValue, setInputValue] = useState<string>('');
     const [showInput, setShowInput] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false); // Renamed isLoading to avoid conflict
 
-    // Синхронизация selectedValue с currentValue при изменении извне
+    // --- Derived Data ---
+    // Assuming currentValue and supplier names are stored/compared
+    const supplierNames = suppliers.map(s => s.name);
+    const options = suppliers.map(s => ({ value: s.name, label: s.name })); // Use name as value/label
+
+    // --- Effects ---
+    // Fetch suppliers when editing starts
     useEffect(() => {
+        if (isEditing && suppliers.length === 0) {
+            fetchSuppliers();
+        }
+    }, [isEditing, suppliers.length, fetchSuppliers]);
+
+    // Sync local state with external currentValue changes
+    useEffect(() => {
+        const isInList = currentValue && supplierNames.includes(currentValue);
         setSelectedValue(currentValue || null);
-        // Скрываем инпут, если текущее значение есть в списке
-        if (currentValue && supplierList.includes(currentValue)) {
-            setShowInput(false);
-            setInputValue('');
-        } else if (currentValue) {
-            // Показываем инпут, если текущее значение не в списке
+
+        if (currentValue && !isInList) {
+            // Current value exists but is not in the fetched list
             setShowInput(true);
             setInputValue(currentValue);
-            setSelectedValue(OTHER_SUPPLIER_VALUE); // Устанавливаем Select в "Другой"
+            setSelectedValue(OTHER_SUPPLIER_VALUE);
         } else {
+            // Current value is null or in the list
             setShowInput(false);
             setInputValue('');
+            // Keep selectedValue as currentValue (or null)
         }
-    }, [currentValue, supplierList]);
+    }, [currentValue, supplierNames]); // Depend on supplierNames derived from store
 
+    // --- Handlers ---
     const handleEdit = () => {
         setIsEditing(true);
-        // Устанавливаем начальное состояние при входе в режим редактирования
-        if (currentValue && !supplierList.includes(currentValue)) {
+        // Set initial state based on currentValue and fetched list
+        const isInList = currentValue && supplierNames.includes(currentValue);
+        if (currentValue && !isInList) {
             setSelectedValue(OTHER_SUPPLIER_VALUE);
             setInputValue(currentValue);
             setShowInput(true);
@@ -72,26 +85,32 @@ export function EditableSupplierCell({
 
     const handleCancel = () => {
         setIsEditing(false);
-        // Сбрасываем значения к исходным
+        // Reset state based on original currentValue
+        const isInList = currentValue && supplierNames.includes(currentValue);
         setSelectedValue(currentValue || null);
-        setInputValue(currentValue && !supplierList.includes(currentValue) ? currentValue : '');
-        setShowInput(currentValue ? !supplierList.includes(currentValue) : false);
+        setInputValue(currentValue && !isInList ? currentValue : '');
+        setShowInput(currentValue ? !isInList : false);
     };
 
     const handleSave = async () => {
-        setIsLoading(true);
+        setIsSaving(true);
         let valueToSave: string | null = null;
 
         if (selectedValue === OTHER_SUPPLIER_VALUE) {
-            valueToSave = inputValue.trim() || null; // Сохраняем значение из инпута, если не пустое
+            valueToSave = inputValue.trim() || null;
+        } else if (selectedValue === NONE_SUPPLIER_VALUE) {
+            valueToSave = null; // Explicitly save null for 'None' option
         } else {
-            valueToSave = selectedValue; // Сохраняем значение из селекта
+            valueToSave = selectedValue;
         }
 
-        // Не сохраняем, если значение не изменилось
-        if (valueToSave === (currentValue || null)) {
+        // Normalize null/empty string for comparison
+        const normalizedCurrentValue = currentValue || null;
+        const normalizedValueToSave = valueToSave || null;
+
+        if (normalizedValueToSave === normalizedCurrentValue) {
             setIsEditing(false);
-            setIsLoading(false);
+            setIsSaving(false);
             return;
         }
 
@@ -100,32 +119,38 @@ export function EditableSupplierCell({
             setIsEditing(false);
         } catch (error) {
             console.error(`Failed to save supplier for zone ${zoneId}:`, error);
-            // Можно добавить toast с ошибкой
+            // TODO: Add toast with error message
         } finally {
-            setIsLoading(false);
+            setIsSaving(false);
         }
     };
 
-    const handleSelectChange = (value: string) => {
+    const handleSelectChange = (value: string | null) => {
+        // Allow null from SearchableSelect
         setSelectedValue(value);
         if (value === OTHER_SUPPLIER_VALUE) {
             setShowInput(true);
-            // Не очищаем inputValue, если он уже был заполнен
         } else {
             setShowInput(false);
-            setInputValue(''); // Очищаем инпут при выборе из списка
+            setInputValue('');
         }
     };
 
+    // --- Render Logic ---
+    const displayValue = currentValue || '-';
+    const totalLoading = isDisabled || isSaving || isLoadingSuppliers;
+
     if (!isEditing) {
         return (
-            <div className="flex items-center justify-between group">
-                <span>{currentValue || '-'}</span>
+            <div className="flex items-center justify-between group min-h-[32px]">
+                {' '}
+                {/* Ensure min height */}
+                <span>{displayValue}</span>
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleEdit}
-                    disabled={isDisabled}
+                    disabled={totalLoading}
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                     aria-label="Редактировать поставщика"
                 >
@@ -137,14 +162,13 @@ export function EditableSupplierCell({
 
     return (
         <div className="flex flex-col space-y-1">
-            {/* Заменяем Select на SearchableSelect */}
             <SearchableSelect
-                options={supplierList.map(s => ({ value: s, label: s }))} // Преобразуем список строк в нужный формат
+                options={options} // Use options derived from store
                 value={selectedValue}
                 onChange={handleSelectChange}
-                isDisabled={isLoading}
+                isDisabled={totalLoading}
                 triggerPlaceholder="Выберите или введите"
-                noValueOption={{ value: '__NONE__', label: '- Нет -' }}
+                noValueOption={{ value: NONE_SUPPLIER_VALUE, label: '- Нет -' }} // Use consistent NONE value
                 otherOption={{ value: OTHER_SUPPLIER_VALUE, label: 'Другой...' }}
             />
 
@@ -155,7 +179,7 @@ export function EditableSupplierCell({
                     onChange={e => setInputValue(e.target.value)}
                     placeholder="Введите поставщика"
                     className="h-8 text-xs"
-                    disabled={isLoading}
+                    disabled={totalLoading}
                 />
             )}
 
@@ -164,7 +188,7 @@ export function EditableSupplierCell({
                     variant="ghost"
                     size="sm"
                     onClick={handleCancel}
-                    disabled={isLoading}
+                    disabled={totalLoading}
                 >
                     <X className="h-4 w-4" />
                 </Button>
@@ -172,7 +196,7 @@ export function EditableSupplierCell({
                     variant="ghost"
                     size="sm"
                     onClick={handleSave}
-                    disabled={isLoading}
+                    disabled={totalLoading}
                 >
                     <Check className="h-4 w-4" />
                 </Button>
