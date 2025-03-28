@@ -10,18 +10,22 @@ import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/use-toast';
 // Import SimplifiedUser type if needed by createBookingRequest
 import type { SimplifiedUser } from '../bookingActionsStore';
+// Import shared toast helpers and types
+import { createErrorToast } from '@/lib/utils/toastUtils';
+import type { UseToastReturn } from '@/lib/utils/toastUtils';
 
 // Define types for injected dependencies
-type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void;
+// type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void; // Removed
 
 // Helper for error toast (consider moving to utils)
-const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => {
-  toast.toast({ title, description, variant: "destructive" });
-};
+// const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => { // Removed
+//   toast.toast({ title, description, variant: "destructive" }); // Removed
+// }; // Removed
 
 // Define the state containing only the Supplier-specific actions
+// Update action signatures to use UseToastReturn type
 interface SupplierActionsState {
-  refreshZones: (toast: { toast: ToastFunction }) => Promise<void>;
+  refreshZones: (toast: UseToastReturn) => Promise<void>;
   // createBooking is now handled by bookingActionsStore
 }
 
@@ -85,15 +89,15 @@ export const useSupplierData = () => {
     // Wrap createBookingRequest to inject the user object
     // Supplier might not need to pass supplierId explicitly if API derives it from session
     createBookingRequest: async () => {
-        if (!userForBooking) {
-            console.error("User not available for booking creation.");
-            createErrorToast(toast)('Ошибка', 'Пользователь не авторизован.');
-            return false;
-        }
-        // Supplier INN might be set automatically by API based on user session
-        // Or if needed, set it here before calling:
-        // bookingActions.setSelectedSupplierInnForCreation(userForBooking.inn); // Assuming INN is on user
-        return bookingActions.createBookingRequest(userForBooking);
+      if (!userForBooking) {
+        console.error("User not available for booking creation.");
+        createErrorToast(toast)('Ошибка', 'Пользователь не авторизован.');
+        return false;
+      }
+      // Supplier INN might be set automatically by API based on user session
+      // Or if needed, set it here before calling:
+      // bookingActions.setSelectedSupplierInnForCreation(userForBooking.inn); // Assuming INN is on user
+      return bookingActions.createBookingRequest(userForBooking);
     },
 
     // Wrapped Supplier-specific actions

@@ -25,7 +25,7 @@ export default function DmpManagerZonesPage() {
 
         // Actions from zonesStore
         fetchZones,
-        setFilterCriteria, // New action to set filters
+        // setFilterCriteria, // Removed - No longer used directly in this component
         // toggleFilter, // Replaced by setFilterCriteria
         // removeFilter, // Replaced by setFilterCriteria
 
@@ -57,33 +57,8 @@ export default function DmpManagerZonesPage() {
     //     setSorting(field, direction);
     // };
 
-    // Обработчик изменения фильтра (Refactored for new store structure)
-    const handleFilterChange = (
-        type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier',
-        values: string[], // values is the complete new array for this filter type
-    ) => {
-        // Ensure values is always an array
-        const newValues = Array.isArray(values) ? values : [];
-
-        // Update the specific filter array within filterCriteria using setFilterCriteria
-        switch (type) {
-            case 'city':
-                setFilterCriteria({ cityFilters: newValues });
-                break;
-            case 'market':
-                setFilterCriteria({ marketFilters: newValues });
-                break;
-            case 'macrozone':
-                setFilterCriteria({ macrozoneFilters: newValues });
-                break;
-            case 'equipment':
-                setFilterCriteria({ equipmentFilters: newValues });
-                break;
-            case 'supplier':
-                setFilterCriteria({ supplierFilters: newValues });
-                break;
-        }
-    };
+    // Обработчик изменения фильтра (Removed - Handled internally by ZonesFilters/SimpleZoneFilterDropdown via store)
+    // const handleFilterChange = ( ... ) => { ... };
 
     // Обработчик массового изменения статуса
     const handleBulkStatusChange = async (newStatus: ZoneStatus) => {
@@ -138,7 +113,7 @@ export default function DmpManagerZonesPage() {
                     // onSearchChange, onResetFilters, onRefresh, isLoading
 
                     // Keep props with custom handlers or specific config needed by ZonesFilters
-                    onFilterChange={handleFilterChange} // Custom handler in this component
+                    // onFilterChange={handleFilterChange} // Removed - Handled internally
                     // onFilterRemove={removeFilter} // Removed - removeFilter action no longer exists
                     role="DMP_MANAGER"
                     className="mb-6"

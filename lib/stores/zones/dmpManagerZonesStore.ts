@@ -7,27 +7,31 @@ import { ZoneStatus } from '@/types/zone';
 // Keep loader and toast hooks for injection in the composition hook
 import { useLoader } from '@/app/components/GlobalLoader';
 import { useToast } from '@/components/ui/use-toast';
+// Import shared toast helpers and types
+import { createSuccessToast, createErrorToast } from '@/lib/utils/toastUtils';
+import type { UseToastReturn } from '@/lib/utils/toastUtils';
 
 // Define types for injected dependencies (toast and loader)
-type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void;
+// type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void; // Removed
 type WithLoadingFunction = <T>(promise: Promise<T>, message?: string) => Promise<T>;
 
 // Define the state containing only the DMP-specific actions
+// Update action signatures to use UseToastReturn type for toast parameter
 interface DmpManagerActionsState {
-  changeZoneStatus: (zoneId: string, newStatus: ZoneStatus, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
-  refreshZones: (toast: { toast: ToastFunction }) => Promise<void>;
-  bulkUpdateZoneStatus: (zoneIds: string[], newStatus: ZoneStatus, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
-  bulkDeleteZones: (zoneIds: string[], toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
-  updateZoneField: (zoneId: string, field: 'supplier' | 'brand', value: string | null, toast: { toast: ToastFunction }, withLoading: WithLoadingFunction) => Promise<boolean>;
+  changeZoneStatus: (zoneId: string, newStatus: ZoneStatus, toast: UseToastReturn, withLoading: WithLoadingFunction) => Promise<boolean>;
+  refreshZones: (toast: UseToastReturn) => Promise<void>;
+  bulkUpdateZoneStatus: (zoneIds: string[], newStatus: ZoneStatus, toast: UseToastReturn, withLoading: WithLoadingFunction) => Promise<boolean>;
+  bulkDeleteZones: (zoneIds: string[], toast: UseToastReturn, withLoading: WithLoadingFunction) => Promise<boolean>;
+  updateZoneField: (zoneId: string, field: 'supplier' | 'brand', value: string | null, toast: UseToastReturn, withLoading: WithLoadingFunction) => Promise<boolean>;
 }
 
 // Helper functions for toasts (consider moving to a dedicated UI utility file)
-const createSuccessToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => {
-  toast.toast({ title, description });
-};
-const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => {
-  toast.toast({ title, description, variant: "destructive" });
-};
+// const createSuccessToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => { // Removed
+//   toast.toast({ title, description }); // Removed
+// }; // Removed
+// const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => { // Removed
+//   toast.toast({ title, description, variant: "destructive" }); // Removed
+// }; // Removed
 
 // Create the store containing only actions
 export const useDmpManagerActionsStore = create<DmpManagerActionsState>(() => ({

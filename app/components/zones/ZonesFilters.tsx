@@ -11,15 +11,11 @@ import { getCorrespondingMacrozones } from '@/lib/filterData';
 import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Import the store
 
 // Define valid filter types used for dropdowns in this component
-type DropdownFilterType = 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier';
+// type DropdownFilterType = 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier'; // Removed unused type
 
 // --- Simplified Props ---
 interface ZonesFiltersProps {
-    // Keep handlers with custom logic in parent or passed to children
-    onFilterChange: (
-        type: DropdownFilterType, // Use defined DropdownFilterType
-        values: string[],
-    ) => void;
+    // onFilterChange prop removed - handled internally via store
     // onFilterRemove prop removed - handled internally via store
 
     // Configuration props
@@ -29,7 +25,7 @@ interface ZonesFiltersProps {
 }
 export function ZonesFilters({
     // Keep necessary props
-    onFilterChange,
+    // onFilterChange, // Removed
     role = 'DMP_MANAGER',
     className = '',
     selectedCategory = null, // Keep for macrozone filtering logic
@@ -134,7 +130,6 @@ export function ZonesFilters({
         }
     };
 
-
     // --- Render ---
     return (
         <Card className={className}>
@@ -154,7 +149,7 @@ export function ZonesFilters({
                         <ZoneSearchInput
                             value={searchTerm}
                             // Use setFilterCriteria to update the search term
-                            onChange={(value) => setFilterCriteria({ searchTerm: value })}
+                            onChange={value => setFilterCriteria({ searchTerm: value })}
                             isDisabled={isLoading}
                         />
                     </div>
@@ -178,34 +173,38 @@ export function ZonesFilters({
                     </div>
                 </div>
 
-                {/* Dropdowns - Use store state, keep onFilterChange prop */}
+                {/* Dropdowns - Use store state and actions */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                     <SimpleZoneFilterDropdown
                         title="Город"
                         options={cityOptions}
                         selected={cityFilters}
-                        onChange={(values: string[]) => onFilterChange('city', values)} // Keep prop
+                        filterKey="cityFilters" // Pass filterKey
+                        setFilterCriteria={setFilterCriteria} // Pass store action
                         isDisabled={isLoading}
                     />
                     <SimpleZoneFilterDropdown
                         title="Магазин"
                         options={marketOptions}
                         selected={marketFilters}
-                        onChange={(values: string[]) => onFilterChange('market', values)} // Keep prop
+                        filterKey="marketFilters" // Pass filterKey
+                        setFilterCriteria={setFilterCriteria} // Pass store action
                         isDisabled={isLoading}
                     />
                     <SimpleZoneFilterDropdown
                         title="Макрозона"
                         options={macrozoneOptions}
                         selected={macrozoneFilters}
-                        onChange={(values: string[]) => onFilterChange('macrozone', values)} // Keep prop
+                        filterKey="macrozoneFilters" // Pass filterKey
+                        setFilterCriteria={setFilterCriteria} // Pass store action
                         isDisabled={isLoading}
                     />
                     <SimpleZoneFilterDropdown
                         title="Оборудование"
                         options={equipmentOptions}
                         selected={equipmentFilters}
-                        onChange={(values: string[]) => onFilterChange('equipment', values)} // Keep prop
+                        filterKey="equipmentFilters" // Pass filterKey
+                        setFilterCriteria={setFilterCriteria} // Pass store action
                         isDisabled={isLoading}
                     />
                     {role !== 'SUPPLIER' && (
@@ -213,7 +212,8 @@ export function ZonesFilters({
                             title="Поставщик"
                             options={supplierOptions}
                             selected={supplierFilters}
-                            onChange={(values: string[]) => onFilterChange('supplier', values)} // Keep prop
+                            filterKey="supplierFilters" // Pass filterKey
+                            setFilterCriteria={setFilterCriteria} // Pass store action
                             isDisabled={isLoading}
                         />
                     )}

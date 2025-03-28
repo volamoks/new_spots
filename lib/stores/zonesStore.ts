@@ -88,7 +88,7 @@ const paginate = (zones: Zone[], criteria: PaginationCriteria): Zone[] => {
 
 // --- Types ---
 
-interface FilterCriteria {
+export interface FilterCriteria { // Added export
     searchTerm: string;
     activeTab: string; // Corresponds to ZoneStatus or 'all'
     cityFilters: string[];

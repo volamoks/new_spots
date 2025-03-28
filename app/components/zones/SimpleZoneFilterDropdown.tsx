@@ -7,25 +7,28 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 
-interface ZoneFilterDropdownProps {
+// Generic interface for filter criteria objects
+interface ZoneFilterDropdownProps<T> {
     title: string;
     options: Array<{ value: string; label: string }>;
     selected: string[];
-    onChange: (values: string[]) => void;
     placeholder?: string;
     isDisabled?: boolean;
     className?: string;
+    filterKey: keyof T & string; // The key in the filter criteria object to update
+    setFilterCriteria: (criteria: Partial<T>) => void; // Function to update the filter criteria state
 }
 
-export function SimpleZoneFilterDropdown({
+export function SimpleZoneFilterDropdown<T>({
     title,
     options,
     selected,
-    onChange,
-    placeholder = 'Поиск...',
+    placeholder = 'Поиск...', // Default search placeholder text
     isDisabled = false,
     className = '',
-}: ZoneFilterDropdownProps) {
+    filterKey,
+    setFilterCriteria,
+}: ZoneFilterDropdownProps<T>) {
     const [open, setOpen] = useState(false);
     const [searchValue, setSearchValue] = useState('');
     const popoverRef = useRef<HTMLDivElement>(null);
@@ -33,9 +36,10 @@ export function SimpleZoneFilterDropdown({
     // Ensure selected is an array
     const safeSelected = Array.isArray(selected) ? selected : [];
 
-    // Закрываем попап при клике вне его
+    // Close popover when clicking outside of it
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
+            // Check if the click is outside the popover content area
             if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
                 setOpen(false);
             }
@@ -45,18 +49,22 @@ export function SimpleZoneFilterDropdown({
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, []);
+    }, []); // Empty dependency array ensures this effect runs only once on mount
 
-    // Обработчик выбора/отмены выбора опции
+    // Handles selecting/deselecting an option
     const handleSelect = (value: string) => {
+        // Toggle the presence of the value in the selected array
         const newSelected = safeSelected.includes(value)
-            ? safeSelected.filter(item => item !== value)
-            : [...safeSelected, value];
+            ? safeSelected.filter(item => item !== value) // Remove if already selected
+            : [...safeSelected, value]; // Add if not selected
 
-        onChange(newSelected);
+        // Update the parent component's filter criteria state
+        // The type assertion is used because TypeScript cannot guarantee
+        // that filterKey is a valid key of Partial<T> dynamically here.
+        setFilterCriteria({ [filterKey]: newSelected } as Partial<T>);
     };
 
-    // Фильтрация опций по поисковому запросу
+    // Filter options based on the search input value (case-insensitive)
     const filteredOptions = options.filter(option =>
         option.label.toLowerCase().includes(searchValue.toLowerCase()),
     );
@@ -101,9 +109,11 @@ export function SimpleZoneFilterDropdown({
                         />
                     </div>
 
+                    {/* Display message if no options match the search */}
                     {filteredOptions.length === 0 ? (
-                        <div className="py-6 text-center text-sm">Ничего не найдено</div>
+                        <div className="py-6 text-center text-sm">Ничего не найдено</div> // TODO: Consider internationalization (i18n) for this text
                     ) : (
+                        // Scrollable list of filtered options
                         <div className="max-h-[200px] overflow-y-auto p-1">
                             {filteredOptions.map(option => (
                                 <div

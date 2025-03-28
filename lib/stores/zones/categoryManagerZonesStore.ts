@@ -10,18 +10,22 @@ import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/use-toast';
 // Import SimplifiedUser type if needed by createBookingRequest
 import type { SimplifiedUser } from '../bookingActionsStore';
+// Import shared toast helpers and types
+import { createErrorToast } from '@/lib/utils/toastUtils';
+import type { UseToastReturn } from '@/lib/utils/toastUtils';
 
 // Define types for injected dependencies
-type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void;
+// type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void; // Removed
 
 // Helper for error toast (consider moving to utils)
-const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => {
-  toast.toast({ title, description, variant: "destructive" });
-};
+// const createErrorToast = (toast: { toast: ToastFunction }) => (title: string, description: string) => { // Removed
+//   toast.toast({ title, description, variant: "destructive" }); // Removed
+// }; // Removed
 
 // Define the state containing only the CM-specific actions
+// Update action signatures to use UseToastReturn type
 interface CategoryManagerActionsState {
-  refreshZones: (toast: { toast: ToastFunction }) => Promise<void>;
+  refreshZones: (toast: UseToastReturn) => Promise<void>;
   // createBooking is now handled by bookingActionsStore
   // Selection state is handled by zonesStore (general) or bookingActionsStore (creation)
 }
@@ -83,13 +87,13 @@ export const useCategoryManagerData = () => {
     setSelectedSupplierInnForCreation: bookingActions.setSelectedSupplierInnForCreation,
     // Wrap createBookingRequest to inject the user object
     createBookingRequest: async () => {
-        if (!userForBooking) {
-            console.error("User not available for booking creation.");
-            // Optionally show a toast error
-            createErrorToast(toast)('Ошибка', 'Пользователь не авторизован.');
-            return false;
-        }
-        return bookingActions.createBookingRequest(userForBooking);
+      if (!userForBooking) {
+        console.error("User not available for booking creation.");
+        // Optionally show a toast error
+        createErrorToast(toast)('Ошибка', 'Пользователь не авторизован.');
+        return false;
+      }
+      return bookingActions.createBookingRequest(userForBooking);
     },
 
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { BookingStatus } from '@prisma/client'; // Remove Role import
+import { BookingStatus, Role } from '@prisma/client'; // Remove Role import
 import BookingRole from '@/lib/enums/BookingRole'; // Import the custom enum
 import { useLoaderStore } from './loaderStore'; // Use the global loader
 import { useBookingRequestStore } from './bookingRequestStore'; // To trigger refresh/update
