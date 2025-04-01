@@ -144,6 +144,7 @@ const ManageBookingsFilters = () => {
                     isLoading={isLoading}
                     onSearchTermChange={handleSearchTermChange}
                     onSupplierNameChange={handleSupplierNameChange}
+                    userRole={user?.role} // Pass userRole prop
                 />
                 {/* Main Filters (Dropdowns) */}
                 <DropdownFilterGroup

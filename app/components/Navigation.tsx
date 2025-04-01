@@ -108,8 +108,8 @@ export default function Navigation() {
                                 <DropdownMenuContent>
                                     <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => router.push('/profile')}>
-                                        Профиль
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/profile">Профиль</Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={handleLogout}>
                                         Выйти

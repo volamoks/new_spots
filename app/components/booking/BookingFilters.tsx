@@ -5,12 +5,15 @@ import { Button } from '@/components/ui/button';
 import { SearchFilters } from './SearchFilters'; // Import the new component
 import { DropdownFilterGroup } from './DropdownFilterGroup'; // Import the new component
 import { SelectedFiltersDisplay } from './SelectedFiltersDisplay'; // Import the new component
+import { useAuth } from '@/lib/hooks/useAuth'; // Import useAuth
 // Import BookingRequestFilters type if needed for SelectedFiltersDisplay prop typing
 import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
 
 const BookingFilters = () => {
     const { filterCriteria, uniqueFilterValues, isLoading, setFilterCriteria, resetFilters } =
         useZonesStore();
+    const { session } = useAuth(); // Get session using useAuth
+    const userRole = session?.user?.role; // Extract user role
 
     // Destructure unique values for convenience
     const {
@@ -90,7 +93,7 @@ const BookingFilters = () => {
                     onSearchTermChange={handleSearchTermChange}
                     // No supplier name change handler needed here
                     onSupplierNameChange={() => {}} // Provide a dummy function
-                    // Removed hideSupplierSearch prop
+                    userRole={userRole} // Pass userRole prop
                 />
                 {/* Zone Filters (Dropdowns) */}
                 <DropdownFilterGroup

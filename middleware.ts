@@ -36,6 +36,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Allow access to profile page for any authenticated user
+  if (pathname.startsWith("/profile")) {
+    return NextResponse.next()
+  }
+
   // Role-based route protection
   if (token.role) {
     const roleBasedPaths = {
