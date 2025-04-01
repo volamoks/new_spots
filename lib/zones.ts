@@ -55,7 +55,7 @@ export const fetchZones = async ({
   macrozone,
   equipment, // Added
   supplier, // Added
-  category,
+  // category, // Removed as it's handled via macrozone mapping in API route
   status,
   page = 1, // Default to page 1
   pageSize = 20, // Default page size
@@ -87,9 +87,10 @@ export const fetchZones = async ({
     }
 
     // Handle single value filters
-    if (category) {
-      whereClause.category = category; // Assuming exact match for category
-    }
+    // REMOVED: Category filter is handled by converting to macrozones in the API route
+    // if (category) {
+    //   whereClause.category = category;
+    // }
     if (status) {
       whereClause.status = status;
     }

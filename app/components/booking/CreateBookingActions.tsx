@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Role } from '@prisma/client'; // Import the Role enum
+import { useToast } from '@/components/ui/use-toast'; // Import useToast
+
 // useLoader is removed
 
 const CreateBookingActions = () => {
+    const { toast } = useToast(); // Initialize toast
     const {
         createBookingRequest,
         selectedZonesForCreation,
@@ -45,17 +48,32 @@ const CreateBookingActions = () => {
             const success = await createBookingRequest(simplifiedUser);
 
             if (success) {
-                // Optionally add success feedback (e.g., toast)
+                // Add success feedback using toast
+                toast({
+                    title: 'Успех',
+                    description: 'Заявка на бронирование успешно создана.',
+                });
                 console.log('Booking request created successfully.');
             } else {
                 // Error handling is done within the store, but you can add component-specific feedback here
                 // The createError state can be used to display errors (see JSX update later)
                 console.error('Failed to create booking request.');
+                // Optionally show an error toast here if the store doesn't already handle it sufficiently
+                // toast({
+                //     title: 'Ошибка',
+                //     description: createError || 'Не удалось создать заявку.',
+                //     variant: 'destructive',
+                // });
             }
             // Remove clearSelectedZones(); it's handled internally by the store on success.
         } catch (error) {
             // Catch unexpected errors during the component's execution, though store errors are handled internally
             console.error('Ошибка при вызове createBookingRequest:', error);
+            toast({
+                title: 'Ошибка',
+                description: 'Произошла непредвиденная ошибка при создании заявки.',
+                variant: 'destructive',
+            });
         }
     };
 

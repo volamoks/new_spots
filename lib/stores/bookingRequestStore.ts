@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { BookingRequest, type Booking, User, Zone, BookingStatus } from '@prisma/client';
+import { getSession } from 'next-auth/react'; // Import getSession
 
 // --- Types ---
 
@@ -231,10 +232,26 @@ export const useBookingRequestStore = create<BookingRequestState>()(
 
             // --- Public Actions ---
             fetchBookingRequests: async () => {
+                // Check if user is authenticated before fetching
+                const session = await getSession();
+                if (!session) {
+                    console.log("fetchBookingRequests: No active session, skipping fetch.");
+                    // Optionally reset state if needed when unauthenticated
+                    // set({ bookingRequests: [], filteredBookingRequests: [], isLoading: false, error: null });
+                    return;
+                }
+
                 set({ isLoading: true, error: null });
                 try {
                     const response = await fetch('/api/bookings'); // Assuming this fetches BookingRequestWithBookings
                     if (!response.ok) {
+                        // Check for 401 specifically, maybe don't set error state in that case?
+                        if (response.status === 401) {
+                             console.warn("fetchBookingRequests: Received 401 Unauthorized. Session might have expired or is invalid.");
+                             // Decide if we should set an error state or just clear data
+                             set({ isLoading: false, bookingRequests: [], filteredBookingRequests: [] }); // Clear data on auth error
+                             return; // Exit without setting error state which might trigger toasts
+                        }
                         const errorData = await response.json().catch(() => ({ error: 'Failed to fetch booking requests' }));
                         throw new Error(errorData.error || 'Failed to fetch booking requests');
                     }
@@ -249,7 +266,12 @@ export const useBookingRequestStore = create<BookingRequestState>()(
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : "Unknown error fetching booking requests";
                     console.error("Error fetching booking requests:", errorMessage);
-                    set({ error: errorMessage, isLoading: false, bookingRequests: [], filteredBookingRequests: [] });
+                    // Avoid setting error state if it's an expected Unauthorized error after logout
+                    if (errorMessage !== 'Unauthorized') { // Check if error message indicates unauthorized
+                       set({ error: errorMessage, isLoading: false, bookingRequests: [], filteredBookingRequests: [] });
+                    } else {
+                       set({ isLoading: false, bookingRequests: [], filteredBookingRequests: [] }); // Clear data but don't set error
+                    }
                 }
             },
 

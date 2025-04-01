@@ -11,7 +11,8 @@ const SupplierSelection = () => {
     // Get state and actions from the supplier store
     const { suppliers, isLoading, error, fetchSuppliers } = useSupplierStore();
     // Get state and action for selection from the booking actions store
-    const { selectedSupplierInnForCreation, setSelectedSupplierInnForCreation } = useBookingActionsStore();
+    const { selectedSupplierInnForCreation, setSelectedSupplierInnForCreation } =
+        useBookingActionsStore();
 
     // Fetch suppliers on component mount
     useEffect(() => {
@@ -31,10 +32,17 @@ const SupplierSelection = () => {
 
     // Map suppliers from the store to options for the dropdown
     // Assumes supplier object in store has 'inn' and 'name'
-    const supplierOptions = suppliers.map(supplier => ({
-        value: supplier.inn, // Use INN as the value
-        label: supplier.name, // Use name as the label
-    }));
+    const supplierOptions = suppliers.map(supplier => {
+        if (!supplier || !supplier.name) {
+            // --- DEBUG LOG ---
+            // console.warn('Supplier missing name:', JSON.stringify(supplier)); // Keep commented out or remove later
+            // --- END DEBUG LOG ---
+            // Provide a default label if name is missing
+            return { value: supplier?.inn || '', label: '[No Name]' };
+        }
+        // Ensure label is a string, even if name is somehow not (though TS should catch this)
+        return { value: supplier.inn, label: String(supplier.name) };
+    });
 
     return (
         <div className="space-y-2">

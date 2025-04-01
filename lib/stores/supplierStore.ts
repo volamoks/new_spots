@@ -35,6 +35,7 @@ export const useSupplierStore = create<SupplierState>((set) => ({
                 throw new Error(errorMsg);
             }
             const data: Supplier[] = await response.json();
+            // console.log('Fetched suppliers data:', data); // <-- REMOVE THIS LINE
             set({ suppliers: data, isLoading: false });
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';

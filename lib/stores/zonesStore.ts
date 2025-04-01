@@ -155,7 +155,13 @@ export const useZonesStore = create<ZonesState>()(
                     params.append('pageSize', paginationCriteria.itemsPerPage.toString());
 
                     const url = `/api/zones?${params.toString()}`;
-                    console.log("Fetching zones from:", url);
+                    console.log("--- DEBUG: Fetching zones URL ---");
+                    console.log("URL:", url);
+                    console.log("Current Filter Criteria:", filterCriteria);
+                    // Add log for supplier from the other store if possible/relevant
+                    // console.log("Selected Supplier INN (from bookingActionsStore):", useBookingActionsStore.getState().selectedSupplierInnForCreation); // Example - might need adjustment
+                    console.log("--- END DEBUG ---");
+
 
                     const response = await fetch(url);
                     if (!response.ok) {
@@ -166,8 +172,8 @@ export const useZonesStore = create<ZonesState>()(
                     const { zones: fetchedZones, totalCount: fetchedTotalCount } = await response.json();
 
                     if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
-                         console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
-                         throw new Error("Invalid response structure from API");
+                        console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
+                        throw new Error("Invalid response structure from API");
                     }
 
                     set({
@@ -198,8 +204,8 @@ export const useZonesStore = create<ZonesState>()(
 
                     // Validate fetched options structure if necessary
                     if (!options || typeof options !== 'object' || !Array.isArray(options.cities)) {
-                         console.error("Invalid filter options structure:", options);
-                         throw new Error("Invalid filter options structure from API");
+                        console.error("Invalid filter options structure:", options);
+                        throw new Error("Invalid filter options structure from API");
                     }
 
                     set({
@@ -225,8 +231,8 @@ export const useZonesStore = create<ZonesState>()(
             setSortCriteria: (newSortCriteria) => {
                 const currentPage = 1;
                 set((state) => ({
-                     sortCriteria: newSortCriteria,
-                     paginationCriteria: { ...state.paginationCriteria, currentPage }
+                    sortCriteria: newSortCriteria,
+                    paginationCriteria: { ...state.paginationCriteria, currentPage }
                 }));
                 get().fetchZones();
             },

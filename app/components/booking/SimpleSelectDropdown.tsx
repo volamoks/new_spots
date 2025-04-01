@@ -108,7 +108,6 @@ export function SimpleSelectDropdown({
                                     )}
                                     onClick={() => handleSelect(option.value)}
                                 >
-                                    
                                     <span>{option.label}</span>
                                 </div>
                             ))}

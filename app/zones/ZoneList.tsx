@@ -16,7 +16,7 @@ export default function ZoneList() {
         zones, // Now holds only the current page's zones
         totalCount,
         isLoading: isLoadingZones, // Renamed to avoid conflict
-        error: zonesError,       // Renamed to avoid conflict
+        error: zonesError, // Renamed to avoid conflict
         paginationCriteria,
         selectedZoneIds, // Use selectedZoneIds from the store
         toggleZoneSelection, // Use action from the store
@@ -90,15 +90,19 @@ export default function ZoneList() {
 
     // Determine if filters are set sufficiently to show zones (adjust logic if needed)
     // This might need refinement based on how Filters component interacts with the store
-    const filtersSet = useZonesStore(state => state.filterCriteria.macrozoneFilters.length > 0 /* && state.filterCriteria.categoryFilter */); // Example check
+    const filtersSet = useZonesStore(
+        state =>
+            state.filterCriteria.macrozoneFilters.length >
+            0 /* && state.filterCriteria.categoryFilter */,
+    ); // Example check
 
     return (
         <div className="container mx-auto px-4 py-8">
             <Filters /> {/* Ensure Filters component uses setFilterCriteria from store */}
-
             {isLoadingZones && <p>Загрузка зон...</p>}
-            {zonesError && !isLoadingZones && <p className="text-red-500">Ошибка загрузки зон: {zonesError}</p>}
-
+            {zonesError && !isLoadingZones && (
+                <p className="text-red-500">Ошибка загрузки зон: {zonesError}</p>
+            )}
             {!isLoadingZones && !zonesError && (
                 <>
                     {filtersSet ? (
@@ -140,7 +144,10 @@ export default function ZoneList() {
                                         >
                                             <CardHeader className="bg-secondary border-b">
                                                 <CardTitle className="flex justify-between items-center text-lg">
-                                                    <span>Зона {zone.externalId || zone.uniqueIdentifier}</span>
+                                                    <span>
+                                                        Зона{' '}
+                                                        {zone.externalId || zone.uniqueIdentifier}
+                                                    </span>
                                                     <Badge
                                                         variant={
                                                             zone.status === 'AVAILABLE'
@@ -155,7 +162,9 @@ export default function ZoneList() {
                                             <CardContent className="space-y-4 pt-4">
                                                 <div className="flex items-center space-x-2">
                                                     <MapPin className="w-4 h-4 text-[#D12D35]" />
-                                                    <span className="text-foreground">{zone.city}</span>
+                                                    <span className="text-foreground">
+                                                        {zone.city}
+                                                    </span>
                                                 </div>
                                                 <div className="flex items-center space-x-2">
                                                     <Store className="w-4 h-4 text-[#D12D35]" />
@@ -165,11 +174,15 @@ export default function ZoneList() {
                                                 </div>
                                                 <div className="flex items-center space-x-2">
                                                     <Box className="w-4 h-4 text-[#D12D35]" />
-                                                    <span className="text-foreground">{zone.dimensions}</span>
+                                                    <span className="text-foreground">
+                                                        {zone.dimensions}
+                                                    </span>
                                                 </div>
                                                 <div className="flex items-center space-x-2">
                                                     <Tag className="w-4 h-4 text-[#D12D35]" />
-                                                    <span className="text-foreground">{zone.equipment}</span>
+                                                    <span className="text-foreground">
+                                                        {zone.equipment}
+                                                    </span>
                                                 </div>
                                             </CardContent>
                                             <CardFooter className="bg-secondary border-t">

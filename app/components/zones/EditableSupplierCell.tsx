@@ -10,9 +10,8 @@ import { useSupplierStore } from '@/lib/stores/supplierStore'; // Import the new
 
 interface EditableSupplierCellProps {
     zoneId: string;
-    currentValue: string | null | undefined;
-    // supplierList prop removed
-    onSave: (value: string | null) => Promise<void>;
+    currentValue: string | null | undefined; // This likely holds the supplier INN or Name currently
+    onSave: (value: string | null) => Promise<void>; // Expects to receive INN or custom name
     isDisabled?: boolean;
 }
 
@@ -22,7 +21,6 @@ const NONE_SUPPLIER_VALUE = '__NONE__'; // Consistent value for 'no supplier'
 export function EditableSupplierCell({
     zoneId,
     currentValue,
-    // supplierList, // Removed
     onSave,
     isDisabled = false,
 }: EditableSupplierCellProps) {
@@ -31,15 +29,16 @@ export function EditableSupplierCell({
 
     // --- Component State ---
     const [isEditing, setIsEditing] = useState(false);
-    const [selectedValue, setSelectedValue] = useState<string | null>(currentValue || null);
-    const [inputValue, setInputValue] = useState<string>('');
+    // selectedValue should store the INN or special values like __NONE__, __OTHER__
+    const [selectedValue, setSelectedValue] = useState<string | null>(null);
+    const [inputValue, setInputValue] = useState<string>(''); // For 'Other' input
     const [showInput, setShowInput] = useState(false);
-    const [isSaving, setIsSaving] = useState(false); // Renamed isLoading to avoid conflict
+    const [isSaving, setIsSaving] = useState(false);
+    const [currentSupplierName, setCurrentSupplierName] = useState<string | null>(null); // Store name separately
 
     // --- Derived Data ---
-    // Assuming currentValue and supplier names are stored/compared
-    const supplierNames = suppliers.map(s => s.name);
-    const options = suppliers.map(s => ({ value: s.name, label: s.name })); // Use name as value/label
+    // Use INN as value, name as label for options
+    const options = suppliers.map(s => ({ value: s.inn, label: s.name }));
 
     // --- Effects ---
     // Fetch suppliers when editing starts
@@ -49,47 +48,41 @@ export function EditableSupplierCell({
         }
     }, [isEditing, suppliers.length, fetchSuppliers]);
 
-    // Sync local state with external currentValue changes
+    // Sync local state with external currentValue changes and supplier list
     useEffect(() => {
-        const isInList = currentValue && supplierNames.includes(currentValue);
-        setSelectedValue(currentValue || null);
+        // Find the supplier object matching the currentValue (which might be INN or Name)
+        const currentSupplier = suppliers.find(s => s.inn === currentValue || s.name === currentValue);
 
-        if (currentValue && !isInList) {
-            // Current value exists but is not in the fetched list
-            setShowInput(true);
-            setInputValue(currentValue);
-            setSelectedValue(OTHER_SUPPLIER_VALUE);
-        } else {
-            // Current value is null or in the list
+        if (currentSupplier) {
+            // Found in list - use INN as selectedValue, store name
+            setSelectedValue(currentSupplier.inn);
+            setCurrentSupplierName(currentSupplier.name);
             setShowInput(false);
             setInputValue('');
-            // Keep selectedValue as currentValue (or null)
+        } else if (currentValue) {
+            // Not found in list, but has a value - treat as 'Other'
+            setSelectedValue(OTHER_SUPPLIER_VALUE);
+            setCurrentSupplierName(currentValue); // Display the custom value
+            setShowInput(true);
+            setInputValue(currentValue);
+        } else {
+            // No current value
+            setSelectedValue(null);
+            setCurrentSupplierName(null);
+            setShowInput(false);
+            setInputValue('');
         }
-    }, [currentValue, supplierNames]); // Depend on supplierNames derived from store
+    }, [currentValue, suppliers]); // Depend on suppliers from store
 
     // --- Handlers ---
     const handleEdit = () => {
         setIsEditing(true);
-        // Set initial state based on currentValue and fetched list
-        const isInList = currentValue && supplierNames.includes(currentValue);
-        if (currentValue && !isInList) {
-            setSelectedValue(OTHER_SUPPLIER_VALUE);
-            setInputValue(currentValue);
-            setShowInput(true);
-        } else {
-            setSelectedValue(currentValue || null);
-            setInputValue('');
-            setShowInput(false);
-        }
+        // Initial state is set by the useEffect above based on currentValue and suppliers
     };
 
     const handleCancel = () => {
         setIsEditing(false);
-        // Reset state based on original currentValue
-        const isInList = currentValue && supplierNames.includes(currentValue);
-        setSelectedValue(currentValue || null);
-        setInputValue(currentValue && !isInList ? currentValue : '');
-        setShowInput(currentValue ? !isInList : false);
+        // Reset state based on original currentValue and suppliers list (handled by useEffect)
     };
 
     const handleSave = async () => {
@@ -97,25 +90,33 @@ export function EditableSupplierCell({
         let valueToSave: string | null = null;
 
         if (selectedValue === OTHER_SUPPLIER_VALUE) {
+            // If 'Other', save the trimmed input value (custom name)
             valueToSave = inputValue.trim() || null;
         } else if (selectedValue === NONE_SUPPLIER_VALUE) {
-            valueToSave = null; // Explicitly save null for 'None' option
+            // If 'None', save null
+            valueToSave = null;
         } else {
+            // Otherwise, save the selected INN
             valueToSave = selectedValue;
         }
 
-        // Normalize null/empty string for comparison
+        // Normalize null/empty string for comparison (currentValue might be name or INN)
         const normalizedCurrentValue = currentValue || null;
         const normalizedValueToSave = valueToSave || null;
 
-        if (normalizedValueToSave === normalizedCurrentValue) {
+        // Find current supplier object again for accurate comparison
+        const currentSupplierObject = suppliers.find(s => s.inn === normalizedCurrentValue || s.name === normalizedCurrentValue);
+        const currentIdentifier = currentSupplierObject ? currentSupplierObject.inn : normalizedCurrentValue; // Prefer INN if found
+
+        // Only save if the value actually changed
+        if (normalizedValueToSave === currentIdentifier) {
             setIsEditing(false);
             setIsSaving(false);
             return;
         }
 
         try {
-            await onSave(valueToSave);
+            await onSave(valueToSave); // Send INN, custom name, or null
             setIsEditing(false);
         } catch (error) {
             console.error(`Failed to save supplier for zone ${zoneId}:`, error);
@@ -126,18 +127,20 @@ export function EditableSupplierCell({
     };
 
     const handleSelectChange = (value: string | null) => {
-        // Allow null from SearchableSelect
+        // Value received here is the INN or special value (__NONE__, __OTHER__)
         setSelectedValue(value);
         if (value === OTHER_SUPPLIER_VALUE) {
             setShowInput(true);
+            // Don't clear input if switching to 'Other'
         } else {
             setShowInput(false);
-            setInputValue('');
+            setInputValue(''); // Clear input if selecting from list or 'None'
         }
     };
 
     // --- Render Logic ---
-    const displayValue = currentValue || '-';
+    // Display the stored name if available, otherwise the raw currentValue, or '-'
+    const displayValue = currentSupplierName || currentValue || '-';
     const totalLoading = isDisabled || isSaving || isLoadingSuppliers;
 
     if (!isEditing) {
@@ -145,13 +148,13 @@ export function EditableSupplierCell({
             <div className="flex items-center justify-between group min-h-[32px]">
                 {' '}
                 {/* Ensure min height */}
-                <span>{displayValue}</span>
+                <span title={displayValue} className="truncate">{displayValue}</span> {/* Add title for overflow */}
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleEdit}
                     disabled={totalLoading}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1" // Prevent shrinking, add margin
                     aria-label="Редактировать поставщика"
                 >
                     <Edit2 className="h-3 w-3" />
@@ -163,12 +166,12 @@ export function EditableSupplierCell({
     return (
         <div className="flex flex-col space-y-1">
             <SearchableSelect
-                options={options} // Use options derived from store
-                value={selectedValue}
+                options={options} // Options now use INN as value
+                value={selectedValue} // selectedValue holds INN or special value
                 onChange={handleSelectChange}
                 isDisabled={totalLoading}
                 triggerPlaceholder="Выберите или введите"
-                noValueOption={{ value: NONE_SUPPLIER_VALUE, label: '- Нет -' }} // Use consistent NONE value
+                noValueOption={{ value: NONE_SUPPLIER_VALUE, label: '- Нет -' }}
                 otherOption={{ value: OTHER_SUPPLIER_VALUE, label: 'Другой...' }}
             />
 

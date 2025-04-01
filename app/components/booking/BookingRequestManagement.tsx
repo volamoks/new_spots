@@ -82,58 +82,15 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
     };
 
     const handleApprove = async (requestId: string, zoneId: string) => {
-        const bookingId = findBookingId(requestId, zoneId);
-        if (!bookingId) {
-            toast({
-                title: 'Ошибка',
-                description: 'Не удалось найти ID бронирования.',
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        setLoading(true, 'Одобрение бронирования...');
-        let success = false;
-        try {
-            if (role === 'CATEGORY_MANAGER') {
-                success = await updateBookingStatus(
-                    bookingId,
-                    'KM_APPROVED' as BookingStatus,
-                    BookingRole.KM,
-                );
-                if (success)
-                    toast({
-                        title: 'Успешно',
-                        description: 'Бронирование одобрено категорийным менеджером',
-                    });
-            } else if (role === 'DMP_MANAGER') {
-                success = await updateBookingStatus(
-                    bookingId,
-                    'DMP_APPROVED' as BookingStatus,
-                    BookingRole.DMP,
-                );
-                if (success)
-                    toast({
-                        title: 'Успешно',
-                        description: 'Бронирование одобрено менеджером ДМП',
-                    });
-            }
-            if (!success) throw new Error('Update action returned false'); // Trigger catch block if update failed
-        } catch {
-            // Removed unused 'err'
-            // Error is already logged/handled by the useEffect hook watching updateStatusError
-            // We show a generic message here if needed, or rely on the hook
-            if (!updateStatusError) {
-                // Show generic only if specific error isn't already shown
-                toast({
-                    title: 'Ошибка',
-                    description: 'Не удалось одобрить бронирование',
-                    variant: 'destructive',
-                });
-            }
-        } finally {
-            setLoading(false);
-        }
+        // This function is called *after* the useBookingActions hook successfully
+        // performs the API update and shows the success toast.
+        // The previous logic (finding bookingId, calling updateBookingStatus again, showing toasts)
+        // was redundant and caused a conflicting error toast due to timing issues
+        // with local state updates vs. when this callback was executed.
+        // We leave this function body empty as the core logic is handled elsewhere.
+        // If specific actions are needed *only* after successful approval (and after the hook's logic),
+        // they could be added here.
+        console.log(`handleApprove callback executed for requestId: ${requestId}, zoneId: ${zoneId}. No further action taken here.`);
     };
 
     const handleReject = async (requestId: string, zoneId: string) => {
