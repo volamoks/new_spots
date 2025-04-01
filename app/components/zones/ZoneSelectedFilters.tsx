@@ -3,8 +3,6 @@
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 
-// Removed local FilterType definition
-
 interface ZoneSelectedFiltersProps {
     filters: Partial<Record<string, string[]>>; // Use string as key type
     labels: Partial<Record<string, string>>; // Use string as key type

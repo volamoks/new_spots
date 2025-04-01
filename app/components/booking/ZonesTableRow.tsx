@@ -27,12 +27,7 @@ const ZonesTableRow: React.FC<ZonesTableRowProps> = ({ zone, selectedZones, onZo
             <TableCell>{zone.market}</TableCell>
             <TableCell>{zone.mainMacrozone}</TableCell>
             <TableCell>{zone.equipment}</TableCell>
-            {/* Use TableCell for the status, potentially override text color if needed */}
             <TableCell className="text-gray-900">
-                {' '}
-                {/* Example override if needed */}
-                {/* TODO: Replace hardcoded status with dynamic status from zone object if available */}
-                {/* Consider creating a dedicated StatusCell component */}
                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                     Доступна
                 </span>

@@ -6,49 +6,48 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ZoneStatusBadge } from './ZoneStatusBadge';
 import { ZoneStatusActions } from './ZoneStatusActions';
+import { useSession } from 'next-auth/react'; // Import useSession
 import { EditableSupplierCell } from './EditableSupplierCell';
 import { EditableBrandCell } from './EditableBrandCell';
+import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
 
 interface ZonesTableRowProps {
     zone: Zone;
-    isSelected: boolean;
+
     showSelectionColumn: boolean;
-    onZoneSelect: (zoneId: string) => void;
-    isDmpManager: boolean;
+
     showStatusActions: boolean;
-    onStatusChange?: (zoneId: string, newStatus: ZoneStatus) => Promise<void>;
+
     onUpdateZoneField?: (
         zoneId: string,
         field: 'supplier' | 'brand',
         value: string | null,
-    ) => Promise<void>;
-    // uniqueSuppliersFromDB?: string[]; // Removed - Cell will fetch from supplierStore
-    isLoading?: boolean;
+    ) => Promise<boolean>; // Changed return type to match store action
 }
 
 export function ZonesTableRow({
     zone,
-    isSelected,
     showSelectionColumn,
-    onZoneSelect,
-    isDmpManager,
     showStatusActions,
-    onStatusChange,
+
     onUpdateZoneField,
-    // uniqueSuppliersFromDB = [], // Removed from props
-    isLoading = false,
 }: ZonesTableRowProps) {
+    // --- Get state from store ---
+    const { isLoading, selectedZoneIds, toggleZoneSelection } = useDmpManagerZones();
+    const isSelected = selectedZoneIds.has(zone.id);
+    // --- Get session ---
+    const { data: session } = useSession();
+    const isDmpManager = session?.user?.role === 'DMP_MANAGER';
+    // ---
+
     const handleSelect = () => {
-        // Allow selection only if the column is shown and (it's DMP manager OR zone is available)
         if (showSelectionColumn && (isDmpManager || zone.status === ZoneStatus.AVAILABLE)) {
-            onZoneSelect(zone.id);
+            toggleZoneSelection(zone.id); // Use store action
         }
     };
 
-    // The onCheckedChange handler receives the new checked state, not an event.
-    // We just need to trigger the selection toggle for this zone.
     const handleCheckboxChange = () => {
-        onZoneSelect(zone.id);
+        toggleZoneSelection(zone.id); // Use store action
     };
 
     const canSelectRow =
@@ -85,8 +84,9 @@ export function ZonesTableRow({
                     <EditableSupplierCell
                         zoneId={zone.id}
                         currentValue={zone.supplier}
-                        // supplierList prop removed - Cell will fetch from supplierStore
-                        onSave={value => onUpdateZoneField(zone.id, 'supplier', value)}
+                        onSave={async value => {
+                            await onUpdateZoneField(zone.id, 'supplier', value);
+                        }}
                         isDisabled={isLoading}
                     />
                 ) : (
@@ -99,7 +99,9 @@ export function ZonesTableRow({
                     <EditableBrandCell
                         zoneId={zone.id}
                         currentValue={zone.brand}
-                        onSave={value => onUpdateZoneField(zone.id, 'brand', value)}
+                        onSave={async value => {
+                            await onUpdateZoneField(zone.id, 'brand', value);
+                        }}
                         isDisabled={isLoading}
                     />
                 ) : (
@@ -109,13 +111,11 @@ export function ZonesTableRow({
             <TableCell>
                 <ZoneStatusBadge status={zone.status} />
             </TableCell>
-            {showStatusActions && onStatusChange && (
+            {showStatusActions && ( // Removed onStatusChange check here
                 <TableCell>
                     <ZoneStatusActions
                         zoneId={zone.id}
                         currentStatus={zone.status}
-                        onStatusChange={onStatusChange}
-                        isDisabled={isLoading}
                     />
                 </TableCell>
             )}

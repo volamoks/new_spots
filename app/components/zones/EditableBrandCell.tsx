@@ -83,16 +83,26 @@ export function EditableBrandCell({
             <Input
                 type="text"
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={e => setInputValue(e.target.value)}
                 placeholder="Введите бренд"
                 className="h-8 text-xs"
                 disabled={isLoading}
             />
             <div className="flex justify-end space-x-1">
-                <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isLoading}>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancel}
+                    disabled={isLoading}
+                >
                     <X className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={handleSave} disabled={isLoading}>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={isLoading}
+                >
                     <Check className="h-4 w-4" />
                 </Button>
             </div>

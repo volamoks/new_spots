@@ -84,14 +84,6 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
     };
 
     const handleApprove = async (requestId: string, zoneId: string) => {
-        // This function is called *after* the useBookingActions hook successfully
-        // performs the API update and shows the success toast.
-        // The previous logic (finding bookingId, calling updateBookingStatus again, showing toasts)
-        // was redundant and caused a conflicting error toast due to timing issues
-        // with local state updates vs. when this callback was executed.
-        // We leave this function body empty as the core logic is handled elsewhere.
-        // If specific actions are needed *only* after successful approval (and after the hook's logic),
-        // they could be added here.
         console.log(
             `handleApprove callback executed for requestId: ${requestId}, zoneId: ${zoneId}. No further action taken here.`,
         );
@@ -150,43 +142,23 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
     };
 
     const getPageTitle = () => {
-        switch (role) {
-            case 'CATEGORY_MANAGER':
-                return 'Панель категорийного менеджера';
-            case 'DMP_MANAGER':
-                return 'Панель менеджера ДМП';
-            case 'SUPPLIER':
-                return 'Мои бронирования';
-            default:
-                return 'Управление бронированиями';
-        }
+        return 'Управление бронированиями';
     };
 
-    const getPageDescription = () => {
-        switch (role) {
-            case 'CATEGORY_MANAGER':
-                return 'Управляйте заявками на бронирование зон продаж';
-            case 'DMP_MANAGER':
-                return 'Управляйте заявками, согласованными категорийными менеджерами';
-            case 'SUPPLIER':
-                return 'Просмотр статуса ваших заявок на бронирование';
-            default:
-                return 'Просмотр и управление бронированиями';
-        }
-    };
+    const getPageDescription = 'Просмотр и управление бронированиями';
 
-    const getRoleForTable = () => {
-        switch (role) {
-            case 'CATEGORY_MANAGER':
-                return 'КМ';
-            case 'DMP_MANAGER':
-                return 'ДМП';
-            case 'SUPPLIER':
-                return 'Поставщик';
-            default:
-                return 'Поставщик';
-        }
-    };
+    // const getRoleForTable = () => {
+    //     switch (role) {
+    //         case 'CATEGORY_MANAGER':
+    //             return 'КМ';
+    //         case 'DMP_MANAGER':
+    //             return 'ДМП';
+    //         case 'SUPPLIER':
+    //             return 'Поставщик';
+    //         default:
+    //             return 'Поставщик';
+    //     }
+    // };
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
@@ -198,7 +170,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-gray-600">{getPageDescription()}</p>
+                        <p className="text-gray-600">{getPageDescription}</p>
                         <div className="flex justify-between items-center">
                             <p className="text-gray-600 mt-2">
                                 Количество заявок:{' '}
@@ -237,7 +209,6 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                         <RequestsTable
                             onApprove={handleApprove}
                             onReject={handleReject}
-                            role={getRoleForTable()}
                             bookings={filteredBookingRequests} // Use new state name
                         />
                     </CardContent>

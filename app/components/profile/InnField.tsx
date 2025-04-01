@@ -77,16 +77,18 @@ export default function InnField({ control }: { control: Control<ProfileFormData
                     {isSearching && <FormDescription>Поиск организации...</FormDescription>}
                     {!isSearching && organizationName && (
                         <FormDescription>
-                            Название организации{' '}
-                            <strong>{organizationName}</strong>
+                            Название организации <strong>{organizationName}</strong>
                         </FormDescription>
                     )}
                     {/* Ensure 'inn' is treated as a string for length check here too */}
-                    {!isSearching && typeof inn === 'string' && inn.length >= 9 && !organizationName && (
-                        <FormDescription className="text-orange-600">
-                            Организация не найдена по ИНН.
-                        </FormDescription>
-                    )}
+                    {!isSearching &&
+                        typeof inn === 'string' &&
+                        inn.length >= 9 &&
+                        !organizationName && (
+                            <FormDescription className="text-orange-600">
+                                Организация не найдена по ИНН.
+                            </FormDescription>
+                        )}
                     <FormMessage />
                 </FormItem>
             )}

@@ -13,7 +13,7 @@ import type { UseToastReturn } from '@/lib/utils/toastUtils';
 
 // Define types for injected dependencies (toast and loader)
 // type ToastFunction = (options: { title: string; description: string; variant?: 'default' | 'destructive' }) => void; // Removed
-type WithLoadingFunction = <T>(promise: Promise<T>, message?: string) => Promise<T>;
+type WithLoadingFunction = <T>(promise: Promise<T>, message: string) => Promise<T>; // Made message required
 
 // Define the state containing only the DMP-specific actions
 // Update action signatures to use UseToastReturn type for toast parameter

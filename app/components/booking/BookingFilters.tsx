@@ -1,5 +1,6 @@
 import React from 'react';
 import { useZonesStore, type FilterCriteria } from '@/lib/stores/zonesStore';
+import { useLoaderStore } from '@/lib/stores/loaderStore'; // Import loader store
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SearchFilters } from './SearchFilters'; // Import the new component
@@ -10,8 +11,11 @@ import { useAuth } from '@/lib/hooks/useAuth'; // Import useAuth
 import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
 
 const BookingFilters = () => {
-    const { filterCriteria, uniqueFilterValues, isLoading, setFilterCriteria, resetFilters } =
+    // Get non-loading state/actions from zones store
+    const { filterCriteria, uniqueFilterValues, setFilterCriteria, resetFilters } =
         useZonesStore();
+    // Get loading state from global loader store
+    const isLoading = useLoaderStore(state => state.isLoading);
     const { session } = useAuth(); // Get session using useAuth
     const userRole = session?.user?.role; // Extract user role
 
@@ -89,7 +93,7 @@ const BookingFilters = () => {
                     searchTerm={filterCriteria.searchTerm}
                     // supplierName is not used here, pass empty string
                     supplierName=""
-                    isLoading={isLoading}
+                    isLoading={isLoading} // Use global isLoading
                     onSearchTermChange={handleSearchTermChange}
                     // No supplier name change handler needed here
                     onSupplierNameChange={() => {}} // Provide a dummy function
@@ -100,7 +104,7 @@ const BookingFilters = () => {
                     groupTitle="Zone Filters" // Add a title for clarity
                     dropdowns={zoneDropdowns}
                     setFilterCriteria={setFilterCriteria}
-                    isLoading={isLoading}
+                    isLoading={isLoading} // Use global isLoading
                 />
                 {/* Selected Filters Display */}
                 <SelectedFiltersDisplay
@@ -146,7 +150,7 @@ const BookingFilters = () => {
                     <Button
                         variant="outline"
                         onClick={resetFilters}
-                        disabled={isLoading}
+                        disabled={isLoading} // Use global isLoading
                         className="whitespace-nowrap"
                     >
                         Reset Filters {/* TODO: i18n */}

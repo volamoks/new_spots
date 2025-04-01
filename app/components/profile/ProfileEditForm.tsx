@@ -18,10 +18,6 @@ import {
 import InnField from './InnField'; // Import the extracted InnField component
 // Import only the type, not the schema object
 import { ProfileFormData } from './profileSchema';
-
-// Schema object is not needed here, only the type
-
-// Define props for the component (using imported ProfileFormData)
 interface ProfileEditFormProps {
     form: UseFormReturn<ProfileFormData>;
     onSubmit: (values: ProfileFormData) => void; // Keep it simple, parent handles async/loading
@@ -70,9 +66,7 @@ export default function ProfileEditForm({
                                     className="bg-gray-100"
                                 />
                             </FormControl>
-                            <FormDescription>
-                                Email нельзя изменить.
-                            </FormDescription>
+                            <FormDescription>Email нельзя изменить.</FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}

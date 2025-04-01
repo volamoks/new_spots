@@ -15,10 +15,7 @@ import { profileFormSchema, ProfileFormData } from '@/app/components/profile/pro
 import { useLoaderStore } from '@/lib/stores/loaderStore'; // Import global loader store
 
 export default function UserProfilePageContent() {
-    // Note: session and status are now passed down or handled in the parent page.tsx
-    // We assume session is available here as it's rendered conditionally by the parent
     const { data: session, update } = useSession();
-    // Removed unused router
     const { toast } = useToast();
     const { withLoading, isLoading } = useLoaderStore(); // Use global loader
     const [isEditing, setIsEditing] = useState(false); // State to toggle edit mode
@@ -142,8 +139,6 @@ export default function UserProfilePageContent() {
     // Main component structure remains similar, but content is dynamic
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
-            {/* Optional: Add Navigation component back if needed */}
-            {/* <Navigation /> */}
             <main className="flex-grow container mx-auto px-4 py-8">
                 <Card>
                     <CardHeader>

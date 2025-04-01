@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Zone, ZoneKeys } from "@/types/zone"; // Removed ZoneStatus as it's not used here directly
 import { devtools } from 'zustand/middleware';
 import { ZoneStatus as PrismaZoneStatus } from "@prisma/client"; // Import Prisma status for filter options type
+import { useLoaderStore } from './loaderStore'; // Import the loader store
 
 // --- Helper Functions ---
 
@@ -46,7 +47,7 @@ interface ZonesState {
     zones: Zone[];
     totalCount: number;
     selectedZoneIds: Set<string>;
-    isLoading: boolean; // Loading state for zone data
+    isLoading: boolean; // Keep state for potential direct use, but fetch won't set it
     isLoadingFilters: boolean; // Separate loading state for filter options
     error: string | null;
     filtersError: string | null; // Separate error state for filter options
@@ -108,7 +109,7 @@ export const useZonesStore = create<ZonesState>()(
             zones: [],
             totalCount: 0,
             selectedZoneIds: new Set(),
-            isLoading: false,
+            isLoading: false, // Initialize internal state
             isLoadingFilters: false,
             error: null,
             filtersError: null,
@@ -124,70 +125,78 @@ export const useZonesStore = create<ZonesState>()(
             // --- Actions ---
             fetchZones: async () => {
                 const { filterCriteria, sortCriteria, paginationCriteria } = get();
-                // Don't reset filtersError here, only zone fetch error
-                set({ isLoading: true, error: null });
+                const { withLoading } = useLoaderStore.getState(); // Get loader helper
 
-                try {
-                    const params = new URLSearchParams();
+                // Define the actual fetch logic
+                const fetchLogic = async () => {
+                    // Don't reset filtersError here, only zone fetch error
+                    // Remove internal isLoading set: set({ isLoading: true, error: null });
+                    set({ error: null }); // Reset only error
 
-                    // --- Append Filters ---
-                    if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
-                        params.append('status', filterCriteria.activeTab);
+                    try {
+                        const params = new URLSearchParams();
+
+                        // --- Append Filters ---
+                        if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
+                            params.append('status', filterCriteria.activeTab);
+                        }
+                        filterCriteria.macrozoneFilters.forEach(mz => params.append('macrozone', mz));
+                        filterCriteria.cityFilters.forEach(city => params.append('city', city));
+                        filterCriteria.marketFilters.forEach(market => params.append('market', market));
+                        filterCriteria.equipmentFilters.forEach(eq => params.append('equipment', eq));
+                        filterCriteria.supplierFilters.forEach(sup => params.append('supplier', sup));
+                        if (filterCriteria.category) {
+                            params.append('category', filterCriteria.category);
+                        }
+                        // Add searchTerm if API supports it
+
+                        // --- Append Sorting ---
+                        if (sortCriteria.field && sortCriteria.direction) {
+                            params.append('sortField', sortCriteria.field);
+                            params.append('sortDirection', sortCriteria.direction);
+                        }
+
+                        // --- Append Pagination ---
+                        params.append('page', paginationCriteria.currentPage.toString());
+                        params.append('pageSize', paginationCriteria.itemsPerPage.toString());
+
+                        const url = `/api/zones?${params.toString()}`;
+                        console.log("--- DEBUG: Fetching zones URL ---");
+                        console.log("URL:", url);
+                        console.log("Current Filter Criteria:", filterCriteria);
+                        console.log("--- END DEBUG ---");
+
+
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({ error: `Failed to fetch zones (status: ${response.status})` }));
+                            throw new Error(errorData.error || `Failed to fetch zones (status: ${response.status})`);
+                        }
+
+                        const { zones: fetchedZones, totalCount: fetchedTotalCount } = await response.json();
+
+                        if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
+                            console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
+                            throw new Error("Invalid response structure from API");
+                        }
+
+                        set({
+                            zones: fetchedZones,
+                            totalCount: fetchedTotalCount,
+                            // Remove internal isLoading set: isLoading: false,
+                            // REMOVED calculation of unique values here
+                        });
+
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : "Unknown error fetching zones";
+                        console.error("Error fetching zones:", errorMessage);
+                        // Remove internal isLoading set: set({ error: errorMessage, isLoading: false, zones: [], totalCount: 0 });
+                        set({ error: errorMessage, zones: [], totalCount: 0 }); // Set error, clear data
                     }
-                    filterCriteria.macrozoneFilters.forEach(mz => params.append('macrozone', mz));
-                    filterCriteria.cityFilters.forEach(city => params.append('city', city));
-                    filterCriteria.marketFilters.forEach(market => params.append('market', market));
-                    filterCriteria.equipmentFilters.forEach(eq => params.append('equipment', eq));
-                    filterCriteria.supplierFilters.forEach(sup => params.append('supplier', sup));
-                    if (filterCriteria.category) {
-                        params.append('category', filterCriteria.category);
-                    }
-                    // Add searchTerm if API supports it
+                };
 
-                    // --- Append Sorting ---
-                    if (sortCriteria.field && sortCriteria.direction) {
-                        params.append('sortField', sortCriteria.field);
-                        params.append('sortDirection', sortCriteria.direction);
-                    }
-
-                    // --- Append Pagination ---
-                    params.append('page', paginationCriteria.currentPage.toString());
-                    params.append('pageSize', paginationCriteria.itemsPerPage.toString());
-
-                    const url = `/api/zones?${params.toString()}`;
-                    console.log("--- DEBUG: Fetching zones URL ---");
-                    console.log("URL:", url);
-                    console.log("Current Filter Criteria:", filterCriteria);
-                    // Add log for supplier from the other store if possible/relevant
-                    // console.log("Selected Supplier INN (from bookingActionsStore):", useBookingActionsStore.getState().selectedSupplierInnForCreation); // Example - might need adjustment
-                    console.log("--- END DEBUG ---");
-
-
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ error: `Failed to fetch zones (status: ${response.status})` }));
-                        throw new Error(errorData.error || `Failed to fetch zones (status: ${response.status})`);
-                    }
-
-                    const { zones: fetchedZones, totalCount: fetchedTotalCount } = await response.json();
-
-                    if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
-                        console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
-                        throw new Error("Invalid response structure from API");
-                    }
-
-                    set({
-                        zones: fetchedZones,
-                        totalCount: fetchedTotalCount,
-                        isLoading: false,
-                        // REMOVED calculation of unique values here
-                    });
-
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : "Unknown error fetching zones";
-                    console.error("Error fetching zones:", errorMessage);
-                    set({ error: errorMessage, isLoading: false, zones: [], totalCount: 0 });
-                }
+                // Wrap the fetch logic with the global loader
+                await withLoading(fetchLogic(), 'Загрузка зон...'); // Pass loading message
             },
 
             // New action to fetch filter options
@@ -225,7 +234,7 @@ export const useZonesStore = create<ZonesState>()(
                     filterCriteria: { ...state.filterCriteria, ...criteriaUpdate },
                     paginationCriteria: { ...state.paginationCriteria, currentPage }
                 }));
-                get().fetchZones();
+                get().fetchZones(); // This will now trigger the global loader
             },
 
             setSortCriteria: (newSortCriteria) => {
@@ -234,14 +243,14 @@ export const useZonesStore = create<ZonesState>()(
                     sortCriteria: newSortCriteria,
                     paginationCriteria: { ...state.paginationCriteria, currentPage }
                 }));
-                get().fetchZones();
+                get().fetchZones(); // This will now trigger the global loader
             },
 
             setPaginationCriteria: (criteriaUpdate) => {
                 set((state) => ({
                     paginationCriteria: { ...state.paginationCriteria, ...criteriaUpdate }
                 }));
-                get().fetchZones();
+                get().fetchZones(); // This will now trigger the global loader
             },
 
             toggleZoneSelection: (zoneId) => {
@@ -290,7 +299,7 @@ export const useZonesStore = create<ZonesState>()(
                     paginationCriteria: { ...get().paginationCriteria, currentPage: 1 },
                     selectedZoneIds: new Set(),
                 });
-                get().fetchZones();
+                get().fetchZones(); // This will now trigger the global loader
             },
         }),
         { name: 'zonesStore' }

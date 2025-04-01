@@ -4,6 +4,7 @@ import {
     type SimpleSupplier,
     type BookingRequestFilters, // Keep this type for FilterDropdownKey
 } from '@/lib/stores/bookingRequestStore';
+import { useLoaderStore } from '@/lib/stores/loaderStore'; // Import the loader store
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -19,10 +20,13 @@ const ManageBookingsFilters = () => {
         filterCriteria, // Changed from filters
         setFilterCriteria, // Changed from setFilters
         resetFilters,
-        isLoading,
+        // isLoading, // Removed - Will get from useLoaderStore
         fetchBookingRequests, // Changed from fetchBookings
         uniqueFilterValues,
     } = useBookingRequestStore(); // Changed hook name
+
+    // Get loading state from the global loader store
+    const isLoading = useLoaderStore(state => state.isLoading); // Assuming a general isLoading state
 
     // Extract unique values for easier access
     const {

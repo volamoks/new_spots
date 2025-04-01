@@ -32,9 +32,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
         event: React.ChangeEvent<HTMLInputElement>,
     ) => {
         try {
-            const isoString = event.target.value
-                ? new Date(event.target.value).toISOString()
-                : '';
+            const isoString = event.target.value ? new Date(event.target.value).toISOString() : '';
             onDateChange(type, isoString);
         } catch (e) {
             console.error('Error processing date input:', event.target.value, e);

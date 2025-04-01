@@ -1,44 +1,42 @@
 'use client';
 
-import { useEffect, useCallback } from 'react'; // Removed useState
+import { useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore'; // Correct store
-import { useZonesStore } from '@/lib/stores/zonesStore'; // Correct store, removed FilterCriteria
+import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
+import { useZonesStore } from '@/lib/stores/zonesStore';
+// Removed unused useLoaderStore import
+// import { useLoaderStore } from '@/lib/stores/loaderStore';
 import { ZonePagination } from '@/app/components/zones/ZonePagination';
 import CategorySelection from './booking/CategorySelection';
-import BookingFilters from './booking/BookingFilters'; // Assuming this uses useZonesStore now
-import ZonesTable from './booking/ZonesTable'; // Assuming this uses useZonesStore now
+import BookingFilters from './booking/BookingFilters';
+import ZonesTable from './booking/ZonesTable';
 import BookingPageHeader from './booking/BookingPageHeader';
-import SupplierSelection from './booking/SupplierSelection'; // Assuming this uses useBookingActionsStore now
+import SupplierSelection from './booking/SupplierSelection';
 import { Card, CardContent } from '@/components/ui/card';
-import CreateBookingActions from './booking/CreateBookingActions'; // Assuming this uses useBookingActionsStore now
+import CreateBookingActions from './booking/CreateBookingActions';
 
 export default function CreateBookingPage() {
     const { isAuthenticated, user } = useAuth();
-    // Get action from booking actions store
+
     const setSelectedSupplierInnForCreation = useBookingActionsStore(
         state => state.setSelectedSupplierInnForCreation,
     );
 
-    // Get state and actions from zones store
+    // Get state and actions from zones store (excluding isLoading)
     const {
-        zones, // Current page zones
-        totalCount,
-        paginationCriteria,
-        setPaginationCriteria,
         setFilterCriteria,
         fetchZones,
-        // Get filter criteria to read selected category
         filterCriteria,
+        fetchFilterOptions,
+        // isLoading, // Removed - use global loader store
     } = useZonesStore();
 
-    // Local state might still be needed if CategorySelection doesn't use store directly
-    // const [selectedCategory, setSelectedCategory] = useState<string>('');
+    // Removed unused isLoading from useLoaderStore
+    // const isLoading = useLoaderStore(state => state.isLoading);
 
-    // Callback to set category filter in the zones store
+    // Corrected useCallback syntax
     const setSelectedCategoryCallback = useCallback(
         (category: string) => {
-            // Set category filter in the store, which triggers fetchZones
             setFilterCriteria({ category: category || undefined });
         },
         [setFilterCriteria],
@@ -47,55 +45,27 @@ export default function CreateBookingPage() {
     // Fetch initial zones and filter options on mount
     useEffect(() => {
         if (isAuthenticated) {
-            // fetchZones now takes no arguments
+            // These actions now trigger the global loader via withLoading in the store
             fetchZones();
-            // Fetch filter options if not already fetched elsewhere
-            // useZonesStore.getState().fetchFilterOptions(); // Consider where to best call this
+            fetchFilterOptions();
         }
-    }, [isAuthenticated, fetchZones]);
+    }, [isAuthenticated, fetchZones, fetchFilterOptions]);
 
-    // Effect to auto-select supplier for SUPPLIER role
     useEffect(() => {
         if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {
-            // Use the correct action name
             setSelectedSupplierInnForCreation(user.inn);
         }
-        // Ensure dependency array includes the correct action name
     }, [isAuthenticated, user, setSelectedSupplierInnForCreation]);
 
-    // Calculate total pages for pagination
-    const totalPages = Math.ceil(totalCount / paginationCriteria.itemsPerPage);
-
-    // Handler for pagination changes
-    const handlePageChange = (newPage: number) => {
-        setPaginationCriteria({ currentPage: newPage });
-    };
-
-    // Handler for items per page change (if needed by ZonePagination)
-    const handleItemsPerPageChange = (newSize: number) => {
-        setPaginationCriteria({ itemsPerPage: newSize, currentPage: 1 }); // Reset to page 1
-    };
-
-    // Inline styles for brevity
     const filtersAndContent = (
         <div>
-            {/* Pass necessary props if CreateBookingActions uses store */}
             <CreateBookingActions />
-            {/* Pass necessary props if BookingFilters uses store */}
+            {/* BookingFilters gets isLoading from loader store directly */}
             <BookingFilters />
             <Card className="py-4 mb-6"></Card>
-            {/* Pass current page zones */}
-            <ZonesTable zones={zones} />
-            {/* Pass pagination state and handlers */}
-            <ZonePagination
-                currentPage={paginationCriteria.currentPage}
-                totalItems={totalCount} // Use totalCount from store
-                filteredItems={totalCount} // Pass totalCount as filteredItems
-                totalPages={totalPages}
-                itemsPerPage={paginationCriteria.itemsPerPage}
-                onPageChange={handlePageChange}
-                onItemsPerPageChange={handleItemsPerPageChange} // Pass handler if component supports it
-            />
+            {/* ZonesTable no longer needs isLoading prop */}
+            <ZonesTable />
+            <ZonePagination />
         </div>
     );
 
@@ -107,11 +77,9 @@ export default function CreateBookingPage() {
                 <div className="space-y-6">
                     <Card className="mb-6">
                         <CardContent className=" ">
-                            {/* Pass necessary props if SupplierSelection uses store */}
                             {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
                             <CategorySelection
                                 onCategorySelect={setSelectedCategoryCallback}
-                                // Read selected category from store's filterCriteria
                                 selectedCategory={filterCriteria.category || ''}
                             />
                         </CardContent>

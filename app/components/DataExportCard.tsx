@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useLoader } from './GlobalLoader';
+import { useLoaderStore } from '@/lib/stores/loaderStore'; // Correct import
 import { useToast } from '@/components/ui/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -15,27 +15,61 @@ export function DataExportCard() {
     const [filename, setFilename] = useState<string>(
         `export-${new Date().toISOString().slice(0, 10)}`,
     );
-    const { setLoading } = useLoader();
+    // Removed incorrect useLoader hook
     const { toast } = useToast();
 
     const handleExport = async () => {
         try {
-            setLoading(true, `Экспорт данных (${getExportTypeLabel(exportType)})...`);
+            useLoaderStore.setState({
+                isLoading: true,
+                message: `Экспорт данных (${getExportTypeLabel(exportType)})...`,
+            });
 
-            // Конструируем URL для экспорта с параметрами
-            const url = `/api/db/export?type=${exportType}&filename=${encodeURIComponent(
-                filename,
-            )}.xlsx`;
+            // Конструируем URL для экспорта
+            const url = `/api/db/export?type=${exportType}`; // Filename handled by Content-Disposition header now
 
-            // Открываем URL в новой вкладке для скачивания
-            window.open(url, '_blank');
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                // Try to get error message from response body if possible
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.message || errorMsg;
+                } catch {
+                    // Ignore if response is not JSON
+                }
+                throw new Error(errorMsg);
+            }
+
+            // Get filename from Content-Disposition header if available, otherwise use state
+            const disposition = response.headers.get('content-disposition');
+            let downloadFilename = `${filename}.xlsx`; // Default filename
+            if (disposition && disposition.indexOf('attachment') !== -1) {
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) {
+                    downloadFilename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', downloadFilename); // Use determined filename
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
 
             toast({
-                title: 'Экспорт начат',
-                description: 'Файл будет скачан автоматически',
+                title: 'Экспорт завершен',
+                description: `Файл ${downloadFilename} скачан.`,
                 variant: 'default',
             });
         } catch (error) {
+            console.error('Export error:', error); // Log the actual error
             toast({
                 title: 'Ошибка экспорта',
                 description:
@@ -43,7 +77,7 @@ export function DataExportCard() {
                 variant: 'destructive',
             });
         } finally {
-            setLoading(false);
+            useLoaderStore.setState({ isLoading: false, message: null });
         }
     };
 

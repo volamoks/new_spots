@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react'; // Added useCallback
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -9,31 +10,61 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Loader2 } from 'lucide-react'; // Added Loader2
+import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+import { useCreateBooking } from '@/lib/hooks/useCreateBooking'; // Import the booking hook
 
 interface ZoneSelectionActionsPanelProps {
+    // selectedZonesCount is still useful for display even if IDs are in store
     selectedZonesCount: number;
-    isSupplier: boolean;
-    isCategoryManager: boolean;
+    // Props related to the supplier dropdown (managed locally in ZonesTable)
     selectedSupplier: string | null;
-    uniqueSuppliers: string[];
     onSelectSupplier?: (supplierId: string) => void;
-    onCreateBooking: () => Promise<void>;
-    isLoading?: boolean;
+    // onCreateBooking: () => Promise<void>; // REMOVED
 }
 
 export function ZoneSelectionActionsPanel({
     selectedZonesCount,
-    isSupplier,
-    isCategoryManager,
     selectedSupplier,
-    uniqueSuppliers,
     onSelectSupplier,
-    onCreateBooking,
-    isLoading = false,
 }: ZoneSelectionActionsPanelProps) {
+    const { data: session } = useSession();
+    const {
+        isLoading: isStoreLoading, // Renamed to avoid conflict
+        uniqueFilterValues,
+        selectedZoneIds, // Get selected IDs directly from the store
+        clearSelection, // Assuming this action exists to clear selection
+    } = useDmpManagerZones();
+
+    // Setup the booking hook
+    const handleBookingSuccess = useCallback(() => {
+        if (clearSelection) {
+            clearSelection(); // Clear selection in the store on success
+        } else {
+            console.warn('clearSelection action not found in useDmpManagerZones store');
+        }
+    }, [clearSelection]);
+
+    const { createBooking, isBookingLoading } = useCreateBooking({
+        onSuccess: handleBookingSuccess,
+    });
+
+    // --- Derive roles and data ---
+    const userRole = session?.user?.role;
+    const userId = session?.user?.id; // Get user ID for the booking call
+    const isSupplier = userRole === 'SUPPLIER';
+    const isCategoryManager = userRole === 'CATEGORY_MANAGER';
+    const uniqueSuppliers = uniqueFilterValues?.suppliers || [];
+
+    // Handler to call the booking hook
+    const handleCreateBookingClick = () => {
+        // Pass selected IDs from the store and the user ID
+        createBooking(Array.from(selectedZoneIds), userId);
+    };
+
+    // Don't render if nothing is selected
     if (selectedZonesCount === 0) {
-        return null; // Don't render if no zones are selected
+        return null;
     }
 
     return (
@@ -52,10 +83,9 @@ export function ZoneSelectionActionsPanel({
                     {isCategoryManager && (
                         <Select
                             value={selectedSupplier || ''}
-                            onValueChange={value =>
-                                onSelectSupplier && onSelectSupplier(value)
-                            }
-                            disabled={isLoading}
+                            onValueChange={value => onSelectSupplier && onSelectSupplier(value)}
+                            // Disable if store is loading OR booking is in progress
+                            disabled={isStoreLoading || isBookingLoading}
                         >
                             <SelectTrigger className="w-[200px]">
                                 <SelectValue placeholder="Выберите поставщика" />
@@ -74,15 +104,20 @@ export function ZoneSelectionActionsPanel({
                     )}
 
                     <Button
-                        onClick={onCreateBooking}
+                        onClick={handleCreateBookingClick} // Use the new internal handler
                         disabled={
                             selectedZonesCount === 0 ||
-                            isLoading ||
+                            isStoreLoading || // Disable if store is loading
+                            isBookingLoading || // Disable if booking is loading
                             (isCategoryManager && !selectedSupplier)
                         }
                     >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Создать бронирование
+                        {isBookingLoading ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> // Loading indicator
+                        ) : (
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                        )}
+                        {isBookingLoading ? 'Создание...' : 'Создать бронирование'}
                     </Button>
                 </div>
             </div>

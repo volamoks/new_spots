@@ -4,16 +4,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useZonesStore } from '@/lib/stores/zonesStore';
 import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore'; // Import correct store
-// import MacrozoneSelection from './booking/MacrozoneSelection'; // New component
 import CategorySelection from './booking/CategorySelection';
 import BookingPageHeader from './booking/BookingPageHeader';
 import SupplierSelection from './booking/SupplierSelection';
 import { Card, CardContent } from '@/components/ui/card';
-// import { GlobalLoader } from './GlobalLoader';
 
 export default function BookingPage() {
     const { isAuthenticated, user } = useAuth();
-    // Get action from correct store
     const setSelectedSupplierInnForCreation = useBookingActionsStore(
         state => state.setSelectedSupplierInnForCreation,
     );
@@ -27,16 +24,12 @@ export default function BookingPage() {
 
     useEffect(() => {
         if (isAuthenticated) {
-            // fetchZones now takes no arguments and uses store criteria
-            // We might need to set filter criteria here based on role if needed
             fetchZones();
         }
     }, [isAuthenticated, fetchZones]); // Removed user?.role dependency
 
     useEffect(() => {
         if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {
-            // Automatically set supplier from session for Suppliers
-            // Use the correct action name
             setSelectedSupplierInnForCreation(user.inn);
         }
         // Ensure dependency array includes the correct action name

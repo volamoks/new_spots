@@ -10,13 +10,7 @@ import {
 
 export const dynamic = 'force-dynamic'; // Force dynamic rendering
 
-/**
- * Обработчик для экспорта данных из базы данных в Excel-файл
- * Поддерживает экспорт:
- * - zones: только зоны
- * - bookings: только бронирования
- * - all: вся база данных
- */
+
 export async function GET(req: NextRequest) {
   try {
     // Проверка авторизации - только DMP менеджер может экспортировать данные
