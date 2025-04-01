@@ -2,12 +2,13 @@
 
 import { BookingActions } from './BookingActions';
 import { StatusBadge } from '../StatusBadge';
-import { BookingRequestWithBookings } from '@/lib/stores/manageBookingsStore';
+import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore'; // Use the correct store type again
+import { BookingStatus } from '@prisma/client'; // Keep BookingStatus
 import { TableCell } from '@/components/ui/table';
 import BookingRole from '@/lib/enums/BookingRole';
 
 type BookingActionsAndStatusProps = {
-    booking: BookingRequestWithBookings['bookings'][0];
+    booking: BookingRequestWithBookings['bookings'][0]; // Revert to the original complex type which includes nested zone
     userRole: BookingRole;
     requestId: string;
     onApprove: (bookingId: string, zoneId: string) => void;
@@ -21,10 +22,33 @@ export function BookingActionsAndStatus({
     onApprove,
     onReject,
 }: BookingActionsAndStatusProps) {
+    // Helper function to determine display status for individual bookings
+    const getBookingDisplayStatus = (status: BookingStatus, role: BookingRole): string => {
+        if (role === BookingRole.SUPPLIER) {
+            switch (status) {
+                case BookingStatus.PENDING_KM:
+                case BookingStatus.KM_APPROVED:
+                    return 'BOOKING_IN_PROGRESS'; // "В работе"
+                case BookingStatus.DMP_APPROVED:
+                    return 'BOOKING_APPROVED'; // "Согласовано"
+                case BookingStatus.KM_REJECTED:
+                case BookingStatus.DMP_REJECTED:
+                    return 'BOOKING_REJECTED'; // "Отклонено"
+                default:
+                    return 'BOOKING_UNKNOWN'; // Fallback for unexpected statuses
+            }
+        } else {
+            // For KM/DMP, return the original status enum value
+            return status;
+        }
+    };
+
+    const displayStatus = getBookingDisplayStatus(booking.status, userRole);
+
     return (
         <>
             <TableCell>
-                <StatusBadge status={booking.status} />
+                <StatusBadge status={displayStatus} />
             </TableCell>
             <TableCell>
                 <BookingActions
