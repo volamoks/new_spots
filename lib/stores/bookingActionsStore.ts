@@ -16,14 +16,14 @@ export interface SimplifiedUser { // Added export
 }
 
 interface BookingActionsState {
-    // State for Creation Process
+    // State for Creation Process (loading handled globally)
     selectedZonesForCreation: Set<string>; // Use Set for efficiency
     selectedSupplierInnForCreation: string | null;
-    isCreating: boolean; // Specific loading state for creation
+    // isCreating: boolean; // Removed, use global loader
     createError: string | null;
 
-    // State for Update Processes (can use global loader or specific states)
-    isUpdatingStatus: boolean;
+    // State for Update Processes (loading handled globally)
+    // isUpdatingStatus: boolean; // Removed, use global loader
     updateStatusError: string | null;
 
     // Actions
@@ -46,9 +46,9 @@ export const useBookingActionsStore = create<BookingActionsState>()(
             // Initial State
             selectedZonesForCreation: new Set(),
             selectedSupplierInnForCreation: null,
-            isCreating: false,
+            // isCreating: false, // Removed
             createError: null,
-            isUpdatingStatus: false,
+            // isUpdatingStatus: false, // Removed
             updateStatusError: null,
 
             // --- Actions ---
@@ -95,7 +95,8 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                 //     return false;
                 // }
 
-                set({ isCreating: true, createError: null });
+                // set({ isCreating: true, createError: null }); // Removed - Handled by withLoading
+                set({ createError: null }); // Reset error before attempt
 
                 try {
                     const zoneIds = Array.from(selectedZonesForCreation);
@@ -120,7 +121,8 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                         'Creating booking request...'
                     );
 
-                    set({ isCreating: false, selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null }); // Clear selection on success
+                    // set({ isCreating: false }); // Removed - Handled by withLoading
+                    set({ selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null }); // Clear selection on success
                     await refreshBookingRequests(); // Refresh the list
                     // await refreshZones(); // Uncomment if zone status might change
                     toast({ // Add success toast
@@ -133,7 +135,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : "Unknown error creating booking request";
                     console.error("Error creating booking request:", errorMessage);
-                    set({ createError: errorMessage, isCreating: false });
+                    set({ createError: errorMessage }); // Removed isCreating: false
                     toast({ // Add error toast
                         title: 'Ошибка',
                         description: errorMessage,
@@ -148,7 +150,8 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                 const updateLocalStatus = useBookingRequestStore.getState().updateBookingStatusLocally;
                 // const refreshBookingRequests = useBookingRequestStore.getState().fetchBookingRequests; // Removed unused variable
 
-                set({ isUpdatingStatus: true, updateStatusError: null }); // Or use global loader via withLoading
+                // set({ isUpdatingStatus: true, updateStatusError: null }); // Removed - Handled by withLoading
+                set({ updateStatusError: null }); // Reset error before attempt
 
                 try {
                     await withLoading(
@@ -166,7 +169,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                         'Updating booking status...'
                     );
 
-                    set({ isUpdatingStatus: false });
+                    // set({ isUpdatingStatus: false }); // Removed - Handled by withLoading
                     // Optimistic update or full refresh:
                     updateLocalStatus(bookingId, status);
                     // OR await refreshBookingRequests();
@@ -175,7 +178,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : "Unknown error updating booking status";
                     console.error("Error updating booking status:", errorMessage);
-                    set({ updateStatusError: errorMessage, isUpdatingStatus: false });
+                    set({ updateStatusError: errorMessage }); // Removed isUpdatingStatus: false
                     // Consider reverting optimistic update here if implemented
                     return false; // Indicate failure
                 }

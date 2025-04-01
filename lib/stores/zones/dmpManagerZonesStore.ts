@@ -4,8 +4,8 @@ import { create } from 'zustand';
 // Import the NEW primary zones store
 import { useZonesStore } from '../zonesStore';
 import { ZoneStatus } from '@/types/zone';
-// Keep loader and toast hooks for injection in the composition hook
-import { useLoader } from '@/app/components/GlobalLoader';
+// Import the standardized loader store
+import { useLoaderStore } from '../loaderStore';
 import { useToast } from '@/components/ui/use-toast';
 // Import shared toast helpers and types
 import { createSuccessToast, createErrorToast } from '@/lib/utils/toastUtils';
@@ -213,7 +213,8 @@ export const useDmpManagerZones = () => {
 
   // Get dependencies (toast, loader) - these hooks must be called within a React component context
   const toast = useToast();
-  const { withLoading } = useLoader();
+  // Get withLoading from the standardized loader store's state
+  const { withLoading } = useLoaderStore.getState();
 
   // Combine state and wrapped actions
   return {

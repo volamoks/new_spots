@@ -64,7 +64,7 @@ export default function Navigation() {
                 return (
                     <>
                         <Link href="/dmp-manager">
-                            <Button variant="ghost">Панель ДМП</Button>
+                            <Button variant="ghost">Управление заявками</Button>
                         </Link>
                         <Link href="/dmp-manager/zones">
                             <Button variant="ghost">Управление зонами</Button>

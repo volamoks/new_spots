@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { BookingRequest, type Booking, User, Zone, BookingStatus } from '@prisma/client';
-import { getSession } from 'next-auth/react'; // Import getSession
+import { getSession } from 'next-auth/react';
+// Import the standardized loader store
+import { useLoaderStore } from './loaderStore';
 
 // --- Types ---
 
@@ -48,7 +50,7 @@ interface UniqueFilterValues {
 interface BookingRequestState {
     // Core State
     bookingRequests: BookingRequestWithBookings[];
-    isLoading: boolean;
+    // isLoading state is removed as it will be handled by the global loaderStore
     error: string | null;
 
     // Criteria State
@@ -213,7 +215,7 @@ export const useBookingRequestStore = create<BookingRequestState>()(
         (set, get) => ({
             // Core State
             bookingRequests: [],
-            isLoading: false,
+            // isLoading removed from initial state
             error: null,
 
             // Criteria State
@@ -232,47 +234,57 @@ export const useBookingRequestStore = create<BookingRequestState>()(
 
             // --- Public Actions ---
             fetchBookingRequests: async () => {
+                console.log('fetchBookingRequests action started'); // Add log
+                // Get withLoading helper from the loader store
+                const { withLoading } = useLoaderStore.getState();
+
                 // Check if user is authenticated before fetching
                 const session = await getSession();
                 if (!session) {
                     console.log("fetchBookingRequests: No active session, skipping fetch.");
-                    // Optionally reset state if needed when unauthenticated
-                    // set({ bookingRequests: [], filteredBookingRequests: [], isLoading: false, error: null });
+                    // Clear state if unauthenticated
+                    set({ bookingRequests: [], filteredBookingRequests: [], error: null });
                     return;
                 }
 
-                set({ isLoading: true, error: null });
-                try {
-                    const response = await fetch('/api/bookings'); // Assuming this fetches BookingRequestWithBookings
-                    if (!response.ok) {
-                        // Check for 401 specifically, maybe don't set error state in that case?
-                        if (response.status === 401) {
-                             console.warn("fetchBookingRequests: Received 401 Unauthorized. Session might have expired or is invalid.");
-                             // Decide if we should set an error state or just clear data
-                             set({ isLoading: false, bookingRequests: [], filteredBookingRequests: [] }); // Clear data on auth error
-                             return; // Exit without setting error state which might trigger toasts
+                // Define the actual fetch and processing logic
+                const fetchAndProcessRequests = async () => {
+                    set({ error: null }); // Reset error before fetch
+                    try {
+                        const response = await fetch('/api/bookings');
+                        if (!response.ok) {
+                            if (response.status === 401) {
+                                console.warn("fetchBookingRequests: Received 401 Unauthorized.");
+                                // Clear data on auth error, don't set error state to avoid potential loops/toasts
+                                set({ bookingRequests: [], filteredBookingRequests: [] });
+                                return; // Exit the async function within withLoading
+                            }
+                            const errorData = await response.json().catch(() => ({ error: 'Failed to fetch booking requests' }));
+                            throw new Error(errorData.error || 'Failed to fetch booking requests');
                         }
-                        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch booking requests' }));
-                        throw new Error(errorData.error || 'Failed to fetch booking requests');
-                    }
-                    const fetchedRequests: BookingRequestWithBookings[] = await response.json();
+                        const fetchedRequests: BookingRequestWithBookings[] = await response.json();
 
-                    set({
-                        bookingRequests: fetchedRequests,
-                        isLoading: false,
-                        uniqueFilterValues: calculateUniqueValues(fetchedRequests),
-                    });
-                    get()._recalculateDerivedState(); // Apply initial filters
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : "Unknown error fetching booking requests";
-                    console.error("Error fetching booking requests:", errorMessage);
-                    // Avoid setting error state if it's an expected Unauthorized error after logout
-                    if (errorMessage !== 'Unauthorized') { // Check if error message indicates unauthorized
-                       set({ error: errorMessage, isLoading: false, bookingRequests: [], filteredBookingRequests: [] });
-                    } else {
-                       set({ isLoading: false, bookingRequests: [], filteredBookingRequests: [] }); // Clear data but don't set error
+                        set({
+                            bookingRequests: fetchedRequests,
+                            uniqueFilterValues: calculateUniqueValues(fetchedRequests),
+                            error: null, // Clear error on success
+                        });
+                        get()._recalculateDerivedState(); // Apply initial filters
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : "Unknown error fetching booking requests";
+                        console.error("Error fetching booking requests:", errorMessage);
+                        // Set error state only for actual errors, not auth issues handled above
+                        if (errorMessage !== 'Unauthorized') {
+                            set({ error: errorMessage, bookingRequests: [], filteredBookingRequests: [] });
+                        } else {
+                            // Ensure data is cleared if somehow an Unauthorized error wasn't caught earlier
+                            set({ bookingRequests: [], filteredBookingRequests: [], error: null });
+                        }
                     }
-                }
+                }; // <-- This semicolon closes the function definition
+
+                // Execute the logic and wrap the resulting promise with the loader
+                await withLoading(fetchAndProcessRequests(), 'Загрузка заявок...');
             },
 
             setFilterCriteria: (criteriaUpdate) => {

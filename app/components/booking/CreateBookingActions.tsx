@@ -1,29 +1,28 @@
 'use client';
 
 import React from 'react';
-import { useBookingActionsStore, SimplifiedUser } from '@/lib/stores/bookingActionsStore'; // Import SimplifiedUser if needed here, or rely on session type
-import { useZonesStore } from '@/lib/stores/zonesStore'; // Assuming this is the new zones store
+import { useBookingActionsStore, SimplifiedUser } from '@/lib/stores/bookingActionsStore';
+import { useZonesStore } from '@/lib/stores/zonesStore';
+import { useLoaderStore } from '@/lib/stores/loaderStore'; // Import the global loader store
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { Role } from '@prisma/client'; // Import the Role enum
-import { useToast } from '@/components/ui/use-toast'; // Import useToast
+import { Role } from '@prisma/client';
+import { useToast } from '@/components/ui/use-toast';
 
 // useLoader is removed
 
 const CreateBookingActions = () => {
-    const { toast } = useToast(); // Initialize toast
+    const { toast } = useToast();
     const {
         createBookingRequest,
         selectedZonesForCreation,
-        // selectedSupplierInnForCreation, // Only needed if this component sets it
-        isCreating,
+        // isCreating, // Removed - use global isLoading
         createError,
-        // clearSelectedZonesForCreation, // Called internally by createBookingRequest on success
     } = useBookingActionsStore();
-    const { fetchZones, isLoading: isZonesLoading } = useZonesStore(); // Assuming fetchZones and isLoading exist
+    const { fetchZones, isLoading: isZonesLoading } = useZonesStore();
     const { data: session } = useSession();
-    // setLoading is removed
+    const { isLoading } = useLoaderStore(); // Get global loading state
 
     const handleCreateBooking = async () => {
         // Use selectedZonesForCreation from the new store
@@ -93,8 +92,8 @@ const CreateBookingActions = () => {
                 {/* Keep buttons in a row */}
                 <Button
                     onClick={handleRefresh}
-                    // Disable if zones are loading OR a booking is being created
-                    disabled={isZonesLoading || isCreating}
+                    // Disable if zones are loading OR a global action is in progress
+                    disabled={isZonesLoading || isLoading}
                     className="whitespace-nowrap bg-red-600 hover:bg-red-700"
                 >
                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -102,8 +101,8 @@ const CreateBookingActions = () => {
                 </Button>
                 <Button
                     onClick={handleCreateBooking}
-                    // Disable if zones are loading OR a booking is being created OR no zones are selected
-                    disabled={isZonesLoading || isCreating || selectedZonesForCreation.size === 0}
+                    // Disable if zones are loading OR a global action is in progress OR no zones are selected
+                    disabled={isZonesLoading || isLoading || selectedZonesForCreation.size === 0}
                     className="whitespace-nowrap bg-red-600 hover:bg-red-700"
                 >
                     {/* Use selectedZonesForCreation.size */}

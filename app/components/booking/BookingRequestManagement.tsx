@@ -10,7 +10,7 @@ import { RequestsTable } from '../RequestsTable';
 import ManageBookingsFilters from './ManageBookingsFilters';
 import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
-import { useLoader } from '@/app/components/GlobalLoader';
+// Removed: import { useLoader } from '@/app/components/GlobalLoader';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 
@@ -35,7 +35,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
     const { toast } = useToast(); // Initialize toast
     const { user } = useAuth();
     const role = propRole || user?.role || 'SUPPLIER';
-    const { setLoading } = useLoader(); // Keep using global loader
+    // Removed: const { setLoading } = useLoader();
 
     // Centralized error handling for both stores
     useEffect(() => {
@@ -56,22 +56,24 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
             // Use setFilterCriteria from the new store
             setFilterCriteria({ supplierInn: user.inn });
         }
-
+        console.log('Effect running, calling fetchBookingRequests. User:', user); // Add log
         // Fetch all bookings using the new action name
         fetchBookingRequests();
     }, [fetchBookingRequests, user, setFilterCriteria]); // Add setFilterCriteria dependency
 
-    // Separate function to handle manual refresh with loading indicator
+    // Separate function to handle manual refresh
     const handleRefreshBookings = async () => {
         try {
-            setLoading(true, 'Загрузка бронирований...');
-            await fetchBookingRequests(); // Use new action name
+            // setLoading calls removed - handled by fetchBookingRequests internally
+            await fetchBookingRequests();
         } catch (error) {
-            // Error handling can be improved, maybe show toast via store error state
-            console.error('Ошибка при загрузке бронирований:', error);
-        } finally {
-            setLoading(false);
+            // Error handling is now primarily within the store action,
+            // but catch unexpected errors during the call itself.
+            console.error('Ошибка при вызове fetchBookingRequests:', error);
+            // Optionally show a generic error toast here if needed
+            // toast({ title: 'Ошибка', description: 'Не удалось обновить заявки.', variant: 'destructive' });
         }
+        // finally block removed
     };
 
     // Helper to find bookingId
@@ -90,7 +92,9 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
         // We leave this function body empty as the core logic is handled elsewhere.
         // If specific actions are needed *only* after successful approval (and after the hook's logic),
         // they could be added here.
-        console.log(`handleApprove callback executed for requestId: ${requestId}, zoneId: ${zoneId}. No further action taken here.`);
+        console.log(
+            `handleApprove callback executed for requestId: ${requestId}, zoneId: ${zoneId}. No further action taken here.`,
+        );
     };
 
     const handleReject = async (requestId: string, zoneId: string) => {
@@ -104,7 +108,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
             return;
         }
 
-        setLoading(true, 'Отклонение бронирования...');
+        // setLoading call removed - handled by updateBookingStatus internally
         let success = false;
         try {
             if (role === 'CATEGORY_MANAGER') {
@@ -141,9 +145,8 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                     variant: 'destructive',
                 });
             }
-        } finally {
-            setLoading(false);
         }
+        // finally block with setLoading removed
     };
 
     const getPageTitle = () => {
