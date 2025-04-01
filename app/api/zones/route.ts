@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { ZoneStatus } from "@/types/zone";
 import { getCorrespondingMacrozones } from "@/lib/filterData";
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

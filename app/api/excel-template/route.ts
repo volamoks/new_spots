@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateExcelTemplate, generateInnTemplate } from "@/lib/excel-template"
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering
+
 export async function GET(req: NextRequest) {
   try {
     const type = req.nextUrl.searchParams.get("type") || "zones"
-    
+
     let template
     let filename
-    
+
     if (type === "inn") {
       template = generateInnTemplate()
       filename = "inn-template.xlsx"
@@ -15,7 +17,7 @@ export async function GET(req: NextRequest) {
       template = generateExcelTemplate()
       filename = "zones-template.xlsx"
     }
-    
+
     // Возвращаем файл как ответ
     return new NextResponse(template, {
       headers: {

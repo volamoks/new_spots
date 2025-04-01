@@ -8,6 +8,8 @@ import {
   exportDatabaseToExcel
 } from "@/lib/utils/excel-export";
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering
+
 /**
  * Обработчик для экспорта данных из базы данных в Excel-файл
  * Поддерживает экспорт:
@@ -38,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     // Выбор функции экспорта в зависимости от типа
     let buffer: ExcelJS.Buffer;
-    
+
     switch (type) {
       case "zones":
         buffer = await exportZonesToExcel();
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     // Создание и возврат ответа с Excel-файлом
     const response = new NextResponse(buffer);
-    
+
     // Установка заголовков для скачивания файла
     response.headers.set(
       "Content-Type",
@@ -64,7 +66,7 @@ export async function GET(req: NextRequest) {
       "Content-Disposition",
       `attachment; filename=${encodeURIComponent(filename)}`
     );
-    
+
     return response;
   } catch (error) {
     console.error("Error exporting database:", error);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering
+
 export async function GET(req: NextRequest) {
   try {
     const inn = req.nextUrl.searchParams.get("inn")

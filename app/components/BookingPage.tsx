@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useZonesStore } from '@/lib/stores/zonesStore';
-import { useBookingStore } from '@/lib/stores/bookingStore'; // Import useBookingStore
+import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore'; // Import correct store
 // import MacrozoneSelection from './booking/MacrozoneSelection'; // New component
 import CategorySelection from './booking/CategorySelection';
 import BookingPageHeader from './booking/BookingPageHeader';
@@ -13,7 +13,10 @@ import { Card, CardContent } from '@/components/ui/card';
 
 export default function BookingPage() {
     const { isAuthenticated, user } = useAuth();
-    const setSelectedSupplierInn = useBookingStore(state => state.setSelectedSupplierInn);
+    // Get action from correct store
+    const setSelectedSupplierInnForCreation = useBookingActionsStore(
+        state => state.setSelectedSupplierInnForCreation,
+    );
     const [selectedCategory, setSelectedCategory] = useState<string>('');
 
     const setSelectedCategoryCallback = useCallback((category: string) => {
@@ -22,21 +25,22 @@ export default function BookingPage() {
 
     const { fetchZones } = useZonesStore();
 
+    useEffect(() => {
+        if (isAuthenticated) {
+            // fetchZones now takes no arguments and uses store criteria
+            // We might need to set filter criteria here based on role if needed
+            fetchZones();
+        }
+    }, [isAuthenticated, fetchZones]); // Removed user?.role dependency
 
-
-    
-        useEffect(() => {
-            if (isAuthenticated) {
-                fetchZones(user?.role === 'CATEGORY_MANAGER' ? 'CATEGORY_MANAGER' : 'SUPPLIER');
-            }
-        }, [isAuthenticated, fetchZones, user?.role]);
-    
-        useEffect(() => {
-            if (isAuthenticated && user?.role === 'SUPPLIER') {
-                // Automatically set supplier from session for Suppliers
-                setSelectedSupplierInn(user.inn); // Use INN from session
-            }
-        }, [isAuthenticated, user, setSelectedSupplierInn]);
+    useEffect(() => {
+        if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {
+            // Automatically set supplier from session for Suppliers
+            // Use the correct action name
+            setSelectedSupplierInnForCreation(user.inn);
+        }
+        // Ensure dependency array includes the correct action name
+    }, [isAuthenticated, user, setSelectedSupplierInnForCreation]);
 
     // Inline styles for brevity
 
