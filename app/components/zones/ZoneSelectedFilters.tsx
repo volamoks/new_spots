@@ -51,7 +51,7 @@ export function ZoneSelectedFilters({
                         <X
                             className="h-3 w-3 cursor-pointer"
                             onClick={() => handleRemove(type, value)}
-                            aria-label={`Remove ${labels[type] || type} filter: ${value}`}
+                            aria-label={`Удалить фильтр ${labels[type] || type}: ${value}`}
                         />
                     </Badge>
                 )),

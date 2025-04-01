@@ -45,9 +45,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
         <div className="flex w-full space-x-4">
             {/* Date From */}
             <div className="flex flex-col flex-1">
-                <label className="text-sm font-medium mb-1 text-gray-700">
-                    Date From {/* TODO: i18n */}
-                </label>
+                <label className="text-sm font-medium mb-1 text-gray-700">Дата с</label>
                 <div className="flex items-center">
                     <Input
                         type="date"
@@ -55,7 +53,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                         onChange={e => handleInputChange('dateFrom', e)}
                         disabled={isLoading}
                         className="w-full"
-                        aria-label="Start date" // Added aria-label
+                        aria-label="Дата начала"
                     />
                     {dateFrom && (
                         <Button
@@ -63,7 +61,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                             size="sm"
                             className="ml-1 text-xs text-gray-500 h-8 w-8 p-0"
                             onClick={() => onDateChange('dateFrom', '')}
-                            aria-label="Clear start date"
+                            aria-label="Очистить дату начала"
                             disabled={isLoading}
                         >
                             ✕
@@ -74,9 +72,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
 
             {/* Date To */}
             <div className="flex flex-col flex-1">
-                <label className="text-sm font-medium mb-1 text-gray-700">
-                    Date To {/* TODO: i18n */}
-                </label>
+                <label className="text-sm font-medium mb-1 text-gray-700">Дата по</label>
                 <div className="flex items-center">
                     <Input
                         type="date"
@@ -84,7 +80,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                         onChange={e => handleInputChange('dateTo', e)}
                         disabled={isLoading}
                         className="w-full"
-                        aria-label="End date" // Added aria-label
+                        aria-label="Дата окончания"
                     />
                     {dateTo && (
                         <Button
@@ -92,7 +88,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                             size="sm"
                             className="ml-1 text-xs text-gray-500 h-8 w-8 p-0"
                             onClick={() => onDateChange('dateTo', '')}
-                            aria-label="Clear end date"
+                            aria-label="Очистить дату окончания"
                             disabled={isLoading}
                         >
                             ✕

@@ -55,12 +55,12 @@ export const SelectedFiltersDisplay: React.FC<SelectedFiltersDisplayProps> = ({
     };
 
     const displayLabels: DisplayLabels = {
-        status: 'Status' /* TODO: i18n */,
-        supplier: 'Supplier (INN)' /* TODO: i18n */,
-        city: 'City' /* TODO: i18n */,
-        market: 'Market' /* TODO: i18n */,
-        macrozone: 'Macrozone' /* TODO: i18n */,
-        equipment: 'Equipment' /* TODO: i18n */,
+        status: 'Статус',
+        supplier: 'Поставщик (ИНН)',
+        city: 'Город',
+        market: 'Маркет',
+        macrozone: 'Макрозона',
+        equipment: 'Оборудование',
     };
 
     // Handle removal logic
@@ -75,9 +75,7 @@ export const SelectedFiltersDisplay: React.FC<SelectedFiltersDisplayProps> = ({
 
     return (
         <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Selected Filters {/* TODO: i18n */}
-            </h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Выбранные фильтры</h4>
             <ZoneSelectedFilters
                 filters={displayFilters}
                 labels={displayLabels}

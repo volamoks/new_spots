@@ -12,8 +12,7 @@ import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
 
 const BookingFilters = () => {
     // Get non-loading state/actions from zones store
-    const { filterCriteria, uniqueFilterValues, setFilterCriteria, resetFilters } =
-        useZonesStore();
+    const { filterCriteria, uniqueFilterValues, setFilterCriteria, resetFilters } = useZonesStore();
     // Get loading state from global loader store
     const isLoading = useLoaderStore(state => state.isLoading);
     const { session } = useAuth(); // Get session using useAuth
@@ -50,25 +49,25 @@ const BookingFilters = () => {
     // Configuration for Zone Dropdowns
     const zoneDropdowns = [
         {
-            title: 'City',
+            title: 'Город',
             options: cityOptions,
             selected: filterCriteria.cityFilters, // Match FilterCriteria keys
             filterKey: 'cityFilters' as keyof FilterCriteria & string,
         },
         {
-            title: 'Market',
+            title: 'Маркет',
             options: marketOptions,
             selected: filterCriteria.marketFilters, // Match FilterCriteria keys
             filterKey: 'marketFilters' as keyof FilterCriteria & string,
         },
         {
-            title: 'Macrozone',
+            title: 'Макрозона',
             options: macrozoneOptions,
             selected: filterCriteria.macrozoneFilters, // Match FilterCriteria keys
             filterKey: 'macrozoneFilters' as keyof FilterCriteria & string,
         },
         {
-            title: 'Equipment',
+            title: 'Оборудование',
             options: equipmentOptions,
             selected: filterCriteria.equipmentFilters, // Match FilterCriteria keys
             filterKey: 'equipmentFilters' as keyof FilterCriteria & string,
@@ -86,7 +85,7 @@ const BookingFilters = () => {
     return (
         <Card className="mb-6 shadow-sm">
             <CardContent className="p-6 space-y-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Select Zone Filters</h3>{' '}
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Выбор фильтров зон</h3>{' '}
                 {/* TODO: i18n */}
                 {/* Search Field (using SearchFilters component, but only the searchTerm part) */}
                 <SearchFilters
@@ -101,7 +100,7 @@ const BookingFilters = () => {
                 />
                 {/* Zone Filters (Dropdowns) */}
                 <DropdownFilterGroup
-                    groupTitle="Zone Filters" // Add a title for clarity
+                    groupTitle="Фильтры зон" // Add a title for clarity
                     dropdowns={zoneDropdowns}
                     setFilterCriteria={setFilterCriteria}
                     isLoading={isLoading} // Use global isLoading
@@ -153,7 +152,7 @@ const BookingFilters = () => {
                         disabled={isLoading} // Use global isLoading
                         className="whitespace-nowrap"
                     >
-                        Reset Filters {/* TODO: i18n */}
+                        Сбросить фильтры
                     </Button>
                 </div>
             </CardContent>

@@ -70,7 +70,12 @@ export default function DmpManagerZonesPage() {
         <div className="min-h-screen flex flex-col bg-gray-50">
             <main className="flex-grow container mx-auto px-4 py-8">
                 <ZonesSummaryCard />
-                <ZonesFilters />
+                <div className="mb-6">
+                    {' '}
+                    {/* Обертка для заголовка фильтров */}
+                    <h3 className="text-xl font-semibold mb-4">Выбор фильтров зон</h3>
+                    <ZonesFilters />
+                </div>
                 {selectedZoneIds.size > 0 && ( // Use .size for Set
                     <div className="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200 shadow-sm">
                         <div className="flex flex-wrap items-center justify-between gap-4">

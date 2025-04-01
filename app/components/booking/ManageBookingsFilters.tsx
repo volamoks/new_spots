@@ -14,6 +14,20 @@ import { SearchFilters } from './SearchFilters'; // Import the new component
 import { DropdownFilterGroup } from './DropdownFilterGroup'; // Import the new component
 import { SelectedFiltersDisplay } from './SelectedFiltersDisplay'; // Import the new component
 
+// Helper function to translate booking statuses
+const translateStatus = (status: BookingStatus): string => {
+    // Corrected status map based on TS errors and likely enum values
+    const statusMap: Record<BookingStatus, string> = {
+        [BookingStatus.PENDING_KM]: 'Ожидает КМ',
+        [BookingStatus.KM_APPROVED]: 'Одобрено КМ',
+        [BookingStatus.KM_REJECTED]: 'Отклонено КМ',
+        [BookingStatus.DMP_APPROVED]: 'Одобрено DMP',
+        [BookingStatus.DMP_REJECTED]: 'Отклонено DMP',
+        // Добавьте сюда переводы для ЛЮБЫХ других статусов из BookingStatus, если они есть
+    };
+    return statusMap[status] || status; // Fallback to original if no translation
+};
+
 const ManageBookingsFilters = () => {
     const { user } = useAuth();
     const {
@@ -46,7 +60,7 @@ const ManageBookingsFilters = () => {
     // Status options using BookingStatus enum
     const statusOptions = Object.values(BookingStatus).map(status => ({
         value: status,
-        label: status.replace(/_/g, ' '), // Simple label generation (e.g., PENDING KM)
+        label: translateStatus(status), // Use translation function
     }));
 
     // Options for zone filters
@@ -70,7 +84,7 @@ const ManageBookingsFilters = () => {
     // Configuration for Main Dropdowns
     const mainDropdowns = [
         {
-            title: 'Status',
+            title: 'Статус',
             options: statusOptions,
             selected: filterCriteria.status,
             filterKey: 'status' as keyof BookingRequestFilters & string, // Type assertion needed
@@ -79,7 +93,7 @@ const ManageBookingsFilters = () => {
         ...(user?.role !== 'SUPPLIER'
             ? [
                   {
-                      title: 'Supplier (INN)',
+                      title: 'Поставщик (ИНН)',
                       options: supplierOptions,
                       selected: filterCriteria.supplierIds,
                       filterKey: 'supplierIds' as keyof BookingRequestFilters & string, // Type assertion needed
@@ -91,25 +105,25 @@ const ManageBookingsFilters = () => {
     // Configuration for Zone Dropdowns
     const zoneDropdowns = [
         {
-            title: 'City',
+            title: 'Город',
             options: cityOptions,
             selected: filterCriteria.city,
             filterKey: 'city' as keyof BookingRequestFilters & string, // Type assertion needed
         },
         {
-            title: 'Market',
+            title: 'Маркет',
             options: marketOptions,
             selected: filterCriteria.market,
             filterKey: 'market' as keyof BookingRequestFilters & string, // Type assertion needed
         },
         {
-            title: 'Macrozone',
+            title: 'Макрозона',
             options: macrozoneOptions,
             selected: filterCriteria.macrozone,
             filterKey: 'macrozone' as keyof BookingRequestFilters & string, // Type assertion needed
         },
         {
-            title: 'Equipment',
+            title: 'Оборудование',
             options: equipmentOptions,
             selected: filterCriteria.equipment,
             filterKey: 'equipment' as keyof BookingRequestFilters & string, // Type assertion needed
@@ -132,7 +146,7 @@ const ManageBookingsFilters = () => {
     return (
         <Card className="mb-6 shadow-sm">
             <CardContent className="p-6 space-y-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Select Filters</h3>{' '}
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Выбор фильтров</h3>{' '}
                 {/* TODO: i18n */}
                 {/* Date Filters */}
                 <DateRangeFilter
@@ -152,14 +166,14 @@ const ManageBookingsFilters = () => {
                 />
                 {/* Main Filters (Dropdowns) */}
                 <DropdownFilterGroup
-                    groupTitle="Main Filters"
+                    groupTitle="Основные фильтры"
                     dropdowns={mainDropdowns}
                     setFilterCriteria={setFilterCriteria}
                     isLoading={isLoading}
                 />
                 {/* Zone Filters (Dropdowns) */}
                 <DropdownFilterGroup
-                    groupTitle="Zone Filters"
+                    groupTitle="Фильтры зон"
                     dropdowns={zoneDropdowns}
                     setFilterCriteria={setFilterCriteria}
                     isLoading={isLoading}
@@ -179,7 +193,7 @@ const ManageBookingsFilters = () => {
                         disabled={isLoading}
                         className="whitespace-nowrap"
                     >
-                        Reset All Filters {/* TODO: i18n */}
+                        Сбросить все фильтры
                     </Button>
                 </div>
             </CardContent>

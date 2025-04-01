@@ -19,12 +19,7 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
     const { data: session } = useSession();
     const role = session?.user?.role;
 
-    const {
-        filterCriteria,
-        uniqueFilterValues,
-        isLoading,
-        setFilterCriteria,
-    } = useZonesStore();
+    const { filterCriteria, uniqueFilterValues, isLoading, setFilterCriteria } = useZonesStore();
 
     const {
         searchTerm,
@@ -66,12 +61,34 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
         : [];
 
     const dropdownConfigs = [
-        { title: 'City', options: cityOptions, selected: cityFilters, filterKey: 'city' as const },
-        { title: 'Market', options: marketOptions, selected: marketFilters, filterKey: 'market' as const },
-        { title: 'Macrozone', options: macrozoneOptions, selected: macrozoneFilters, filterKey: 'macrozone' as const },
-        { title: 'Equipment', options: equipmentOptions, selected: equipmentFilters, filterKey: 'equipment' as const },
+        { title: 'Город', options: cityOptions, selected: cityFilters, filterKey: 'city' as const },
+        {
+            title: 'Маркет',
+            options: marketOptions,
+            selected: marketFilters,
+            filterKey: 'market' as const,
+        },
+        {
+            title: 'Макрозона',
+            options: macrozoneOptions,
+            selected: macrozoneFilters,
+            filterKey: 'macrozone' as const,
+        },
+        {
+            title: 'Оборудование',
+            options: equipmentOptions,
+            selected: equipmentFilters,
+            filterKey: 'equipment' as const,
+        },
         ...(role !== 'SUPPLIER'
-            ? [{ title: 'Supplier', options: supplierOptions, selected: supplierFilters, filterKey: 'supplierIds' as const }] // Map to supplierIds
+            ? [
+                  {
+                      title: 'Поставщик',
+                      options: supplierOptions,
+                      selected: supplierFilters,
+                      filterKey: 'supplierIds' as const,
+                  },
+              ] // Map to supplierIds
             : []),
     ];
 
@@ -80,20 +97,27 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
         (update: Partial<BookingRequestFilters>) => {
             // Map keys from BookingRequestFilters back to ZonesFilterCriteria
             const mappedUpdate: Partial<ZonesFilterCriteria> = {};
-            if ('city' in update && update.city !== undefined) mappedUpdate.cityFilters = update.city;
-            if ('market' in update && update.market !== undefined) mappedUpdate.marketFilters = update.market;
-            if ('macrozone' in update && update.macrozone !== undefined) mappedUpdate.macrozoneFilters = update.macrozone;
-            if ('equipment' in update && update.equipment !== undefined) mappedUpdate.equipmentFilters = update.equipment;
-            if ('supplierIds' in update && update.supplierIds !== undefined) mappedUpdate.supplierFilters = update.supplierIds;
+            if ('city' in update && update.city !== undefined)
+                mappedUpdate.cityFilters = update.city;
+            if ('market' in update && update.market !== undefined)
+                mappedUpdate.marketFilters = update.market;
+            if ('macrozone' in update && update.macrozone !== undefined)
+                mappedUpdate.macrozoneFilters = update.macrozone;
+            if ('equipment' in update && update.equipment !== undefined)
+                mappedUpdate.equipmentFilters = update.equipment;
+            if ('supplierIds' in update && update.supplierIds !== undefined)
+                mappedUpdate.supplierFilters = update.supplierIds;
             // Pass through other potential updates directly if keys match
-            if ('searchTerm' in update && typeof update.searchTerm === 'string') mappedUpdate.searchTerm = update.searchTerm;
-            if ('activeTab' in update && typeof update.activeTab === 'string') mappedUpdate.activeTab = update.activeTab;
+            if ('searchTerm' in update && typeof update.searchTerm === 'string')
+                mappedUpdate.searchTerm = update.searchTerm;
+            if ('activeTab' in update && typeof update.activeTab === 'string')
+                mappedUpdate.activeTab = update.activeTab;
 
             if (Object.keys(mappedUpdate).length > 0) {
                 setFilterCriteria(mappedUpdate);
             }
         },
-        [setFilterCriteria]
+        [setFilterCriteria],
     );
 
     // --- Prepare filterCriteria for SelectedFiltersDisplay (Logic moved from ZonesFilters) ---
@@ -113,7 +137,7 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
     return (
         <div className="space-y-4">
             <DropdownFilterGroup
-                groupTitle="Filters"
+                groupTitle="Фильтры"
                 dropdowns={dropdownConfigs}
                 setFilterCriteria={handleSetFilter} // Use internal handler
                 isLoading={isLoading}

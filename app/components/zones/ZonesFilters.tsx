@@ -57,7 +57,7 @@ export function ZonesFilters({ selectedCategory = null }) {
                             disabled={isLoading}
                             className="whitespace-nowrap"
                         >
-                            Reset Filters
+                            Сбросить фильтры
                         </Button>
                         <Button
                             onClick={fetchZones}
@@ -65,7 +65,7 @@ export function ZonesFilters({ selectedCategory = null }) {
                             className="whitespace-nowrap"
                         >
                             <RefreshCw className="mr-2 h-4 w-4" />
-                            Refresh
+                            Обновить
                         </Button>
                     </div>
                 </div>

@@ -28,16 +28,16 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
             {/* Zone Parameters Search */}
             <div>
                 <label className="text-sm font-medium mb-1 block text-gray-700">
-                    Search by Zone Parameters {/* TODO: i18n */}
+                    Поиск по параметрам зоны
                 </label>
                 <Input
                     type="text"
-                    placeholder="City, market, macrozone, equipment..." /* TODO: i18n */
+                    placeholder="Город, маркет, макрозона, оборудование..."
                     value={searchTerm || ''}
                     onChange={onSearchTermChange}
                     disabled={isLoading}
                     className="w-full"
-                    aria-label="Search by zone parameters" // Added aria-label
+                    aria-label="Поиск по параметрам зоны"
                 />
             </div>
 
@@ -45,16 +45,16 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
             {showSupplierSearch && (
                 <div>
                     <label className="text-sm font-medium mb-1 block text-gray-700">
-                        Search by Supplier Name {/* TODO: i18n */}
+                        Поиск по названию поставщика
                     </label>
                     <Input
                         type="text"
-                        placeholder="Supplier name..." /* TODO: i18n */
+                        placeholder="Название поставщика..."
                         value={supplierName || ''}
                         onChange={onSupplierNameChange}
                         disabled={isLoading}
                         className="w-full"
-                        aria-label="Search by supplier name" // Added aria-label
+                        aria-label="Поиск по названию поставщика"
                     />
                 </div>
             )}
