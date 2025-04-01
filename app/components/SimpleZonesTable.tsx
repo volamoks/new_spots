@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { use, useState } from 'react';
 import {
     Table,
     TableBody,
@@ -12,8 +12,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Zone } from '@/types/zone';
 import { ZoneStatus } from '@/types/zone';
-import { useLoader } from './GlobalLoader';
+// import { useLoader } from './GlobalLoader';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface SimpleZonesTableProps {
     zones: Zone[];
@@ -22,6 +23,7 @@ interface SimpleZonesTableProps {
 
 export function SimpleZonesTable({ zones, onRefresh }: SimpleZonesTableProps) {
     const [searchTerm, setSearchTerm] = useState('');
+    const { user } = useAuth();
     const { withLoading } = useLoader();
     const { toast } = useToast();
 
@@ -99,6 +101,10 @@ export function SimpleZonesTable({ zones, onRefresh }: SimpleZonesTableProps) {
         }
     };
 
+    if (!user) {
+        return;
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -129,7 +135,7 @@ export function SimpleZonesTable({ zones, onRefresh }: SimpleZonesTableProps) {
                             <TableHead>Магазин</TableHead>
                             <TableHead>Макрозона</TableHead>
                             <TableHead>Статус</TableHead>
-                            <TableHead>Действия</TableHead>
+                            {user.role != 'SUPPLIER' && <TableHead>Действия</TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -161,55 +167,62 @@ export function SimpleZonesTable({ zones, onRefresh }: SimpleZonesTableProps) {
                                             )}
                                         </span>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col space-y-1">
-                                            <button
-                                                onClick={() =>
-                                                    handleStatusChange(
-                                                        zone.id,
-                                                        ZoneStatus.AVAILABLE,
-                                                    )
-                                                }
-                                                disabled={zone.status === ZoneStatus.AVAILABLE}
-                                                className={`text-xs px-2 py-1 rounded ${
-                                                    zone.status === ZoneStatus.AVAILABLE
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                }`}
-                                            >
-                                                Доступна
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    handleStatusChange(zone.id, ZoneStatus.BOOKED)
-                                                }
-                                                disabled={zone.status === ZoneStatus.BOOKED}
-                                                className={`text-xs px-2 py-1 rounded ${
-                                                    zone.status === ZoneStatus.BOOKED
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-                                                }`}
-                                            >
-                                                Забронирована
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    handleStatusChange(
-                                                        zone.id,
-                                                        ZoneStatus.UNAVAILABLE,
-                                                    )
-                                                }
-                                                disabled={zone.status === ZoneStatus.UNAVAILABLE}
-                                                className={`text-xs px-2 py-1 rounded ${
-                                                    zone.status === ZoneStatus.UNAVAILABLE
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-red-100 text-red-800 hover:bg-red-200'
-                                                }`}
-                                            >
-                                                Недоступна
-                                            </button>
-                                        </div>
-                                    </TableCell>
+                                    {user.role !== 'SUPPLIER' && (
+                                        <TableCell>
+                                            <div className="flex flex-col space-y-1">
+                                                <button
+                                                    onClick={() =>
+                                                        handleStatusChange(
+                                                            zone.id,
+                                                            ZoneStatus.AVAILABLE,
+                                                        )
+                                                    }
+                                                    disabled={zone.status === ZoneStatus.AVAILABLE}
+                                                    className={`text-xs px-2 py-1 rounded ${
+                                                        zone.status === ZoneStatus.AVAILABLE
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                            : 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                    }`}
+                                                >
+                                                    Доступна
+                                                </button>
+                                                <button
+                                                    onClick={() =>
+                                                        handleStatusChange(
+                                                            zone.id,
+                                                            ZoneStatus.BOOKED,
+                                                        )
+                                                    }
+                                                    disabled={zone.status === ZoneStatus.BOOKED}
+                                                    className={`text-xs px-2 py-1 rounded ${
+                                                        zone.status === ZoneStatus.BOOKED
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                            : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                                                    }`}
+                                                >
+                                                    Забронирована
+                                                </button>
+                                                <button
+                                                    onClick={() =>
+                                                        handleStatusChange(
+                                                            zone.id,
+                                                            ZoneStatus.UNAVAILABLE,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        zone.status === ZoneStatus.UNAVAILABLE
+                                                    }
+                                                    className={`text-xs px-2 py-1 rounded ${
+                                                        zone.status === ZoneStatus.UNAVAILABLE
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                            : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                                    }`}
+                                                >
+                                                    Недоступна
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))
                         ) : (

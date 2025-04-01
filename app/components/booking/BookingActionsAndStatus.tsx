@@ -50,15 +50,18 @@ export function BookingActionsAndStatus({
             <TableCell>
                 <StatusBadge status={displayStatus} />
             </TableCell>
-            <TableCell>
-                <BookingActions
-                    booking={booking}
-                    userRole={userRole}
-                    requestId={requestId}
-                    onApprove={onApprove}
-                    onReject={onReject}
-                />
-            </TableCell>
+            {/* Conditionally render actions cell only if not a supplier */}
+            {userRole !== BookingRole.SUPPLIER && (
+                <TableCell>
+                    <BookingActions
+                        booking={booking}
+                        userRole={userRole}
+                        requestId={requestId}
+                        onApprove={onApprove}
+                        onReject={onReject}
+                    />
+                </TableCell>
+            )}
         </>
     );
 }

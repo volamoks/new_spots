@@ -174,7 +174,7 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                         <TableHead>Макрозона</TableHead>
                         <TableHead>Статус</TableHead>
                         {/* <TableHead>Дата создания</TableHead> */}
-                        <TableHead>Действия</TableHead>
+                        {userRole !== BookingRole.SUPPLIER && <TableHead>Действия</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -57,7 +57,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
             case 'REQUEST_NEW':
                 return 'Новая заявка';
             case 'REQUEST_PROCESSED_KM':
-                return 'На согласовании'; // Changed text to be neutral
+                return 'В работе'; // Changed text to be neutral
             case 'REQUEST_CLOSED':
                 return 'Заявка закрыта';
             case 'REQUEST_EMPTY':
