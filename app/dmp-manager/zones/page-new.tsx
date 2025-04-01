@@ -21,10 +21,11 @@ export default function DmpManagerZonesPage() {
         // uniqueFilterValues, // Object containing unique values for filters (used by ZonesFilters)
         isLoading,
         selectedZoneIds, // Now a Set<string>
-        totalFilteredCount, // Total count after filtering, before pagination
+        totalCount, // Use totalCount from the refactored store
 
         // Actions from zonesStore
         fetchZones,
+        fetchFilterOptions, // Added action
         // setFilterCriteria, // Removed - No longer used directly in this component
         // toggleFilter, // Replaced by setFilterCriteria
         // removeFilter, // Replaced by setFilterCriteria
@@ -34,13 +35,15 @@ export default function DmpManagerZonesPage() {
         bulkDeleteZones,
         updateZoneField,
     } = useDmpManagerZones();
-
-    // Загружаем зоны при инициализации
+    // Загружаем зоны и опции фильтров при инициализации
     useEffect(() => {
         if (session) {
-            fetchZones(); // Removed argument as fetchZones no longer accepts role
+            // Fetch both zones and filter options on mount
+            fetchZones();
+            fetchFilterOptions();
         }
-    }, [session, fetchZones]);
+    }, [session, fetchZones, fetchFilterOptions]); // Add fetchFilterOptions dependency
+    // Removed duplicate closing part from previous diff
 
     // Обработчик изменения статуса зоны
     // const handleStatusChange = async (zoneId: string, newStatus: ZoneStatus) => {
@@ -100,8 +103,8 @@ export default function DmpManagerZonesPage() {
             <main className="flex-grow container mx-auto px-4 py-8">
                 {/* Карточка с информацией */}
                 <ZonesSummaryCard
-                    totalCount={zones.length}
-                    filteredCount={totalFilteredCount} // Use totalFilteredCount from store
+                    totalCount={zones.length} // This might represent current page count, consider if totalCount is better here
+                    filteredCount={totalCount} // Use totalCount from store for the overall filtered count
                 />
 
                 {/* Фильтры */}
@@ -191,7 +194,7 @@ export default function DmpManagerZonesPage() {
                         // Wrap to match Promise<void>
                         await updateZoneField(zoneId, field, value);
                     }}
-                    initialFetchRole="DMP_MANAGER" // Pass role for initial fetch if needed
+                    // initialFetchRole="DMP_MANAGER" // Removed unused prop
                 />
             </main>
         </div>

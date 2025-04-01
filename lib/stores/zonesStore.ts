@@ -1,94 +1,15 @@
 import { create } from 'zustand';
-import { Zone, ZoneKeys } from "@/types/zone";
-import { devtools } from 'zustand/middleware'; // Optional: for debugging
+import { Zone, ZoneKeys } from "@/types/zone"; // Removed ZoneStatus as it's not used here directly
+import { devtools } from 'zustand/middleware';
+import { ZoneStatus as PrismaZoneStatus } from "@prisma/client"; // Import Prisma status for filter options type
 
 // --- Helper Functions ---
 
-// Function to calculate unique values for filters
-const calculateUniqueValues = (zones: Zone[]): UniqueFilterValues => {
-    const uniqueCities = Array.from(new Set(zones.map(zone => zone.city || ''))).filter(Boolean).sort();
-    const uniqueMarkets = Array.from(new Set(zones.map(zone => zone.market || ''))).filter(Boolean).sort();
-    const uniqueMacrozones = Array.from(new Set(zones.map(zone => zone.mainMacrozone || ''))).filter(Boolean).sort();
-    const uniqueEquipments = Array.from(new Set(zones.map(zone => zone.equipment || ''))).filter(Boolean).sort();
-    const uniqueSuppliers = Array.from(new Set(zones.map(zone => zone.supplier || ''))).filter(Boolean).sort();
-    const uniqueStatuses = Array.from(new Set(zones.map(zone => zone.status || ''))).filter(Boolean).sort();
-
-    return {
-        cities: uniqueCities,
-        markets: uniqueMarkets,
-        macrozones: uniqueMacrozones,
-        equipments: uniqueEquipments,
-        suppliers: uniqueSuppliers,
-        statuses: uniqueStatuses,
-    };
-};
-
-// Function to apply filters and sorting
-const applyFiltersAndSort = (zones: Zone[], criteria: FilterCriteria, sort: SortCriteria): Zone[] => {
-    let result = [...zones];
-
-    // Filter by status (activeTab)
-    if (criteria.activeTab && criteria.activeTab !== 'all') {
-        result = result.filter(zone => zone.status === criteria.activeTab);
-    }
-    // Filter by search term
-    if (criteria.searchTerm) {
-        const term = criteria.searchTerm.toLowerCase();
-        result = result.filter(zone =>
-            Object.values(zone).some(value =>
-                String(value).toLowerCase().includes(term)
-            )
-        );
-    }
-    // Filter by specific fields
-    if (criteria.cityFilters.length > 0) {
-        result = result.filter(zone => criteria.cityFilters.includes(zone.city));
-    }
-    if (criteria.marketFilters.length > 0) {
-        result = result.filter(zone => criteria.marketFilters.includes(zone.market));
-    }
-    if (criteria.macrozoneFilters.length > 0) {
-        result = result.filter(zone => criteria.macrozoneFilters.includes(zone.mainMacrozone));
-    }
-    if (criteria.equipmentFilters.length > 0) {
-        result = result.filter(zone => zone.equipment && criteria.equipmentFilters.includes(zone.equipment));
-    }
-    if (criteria.supplierFilters.length > 0) {
-        result = result.filter(zone => zone.supplier && criteria.supplierFilters.includes(zone.supplier));
-    }
-
-    // Sorting
-    if (sort.field && sort.direction) {
-        const { field, direction } = sort;
-        result.sort((a, b) => {
-            const valueA = a[field] ?? '';
-            const valueB = b[field] ?? '';
-
-            if (typeof valueA === 'string' && typeof valueB === 'string') {
-                return direction === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
-            } else if (typeof valueA === 'number' && typeof valueB === 'number') {
-                return direction === 'asc' ? valueA - valueB : valueB - valueA;
-            } else if (valueA instanceof Date && valueB instanceof Date) {
-                return direction === 'asc' ? valueA.getTime() - valueB.getTime() : valueB.getTime() - valueA.getTime();
-            }
-            return 0; // Default: no sort for incompatible types
-        });
-    }
-
-    return result;
-};
-
-// Function to paginate results
-const paginate = (zones: Zone[], criteria: PaginationCriteria): Zone[] => {
-    const startIndex = (criteria.currentPage - 1) * criteria.itemsPerPage;
-    const endIndex = startIndex + criteria.itemsPerPage;
-    return zones.slice(startIndex, endIndex);
-};
-
+// REMOVED: calculateUniqueValues function (no longer needed here)
 
 // --- Types ---
 
-export interface FilterCriteria { // Added export
+export interface FilterCriteria {
     searchTerm: string;
     activeTab: string; // Corresponds to ZoneStatus or 'all'
     cityFilters: string[];
@@ -96,6 +17,8 @@ export interface FilterCriteria { // Added export
     macrozoneFilters: string[];
     equipmentFilters: string[];
     supplierFilters: string[];
+    // Add category filter if needed
+    category?: string;
 }
 
 interface SortCriteria {
@@ -108,44 +31,45 @@ interface PaginationCriteria {
     itemsPerPage: number;
 }
 
+// Updated to match the new API endpoint response
 interface UniqueFilterValues {
     cities: string[];
     markets: string[];
     macrozones: string[];
     equipments: string[];
     suppliers: string[];
-    statuses: string[];
+    statuses: PrismaZoneStatus[]; // Use Prisma enum type
 }
 
 interface ZonesState {
     // Core State
     zones: Zone[];
-    selectedZoneIds: Set<string>; // Use Set for efficient add/delete/check
-    isLoading: boolean;
+    totalCount: number;
+    selectedZoneIds: Set<string>;
+    isLoading: boolean; // Loading state for zone data
+    isLoadingFilters: boolean; // Separate loading state for filter options
     error: string | null;
+    filtersError: string | null; // Separate error state for filter options
 
     // Criteria State
     filterCriteria: FilterCriteria;
     sortCriteria: SortCriteria;
     paginationCriteria: PaginationCriteria;
 
-    // Derived State (managed internally by actions)
-    _filteredSortedZones: Zone[]; // Internal state for filtered/sorted data before pagination
-    paginatedZones: Zone[]; // Final data for UI display
+    // Filter Options State
     uniqueFilterValues: UniqueFilterValues;
-    totalFilteredCount: number; // Total count after filtering, before pagination
 
     // Actions
-    fetchZones: (role?: string) => Promise<void>;
+    fetchZones: () => Promise<void>;
+    fetchFilterOptions: () => Promise<void>; // New action
     setFilterCriteria: (criteria: Partial<FilterCriteria>) => void;
     setSortCriteria: (criteria: SortCriteria) => void;
     setPaginationCriteria: (criteria: Partial<PaginationCriteria>) => void;
     toggleZoneSelection: (zoneId: string) => void;
-    toggleSelectAll: (select: boolean, zoneIdsOnPage: string[]) => void;
+    toggleSelectAll: (select: boolean) => void;
     clearSelection: () => void;
-    updateZoneLocally: (zoneId: string, updates: Partial<Zone>) => void; // For optimistic UI
+    updateZoneLocally: (zoneId: string, updates: Partial<Zone>) => void;
     resetFilters: () => void;
-    _recalculateDerivedState: () => void; // Internal action
 }
 
 // --- Initial State ---
@@ -158,116 +82,160 @@ const initialFilterCriteria: FilterCriteria = {
     macrozoneFilters: [],
     equipmentFilters: [],
     supplierFilters: [],
+    category: undefined,
 };
 
 const initialSortCriteria: SortCriteria = {
-    field: null,
-    direction: null,
+    field: 'city',
+    direction: 'asc',
 };
 
 const initialPaginationCriteria: PaginationCriteria = {
     currentPage: 1,
-    itemsPerPage: 10, // Default items per page
+    itemsPerPage: 20,
+};
+
+const initialUniqueFilterValues: UniqueFilterValues = {
+    cities: [], markets: [], macrozones: [], equipments: [], suppliers: [], statuses: []
 };
 
 // --- Store Definition ---
 
 export const useZonesStore = create<ZonesState>()(
-    devtools( // Optional: Wrap with devtools for Redux DevTools extension
+    devtools(
         (set, get) => ({
             // Core State
             zones: [],
+            totalCount: 0,
             selectedZoneIds: new Set(),
             isLoading: false,
+            isLoadingFilters: false,
             error: null,
+            filtersError: null,
 
             // Criteria State
             filterCriteria: initialFilterCriteria,
             sortCriteria: initialSortCriteria,
             paginationCriteria: initialPaginationCriteria,
 
-            // Derived State
-            _filteredSortedZones: [],
-            paginatedZones: [],
-            uniqueFilterValues: { cities: [], markets: [], macrozones: [], equipments: [], suppliers: [], statuses: [] },
-            totalFilteredCount: 0,
+            // Filter Options State
+            uniqueFilterValues: initialUniqueFilterValues,
 
-            // --- Internal Action ---
-            _recalculateDerivedState: () => {
-                const { zones, filterCriteria, sortCriteria, paginationCriteria } = get();
-                const filteredSorted = applyFiltersAndSort(zones, filterCriteria, sortCriteria);
-                const paginated = paginate(filteredSorted, paginationCriteria);
-                set({
-                    _filteredSortedZones: filteredSorted,
-                    paginatedZones: paginated,
-                    totalFilteredCount: filteredSorted.length,
-                    // Reset page to 1 if current page becomes invalid after filtering
-                    paginationCriteria: {
-                        ...paginationCriteria,
-                        currentPage: Math.min(paginationCriteria.currentPage, Math.ceil(filteredSorted.length / paginationCriteria.itemsPerPage) || 1)
-                    }
-                });
-                // Re-paginate with potentially updated currentPage
-                const finalPaginated = paginate(filteredSorted, get().paginationCriteria);
-                set({ paginatedZones: finalPaginated });
-            },
-
-            // --- Public Actions ---
-            fetchZones: async () => { // Removed unused 'role' parameter
+            // --- Actions ---
+            fetchZones: async () => {
+                const { filterCriteria, sortCriteria, paginationCriteria } = get();
+                // Don't reset filtersError here, only zone fetch error
                 set({ isLoading: true, error: null });
+
                 try {
-                    let url = '/api/zones';
-                    const params = new URLSearchParams(); // Changed 'let' to 'const'
-                    // Example: Filter by status on backend if needed for specific roles
-                    // if (role === "SUPPLIER" || role === "CATEGORY_MANAGER") {
-                    //     params.append("status", ZoneStatus.AVAILABLE);
-                    // }
-                    const paramsString = params.toString();
-                    if (paramsString) url += `?${paramsString}`;
+                    const params = new URLSearchParams();
+
+                    // --- Append Filters ---
+                    if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
+                        params.append('status', filterCriteria.activeTab);
+                    }
+                    filterCriteria.macrozoneFilters.forEach(mz => params.append('macrozone', mz));
+                    filterCriteria.cityFilters.forEach(city => params.append('city', city));
+                    filterCriteria.marketFilters.forEach(market => params.append('market', market));
+                    filterCriteria.equipmentFilters.forEach(eq => params.append('equipment', eq));
+                    filterCriteria.supplierFilters.forEach(sup => params.append('supplier', sup));
+                    if (filterCriteria.category) {
+                        params.append('category', filterCriteria.category);
+                    }
+                    // Add searchTerm if API supports it
+
+                    // --- Append Sorting ---
+                    if (sortCriteria.field && sortCriteria.direction) {
+                        params.append('sortField', sortCriteria.field);
+                        params.append('sortDirection', sortCriteria.direction);
+                    }
+
+                    // --- Append Pagination ---
+                    params.append('page', paginationCriteria.currentPage.toString());
+                    params.append('pageSize', paginationCriteria.itemsPerPage.toString());
+
+                    const url = `/api/zones?${params.toString()}`;
+                    console.log("Fetching zones from:", url);
 
                     const response = await fetch(url);
                     if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch zones' }));
-                        throw new Error(errorData.error || 'Failed to fetch zones');
+                        const errorData = await response.json().catch(() => ({ error: `Failed to fetch zones (status: ${response.status})` }));
+                        throw new Error(errorData.error || `Failed to fetch zones (status: ${response.status})`);
                     }
-                    const fetchedZones: Zone[] = await response.json();
+
+                    const { zones: fetchedZones, totalCount: fetchedTotalCount } = await response.json();
+
+                    if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
+                         console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
+                         throw new Error("Invalid response structure from API");
+                    }
 
                     set({
                         zones: fetchedZones,
+                        totalCount: fetchedTotalCount,
                         isLoading: false,
-                        uniqueFilterValues: calculateUniqueValues(fetchedZones),
-                        selectedZoneIds: new Set(), // Clear selection on new data fetch
+                        // REMOVED calculation of unique values here
                     });
-                    get()._recalculateDerivedState(); // Apply initial filters/pagination
+
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : "Unknown error fetching zones";
                     console.error("Error fetching zones:", errorMessage);
-                    set({ error: errorMessage, isLoading: false, zones: [], _filteredSortedZones: [], paginatedZones: [] });
+                    set({ error: errorMessage, isLoading: false, zones: [], totalCount: 0 });
+                }
+            },
+
+            // New action to fetch filter options
+            fetchFilterOptions: async () => {
+                // Don't reset main error state here
+                set({ isLoadingFilters: true, filtersError: null });
+                try {
+                    const response = await fetch('/api/zones/filters');
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch filter options' }));
+                        throw new Error(errorData.error || 'Failed to fetch filter options');
+                    }
+                    const options: UniqueFilterValues = await response.json();
+
+                    // Validate fetched options structure if necessary
+                    if (!options || typeof options !== 'object' || !Array.isArray(options.cities)) {
+                         console.error("Invalid filter options structure:", options);
+                         throw new Error("Invalid filter options structure from API");
+                    }
+
+                    set({
+                        uniqueFilterValues: options,
+                        isLoadingFilters: false,
+                    });
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : "Unknown error fetching filter options";
+                    console.error("Error fetching filter options:", errorMessage);
+                    set({ filtersError: errorMessage, isLoadingFilters: false });
                 }
             },
 
             setFilterCriteria: (criteriaUpdate) => {
+                const currentPage = 1;
                 set((state) => ({
                     filterCriteria: { ...state.filterCriteria, ...criteriaUpdate },
-                    // Reset to page 1 when filters change
-                    paginationCriteria: { ...state.paginationCriteria, currentPage: 1 }
+                    paginationCriteria: { ...state.paginationCriteria, currentPage }
                 }));
-                get()._recalculateDerivedState();
+                get().fetchZones();
             },
 
             setSortCriteria: (newSortCriteria) => {
-                set({ sortCriteria: newSortCriteria });
-                get()._recalculateDerivedState();
+                const currentPage = 1;
+                set((state) => ({
+                     sortCriteria: newSortCriteria,
+                     paginationCriteria: { ...state.paginationCriteria, currentPage }
+                }));
+                get().fetchZones();
             },
 
             setPaginationCriteria: (criteriaUpdate) => {
                 set((state) => ({
                     paginationCriteria: { ...state.paginationCriteria, ...criteriaUpdate }
                 }));
-                // Only need to re-paginate, not re-filter/sort
-                const { _filteredSortedZones, paginationCriteria } = get();
-                const paginated = paginate(_filteredSortedZones, paginationCriteria);
-                set({ paginatedZones: paginated });
+                get().fetchZones();
             },
 
             toggleZoneSelection: (zoneId) => {
@@ -282,9 +250,10 @@ export const useZonesStore = create<ZonesState>()(
                 });
             },
 
-            toggleSelectAll: (select, zoneIdsOnPage) => {
+            toggleSelectAll: (select) => {
                 set((state) => {
                     const newSelection = new Set(state.selectedZoneIds);
+                    const zoneIdsOnPage = state.zones.map(z => z.id);
                     if (select) {
                         zoneIdsOnPage.forEach(id => newSelection.add(id));
                     } else {
@@ -304,23 +273,20 @@ export const useZonesStore = create<ZonesState>()(
                         zone.id === zoneId ? { ...zone, ...updates } : zone
                     )
                 }));
-                // Recalculate derived state as filters/sorting might be affected
-                get()._recalculateDerivedState();
-                // Optionally recalculate unique values if relevant fields changed
-                // set({ uniqueFilterValues: calculateUniqueValues(get().zones) });
+                // Optionally refetch if update affects filtering/sorting
+                // get().fetchZones();
             },
 
             resetFilters: () => {
                 set({
                     filterCriteria: initialFilterCriteria,
                     sortCriteria: initialSortCriteria,
-                    // Optionally reset pagination, or keep itemsPerPage
                     paginationCriteria: { ...get().paginationCriteria, currentPage: 1 },
-                    selectedZoneIds: new Set(), // Also clear selection
+                    selectedZoneIds: new Set(),
                 });
-                get()._recalculateDerivedState();
+                get().fetchZones();
             },
         }),
-        { name: 'zonesStore' } // Name for Redux DevTools
+        { name: 'zonesStore' }
     )
 );

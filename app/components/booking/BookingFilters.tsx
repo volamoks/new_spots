@@ -1,46 +1,38 @@
-import React, { useMemo } from 'react';
-import { useBookingZonesStore } from '@/lib/stores/bookingZonesStore';
-import { getCorrespondingMacrozones } from '@/lib/filterData';
-import { SimpleZoneFilterDropdown } from '@/app/components/zones/SimpleZoneFilterDropdown';
-import { ZoneSelectedFilters } from '@/app/components/zones/ZoneSelectedFilters';
-import { Input } from '@/components/ui/input';
+import React from 'react';
+import { useZonesStore, type FilterCriteria } from '@/lib/stores/zonesStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { SearchFilters } from './SearchFilters'; // Import the new component
+import { DropdownFilterGroup } from './DropdownFilterGroup'; // Import the new component
+import { SelectedFiltersDisplay } from './SelectedFiltersDisplay'; // Import the new component
+// Import BookingRequestFilters type if needed for SelectedFiltersDisplay prop typing
+import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
 
 const BookingFilters = () => {
-    const {
-        searchTerm,
-        cityFilters,
-        marketFilters,
-        macrozoneFilters,
-        equipmentFilters,
-        supplierFilters,
-        categoryFilter,
-        uniqueCities,
-        uniqueMarkets,
-        uniqueEquipments,
-        isLoading,
-        setSearchTerm,
-        toggleFilter,
-        removeFilter,
-        resetFilters,
-    } = useBookingZonesStore();
+    const { filterCriteria, uniqueFilterValues, isLoading, setFilterCriteria, resetFilters } =
+        useZonesStore();
 
+    // Destructure unique values for convenience
+    const {
+        cities: uniqueCities,
+        markets: uniqueMarkets,
+        macrozones: uniqueMacrozones, // Use uniqueMacrozones from the store directly
+        equipments: uniqueEquipments,
+    } = uniqueFilterValues;
+
+    // Prepare options for dropdowns
     const cityOptions = Array.isArray(uniqueCities)
         ? uniqueCities.map(city => ({ value: city, label: city }))
         : [];
     const marketOptions = Array.isArray(uniqueMarkets)
         ? uniqueMarkets.map(market => ({ value: market, label: market }))
         : [];
-    const macrozoneOptions = useMemo(() => {
-        if (!categoryFilter) return [];
-
-        const macrozones = getCorrespondingMacrozones(categoryFilter);
-        return macrozones.map(macrozone => ({
-            value: macrozone,
-            label: macrozone,
-        }));
-    }, [categoryFilter]);
+    const macrozoneOptions = Array.isArray(uniqueMacrozones)
+        ? uniqueMacrozones.map(macrozone => ({
+              value: macrozone,
+              label: macrozone,
+          }))
+        : [];
     const equipmentOptions = Array.isArray(uniqueEquipments)
         ? uniqueEquipments.map(equipment => ({
               value: equipment,
@@ -48,120 +40,115 @@ const BookingFilters = () => {
           }))
         : [];
 
-    // Handle filter changes
-    const handleFilterChange = (
-        type: 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier',
-        values: string[],
-    ) => {
-        // For each value that was previously selected but is no longer in the values array,
-        // remove it from the filter
-        const currentFilters =
-            type === 'city'
-                ? cityFilters
-                : type === 'market'
-                ? marketFilters
-                : type === 'macrozone'
-                ? macrozoneFilters
-                : type === 'equipment'
-                ? equipmentFilters
-                : supplierFilters;
+    // Configuration for Zone Dropdowns
+    const zoneDropdowns = [
+        {
+            title: 'City',
+            options: cityOptions,
+            selected: filterCriteria.cityFilters, // Match FilterCriteria keys
+            filterKey: 'cityFilters' as keyof FilterCriteria & string,
+        },
+        {
+            title: 'Market',
+            options: marketOptions,
+            selected: filterCriteria.marketFilters, // Match FilterCriteria keys
+            filterKey: 'marketFilters' as keyof FilterCriteria & string,
+        },
+        {
+            title: 'Macrozone',
+            options: macrozoneOptions,
+            selected: filterCriteria.macrozoneFilters, // Match FilterCriteria keys
+            filterKey: 'macrozoneFilters' as keyof FilterCriteria & string,
+        },
+        {
+            title: 'Equipment',
+            options: equipmentOptions,
+            selected: filterCriteria.equipmentFilters, // Match FilterCriteria keys
+            filterKey: 'equipmentFilters' as keyof FilterCriteria & string,
+        },
+    ];
 
-        currentFilters.forEach(value => {
-            if (!values.includes(value)) {
-                removeFilter(type, value);
-            }
-        });
-
-        // For each value that is newly selected, add it to the filter
-        values.forEach(value => {
-            if (!currentFilters.includes(value)) {
-                toggleFilter(type, value);
-            }
-        });
+    // Handle search term change
+    const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFilterCriteria({ searchTerm: e.target.value });
     };
 
-    return (
-        <Card className="mb-6">
-            <CardContent className="p-4 space-y-4">
-                <label className="block text-m font-medium mb-2 mt-4">Выберите фильтры</label>
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                        <Input
-                            type="text"
-                            placeholder="Поиск по городу, магазину, макрозоне..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            disabled={isLoading}
-                            className="w-full"
-                        />
-                    </div>
-                </div>
+    // Note: Supplier name search is omitted as it wasn't present in the original BookingFilters
+    // and might not be relevant when selecting zones for a *new* booking.
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                    <SimpleZoneFilterDropdown
-                        title="Город"
-                        options={cityOptions}
-                        selected={cityFilters}
-                        onChange={(values: string[]) => handleFilterChange('city', values)}
-                        isDisabled={isLoading}
-                    />
-                    <SimpleZoneFilterDropdown
-                        title="Магазин"
-                        options={marketOptions}
-                        selected={marketFilters}
-                        onChange={(values: string[]) => handleFilterChange('market', values)}
-                        isDisabled={isLoading}
-                    />
-                    <SimpleZoneFilterDropdown
-                        title={`Макрозона${
-                            macrozoneFilters.length > 0 ? ` (${macrozoneFilters.length})` : ''
-                        }`}
-                        options={macrozoneOptions}
-                        selected={macrozoneFilters}
-                        onChange={(values: string[]) => handleFilterChange('macrozone', values)}
-                        isDisabled={isLoading}
-                    />
-                    <SimpleZoneFilterDropdown
-                        title="Оборудование"
-                        options={equipmentOptions}
-                        selected={equipmentFilters}
-                        onChange={(values: string[]) => handleFilterChange('equipment', values)}
-                        isDisabled={isLoading}
-                    />
-                    {/* <SimpleZoneFilterDropdown
-                        title="Поставщик"
-                        options={supplierOptions}
-                        selected={supplierFilters}
-                        onChange={(values: string[]) => handleFilterChange('supplier', values)}
-                        isDisabled={isLoading}
-                    /> */}
+    return (
+        <Card className="mb-6 shadow-sm">
+            <CardContent className="p-6 space-y-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Select Zone Filters</h3>{' '}
+                {/* TODO: i18n */}
+                {/* Search Field (using SearchFilters component, but only the searchTerm part) */}
+                <SearchFilters
+                    searchTerm={filterCriteria.searchTerm}
+                    // supplierName is not used here, pass empty string
+                    supplierName=""
+                    isLoading={isLoading}
+                    onSearchTermChange={handleSearchTermChange}
+                    // No supplier name change handler needed here
+                    onSupplierNameChange={() => {}} // Provide a dummy function
+                    // Removed hideSupplierSearch prop
+                />
+                {/* Zone Filters (Dropdowns) */}
+                <DropdownFilterGroup
+                    groupTitle="Zone Filters" // Add a title for clarity
+                    dropdowns={zoneDropdowns}
+                    setFilterCriteria={setFilterCriteria}
+                    isLoading={isLoading}
+                />
+                {/* Selected Filters Display */}
+                <SelectedFiltersDisplay
+                    // Cast the mapped object to satisfy the prop type, adding a dummy status
+                    filterCriteria={
+                        {
+                            city: filterCriteria.cityFilters,
+                            market: filterCriteria.marketFilters,
+                            macrozone: filterCriteria.macrozoneFilters,
+                            equipment: filterCriteria.equipmentFilters,
+                            status: [], // Add dummy status to satisfy BookingRequestFilters type
+                            // Ensure other required fields from BookingRequestFilters are handled if necessary
+                            // (e.g., supplierIds, dateFrom, dateTo might need dummy values if required)
+                            supplierIds: [], // Add dummy supplierIds
+                            dateFrom: undefined, // Add dummy dateFrom
+                            dateTo: undefined, // Add dummy dateTo
+                            searchTerm: filterCriteria.searchTerm, // Pass search term if SelectedFiltersDisplay uses it
+                            supplierName: '', // Pass dummy supplierName
+                        } as BookingRequestFilters
+                    } // Explicit cast
+                    setFilterCriteria={updates => {
+                        // Map the keys back when updating the store, ignoring status
+                        const mappedUpdates: Partial<FilterCriteria> = {};
+                        // Check for existence before assigning to avoid overwriting with undefined
+                        if ('city' in updates && updates.city !== undefined)
+                            mappedUpdates.cityFilters = updates.city;
+                        if ('market' in updates && updates.market !== undefined)
+                            mappedUpdates.marketFilters = updates.market;
+                        if ('macrozone' in updates && updates.macrozone !== undefined)
+                            mappedUpdates.macrozoneFilters = updates.macrozone;
+                        if ('equipment' in updates && updates.equipment !== undefined)
+                            mappedUpdates.equipmentFilters = updates.equipment;
+                        if ('searchTerm' in updates && updates.searchTerm !== undefined)
+                            mappedUpdates.searchTerm = updates.searchTerm;
+                        // Ignore status, supplierIds, dates, supplierName updates from SelectedFiltersDisplay
+                        if (Object.keys(mappedUpdates).length > 0) {
+                            setFilterCriteria(mappedUpdates);
+                        }
+                    }}
+                />
+                {/* Reset Button */}
+                <div className="flex justify-end pt-4">
+                    <Button
+                        variant="outline"
+                        onClick={resetFilters}
+                        disabled={isLoading}
+                        className="whitespace-nowrap"
+                    >
+                        Reset Filters {/* TODO: i18n */}
+                    </Button>
                 </div>
-                <div className="mb-4">
-                    <ZoneSelectedFilters
-                        filters={{
-                            city: cityFilters,
-                            market: marketFilters,
-                            macrozone: macrozoneFilters,
-                            equipment: equipmentFilters,
-                        }}
-                        labels={{
-                            city: 'Город',
-                            market: 'Магазин',
-                            macrozone: 'Макрозона',
-                            equipment: 'Оборудование',
-                        }}
-                        onRemove={removeFilter}
-                        className="mt-2"
-                    />
-                </div>
-                <Button
-                    variant="outline"
-                    onClick={resetFilters}
-                    disabled={isLoading}
-                    className="whitespace-nowrap"
-                >
-                    Сбросить фильтры
-                </Button>
             </CardContent>
         </Card>
     );

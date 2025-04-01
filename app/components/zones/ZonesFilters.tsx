@@ -1,52 +1,42 @@
 'use client';
 
+import React, { useCallback } from 'react'; // Import useCallback
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ZoneFilterTabs } from './ZoneFilterTabs';
-import { ZoneSearchInput } from './ZoneSearchInput';
-import { SimpleZoneFilterDropdown } from './SimpleZoneFilterDropdown';
-import { ZoneSelectedFilters } from './ZoneSelectedFilters';
 import { RefreshCw } from 'lucide-react';
 import { getCorrespondingMacrozones } from '@/lib/filterData';
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Import the store
+// Use the base store hook
+import { useZonesStore } from '@/lib/stores/zonesStore';
+import type { FilterCriteria as ZonesFilterCriteria } from '@/lib/stores/zonesStore';
 
-// Define valid filter types used for dropdowns in this component
-// type DropdownFilterType = 'city' | 'market' | 'macrozone' | 'equipment' | 'supplier'; // Removed unused type
+// Import the common filter components
+import { SearchFilters } from '@/app/components/booking/SearchFilters';
+import { DropdownFilterGroup } from '@/app/components/booking/DropdownFilterGroup';
+import { SelectedFiltersDisplay } from '@/app/components/booking/SelectedFiltersDisplay';
+import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
 
-// --- Simplified Props ---
 interface ZonesFiltersProps {
-    // onFilterChange prop removed - handled internally via store
-    // onFilterRemove prop removed - handled internally via store
-
-    // Configuration props
     role?: string;
     className?: string;
-    selectedCategory?: string | null; // Keep for macrozone filtering logic
+    selectedCategory?: string | null;
 }
 export function ZonesFilters({
-    // Keep necessary props
-    // onFilterChange, // Removed
     role = 'DMP_MANAGER',
     className = '',
-    selectedCategory = null, // Keep for macrozone filtering logic
+    selectedCategory = null,
 }: ZonesFiltersProps) {
-    // --- Get State and Actions from Store ---
+    // Use the base store hook
     const {
-        // State objects from the primary zonesStore
-        filterCriteria, // Contains activeTab, searchTerm, cityFilters, etc.
-        uniqueFilterValues, // Contains uniqueCities, uniqueMarkets, etc.
+        filterCriteria,
+        uniqueFilterValues,
         isLoading,
-
-        // Actions from the primary zonesStore
-        setFilterCriteria, // Use this to update filters
+        setFilterCriteria, // Use this directly
         resetFilters,
+        fetchZones,
+    } = useZonesStore();
 
-        // Actions from dmpManagerActionsStore (via the hook)
-        refreshZones,
-        // Removed setSearchTerm, will use setFilterCriteria
-    } = useDmpManagerZones();
-
-    // Destructure further for convenience
+    // Destructure filter criteria and unique values
     const {
         activeTab,
         searchTerm,
@@ -56,7 +46,6 @@ export function ZonesFilters({
         equipmentFilters,
         supplierFilters,
     } = filterCriteria;
-    // Rename properties during destructuring
     const {
         cities: uniqueCities,
         markets: uniqueMarkets,
@@ -65,7 +54,7 @@ export function ZonesFilters({
         suppliers: uniqueSuppliers,
     } = uniqueFilterValues;
 
-    // --- Options for Dropdowns (logic remains the same) ---
+    // --- Options for Dropdowns ---
     const cityOptions = Array.isArray(uniqueCities)
         ? uniqueCities.map(city => ({ value: city, label: city }))
         : [];
@@ -87,143 +76,155 @@ export function ZonesFilters({
         ? uniqueSuppliers.map(supplier => ({ value: supplier, label: supplier }))
         : [];
 
-    // --- Construct filters object for ZoneSelectedFilters ---
-    // Use string keys to match ZoneSelectedFilters expectation
-    const selectedFiltersForDisplay: Partial<Record<string, string[]>> = {
-        city: cityFilters,
-        market: marketFilters,
-        macrozone: macrozoneFilters,
-        equipment: equipmentFilters,
-        supplier: supplierFilters,
+    // --- Configuration for Dropdowns ---
+    // Use filter keys expected by DropdownFilterGroup (likely from BookingRequestFilters)
+    const dropdownConfigs = [
+        { title: 'City', options: cityOptions, selected: cityFilters, filterKey: 'city' as const },
+        {
+            title: 'Market',
+            options: marketOptions,
+            selected: marketFilters,
+            filterKey: 'market' as const,
+        },
+        {
+            title: 'Macrozone',
+            options: macrozoneOptions,
+            selected: macrozoneFilters,
+            filterKey: 'macrozone' as const,
+        },
+        {
+            title: 'Equipment',
+            options: equipmentOptions,
+            selected: equipmentFilters,
+            filterKey: 'equipment' as const,
+        },
+        ...(role !== 'SUPPLIER'
+            ? [
+                  {
+                      title: 'Supplier',
+                      options: supplierOptions,
+                      selected: supplierFilters,
+                      filterKey: 'supplierIds' as const,
+                  },
+              ] // Map to supplierIds
+            : []),
+    ];
+
+    // --- Handlers ---
+
+    // Handler for simple text search
+    const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFilterCriteria({ searchTerm: e.target.value });
     };
 
-    // --- Filter Labels (logic remains the same) ---
-    // Use string keys to match ZoneSelectedFilters expectation
-    const filterLabels: Partial<Record<string, string>> = {
-        city: 'Город',
-        market: 'Магазин',
-        macrozone: 'Макрозона',
-        equipment: 'Оборудование',
-        supplier: 'Поставщик',
-    };
-
-    // --- Handle Filter Removal ---
-    // Accept 'type' as string to match ZoneSelectedFilters onRemove prop
-    const handleRemoveFilter = (type: string, valueToRemove: string) => {
-        // Map the string type to the corresponding key in filterCriteria
-        const filterKey = `${type}Filters` as keyof typeof filterCriteria; // e.g., 'cityFilters'
-
-        // Check if the key is valid before proceeding
-        if (!(filterKey in filterCriteria)) {
-            console.warn(`Invalid filter type received for removal: ${type}`);
-            return;
-        }
-
-        // Get the current array from the store's state
-        const currentValues = filterCriteria[filterKey] as string[] | undefined;
-
-        if (Array.isArray(currentValues)) {
-            // Filter out the value
-            const newValues = currentValues.filter(value => value !== valueToRemove);
-            // Update the store
-            setFilterCriteria({ [filterKey]: newValues });
-        }
-    };
+    // REMOVED handleDropdownChange - Pass setFilterCriteria directly, mapping happens in child
+    // REMOVED handleFilterRemove - Pass setFilterCriteria directly, mapping happens in child
 
     // --- Render ---
     return (
         <Card className={className}>
             <CardContent className="p-4 space-y-4">
-                {/* Tabs - Use store state/action */}
+                {/* Tabs */}
                 <ZoneFilterTabs
                     activeTab={activeTab}
-                    onTabChange={tab => setFilterCriteria({ activeTab: tab })} // Use setFilterCriteria
+                    onTabChange={tab => setFilterCriteria({ activeTab: tab })}
                     isDisabled={isLoading}
-                    role={role} // Keep role prop
+                    role={role}
                     className="mb-4"
                 />
 
-                {/* Search and Actions - Use store state/actions */}
+                {/* Search and Actions */}
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1">
-                        <ZoneSearchInput
-                            value={searchTerm}
-                            // Use setFilterCriteria to update the search term
-                            onChange={value => setFilterCriteria({ searchTerm: value })}
-                            isDisabled={isLoading}
+                        <SearchFilters
+                            searchTerm={searchTerm}
+                            supplierName="" // Not used here
+                            isLoading={isLoading}
+                            onSearchTermChange={handleSearchTermChange}
+                            onSupplierNameChange={() => {}} // Dummy handler
                         />
                     </div>
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
-                            onClick={resetFilters} // Use store action
+                            onClick={resetFilters}
                             disabled={isLoading}
                             className="whitespace-nowrap"
                         >
-                            Сбросить фильтры
+                            Reset Filters
                         </Button>
                         <Button
-                            onClick={refreshZones} // Use store action
+                            onClick={fetchZones}
                             disabled={isLoading}
                             className="whitespace-nowrap"
                         >
                             <RefreshCw className="mr-2 h-4 w-4" />
-                            Обновить
+                            Refresh
                         </Button>
                     </div>
                 </div>
 
-                {/* Dropdowns - Use store state and actions */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                    <SimpleZoneFilterDropdown
-                        title="Город"
-                        options={cityOptions}
-                        selected={cityFilters}
-                        filterKey="cityFilters" // Pass filterKey
-                        setFilterCriteria={setFilterCriteria} // Pass store action
-                        isDisabled={isLoading}
-                    />
-                    <SimpleZoneFilterDropdown
-                        title="Магазин"
-                        options={marketOptions}
-                        selected={marketFilters}
-                        filterKey="marketFilters" // Pass filterKey
-                        setFilterCriteria={setFilterCriteria} // Pass store action
-                        isDisabled={isLoading}
-                    />
-                    <SimpleZoneFilterDropdown
-                        title="Макрозона"
-                        options={macrozoneOptions}
-                        selected={macrozoneFilters}
-                        filterKey="macrozoneFilters" // Pass filterKey
-                        setFilterCriteria={setFilterCriteria} // Pass store action
-                        isDisabled={isLoading}
-                    />
-                    <SimpleZoneFilterDropdown
-                        title="Оборудование"
-                        options={equipmentOptions}
-                        selected={equipmentFilters}
-                        filterKey="equipmentFilters" // Pass filterKey
-                        setFilterCriteria={setFilterCriteria} // Pass store action
-                        isDisabled={isLoading}
-                    />
-                    {role !== 'SUPPLIER' && (
-                        <SimpleZoneFilterDropdown
-                            title="Поставщик"
-                            options={supplierOptions}
-                            selected={supplierFilters}
-                            filterKey="supplierFilters" // Pass filterKey
-                            setFilterCriteria={setFilterCriteria} // Pass store action
-                            isDisabled={isLoading}
-                        />
-                    )}
-                </div>
+                {/* Dropdowns */}
+                <DropdownFilterGroup
+                    groupTitle="Filters"
+                    dropdowns={dropdownConfigs}
+                    // Pass setFilterCriteria directly - DropdownFilterGroup needs to handle mapping if keys differ
+                    // It seems DropdownFilterGroup passes the key directly to its child SimpleZoneFilterDropdown,
+                    // which then calls setFilterCriteria with { [filterKey]: values }.
+                    // So, the mapping needs to happen HERE before passing setFilterCriteria, or inside SimpleZoneFilterDropdown.
+                    // Let's assume SimpleZoneFilterDropdown handles it or expects the store's keys.
+                    // Reverting dropdownConfigs keys back to store keys.
+                    // setFilterCriteria={setFilterCriteria} // Pass the original store action
+                    // UPDATE: Memoize the wrapper function passed to setFilterCriteria prop
+                    // Explicitly type 'update' to match expected input from DropdownFilterGroup
+                    setFilterCriteria={useCallback(
+                        (update: Partial<BookingRequestFilters>) => {
+                            // Map keys from BookingRequestFilters (used by DropdownGroup/SimpleDropdown) back to ZonesFilterCriteria
+                            const mappedUpdate: Partial<ZonesFilterCriteria> = {};
+                            if ('city' in update && update.city !== undefined)
+                                mappedUpdate.cityFilters = update.city;
+                            if ('market' in update && update.market !== undefined)
+                                mappedUpdate.marketFilters = update.market;
+                            if ('macrozone' in update && update.macrozone !== undefined)
+                                mappedUpdate.macrozoneFilters = update.macrozone;
+                            if ('equipment' in update && update.equipment !== undefined)
+                                mappedUpdate.equipmentFilters = update.equipment;
+                            if ('supplierIds' in update && update.supplierIds !== undefined)
+                                mappedUpdate.supplierFilters = update.supplierIds;
+                            // Pass through other potential updates directly if keys match, with type checks
+                            if ('searchTerm' in update && typeof update.searchTerm === 'string')
+                                mappedUpdate.searchTerm = update.searchTerm;
+                            if ('activeTab' in update && typeof update.activeTab === 'string')
+                                mappedUpdate.activeTab = update.activeTab;
 
-                {/* Selected Filters - Pass constructed filters and remove handler */}
-                <ZoneSelectedFilters
-                    filters={selectedFiltersForDisplay} // Pass the filters object
-                    labels={filterLabels}
-                    onRemove={handleRemoveFilter} // Pass the remove handler (now accepts string type)
+                            if (Object.keys(mappedUpdate).length > 0) {
+                                setFilterCriteria(mappedUpdate);
+                            }
+                        },
+                        [setFilterCriteria],
+                    )} // Add setFilterCriteria to useCallback dependency array
+                    isLoading={isLoading}
+                />
+
+                {/* Selected Filters */}
+                <SelectedFiltersDisplay
+                    // Map store criteria to the structure expected by SelectedFiltersDisplay
+                    filterCriteria={
+                        {
+                            city: cityFilters,
+                            market: marketFilters,
+                            macrozone: macrozoneFilters,
+                            equipment: equipmentFilters,
+                            supplierIds: supplierFilters, // Map supplierFilters to supplierIds
+                            status: [], // Dummy value
+                            dateFrom: undefined, // Dummy value
+                            dateTo: undefined, // Dummy value
+                            searchTerm: searchTerm,
+                            supplierName: '', // Dummy value
+                        } as BookingRequestFilters
+                    } // Cast needed
+                    // Pass setFilterCriteria directly - SelectedFiltersDisplay handles mapping internally via getFilterKeyForRemoval
+                    setFilterCriteria={setFilterCriteria}
                 />
             </CardContent>
         </Card>

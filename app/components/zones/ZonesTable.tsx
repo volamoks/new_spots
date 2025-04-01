@@ -30,7 +30,7 @@ interface ZonesTableProps {
     showActions?: boolean; // Controls if status actions column is shown
     role?: string; // Role might still be needed for conditional UI not covered by store logic
     className?: string;
-    initialFetchRole?: string; // Optional: Role to use for initial data fetch
+    // initialFetchRole?: string; // Removed unused prop
 }
 
 export function ZonesTable({
@@ -44,19 +44,19 @@ export function ZonesTable({
     showActions = true,
     role = 'DMP_MANAGER',
     className = '',
-    initialFetchRole, // Use this for fetching if provided
-}: ZonesTableProps) {
+}: // initialFetchRole, // Removed unused prop
+ZonesTableProps) {
     // --- Get State and Actions from Store ---
     // Use the composition hook (adjust based on actual usage context if needed)
     const {
-        zones, // Raw zones list
-        paginatedZones, // Use this for rendering the current page
+        zones, // Holds the zones for the CURRENT page now
+        // paginatedZones, // Removed - use 'zones' directly
         selectedZoneIds, // Now a Set<string>
         sortCriteria, // Contains field and direction
         paginationCriteria, // Contains currentPage and itemsPerPage
         isLoading,
         uniqueFilterValues, // Contains unique suppliers, etc.
-        totalFilteredCount, // Total count after filtering
+        totalCount, // Use totalCount from the refactored store
         error, // Handle potential errors
 
         // Actions from zonesStore (via hook)
@@ -91,16 +91,17 @@ export function ZonesTable({
         // Example: Fetch zones when the component mounts if not already loaded
         // Adjust the condition based on your app's data loading strategy
         if (zones.length === 0 && !isLoading) {
-            fetchZones(initialFetchRole || role);
+            // fetchZones now takes no arguments
+            fetchZones();
         }
-        // Add dependencies if needed, e.g., [fetchZones, initialFetchRole, role, zones.length, isLoading]
-    }, [fetchZones, initialFetchRole, role, zones.length, isLoading]); // Basic dependency array
+        // Add dependencies if needed, e.g., [fetchZones, zones.length, isLoading]
+    }, [fetchZones, zones.length, isLoading]); // Updated dependencies
 
     // --- Pagination Logic (using store state) ---
-    const totalItems = totalFilteredCount; // Use totalFilteredCount from store
+    const totalItems = totalCount; // Use totalCount from store
     const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-    // Use paginatedZones directly from the store
-    const currentZonesOnPage = paginatedZones;
+    // 'zones' from the store now holds the current page's data
+    // const currentZonesOnPage = paginatedZones; // Removed this line
 
     // --- Handlers ---
     // Handler for creating booking (still needs external prop)
@@ -113,14 +114,14 @@ export function ZonesTable({
 
     // Select All handler (uses store action)
     const handleSelectAll = (checked: boolean) => {
-        const currentZoneIdsOnPage = currentZonesOnPage.map(zone => zone.id);
-        toggleSelectAll(checked, currentZoneIdsOnPage);
+        // toggleSelectAll action in store now only needs the boolean state
+        toggleSelectAll(checked);
     };
 
     // Check if all zones on the current page are selected (uses store state)
     const areAllCurrentZonesSelected =
-        currentZonesOnPage.length > 0 &&
-        currentZonesOnPage.every(zone => selectedZoneIds.has(zone.id)); // Use .has() for Set
+        zones.length > 0 && // Use 'zones'
+        zones.every(zone => selectedZoneIds.has(zone.id)); // Use .has() for Set
 
     // --- Calculate ColSpan for Empty State ---
     // Base columns: ID, City, Market, Macrozone, Equipment, Supplier, Brand, Status = 8
@@ -164,10 +165,10 @@ export function ZonesTable({
                             setSortCriteria({ field, direction });
                         }}
                         showStatusActions={showStatusActions}
-                        disableSelectAll={currentZonesOnPage.length === 0}
+                        disableSelectAll={zones.length === 0} // Use zones
                     />
                     <TableBody>
-                        {isLoading && currentZonesOnPage.length === 0 ? ( // Show loading indicator
+                        {isLoading && zones.length === 0 ? ( // Show loading indicator, use zones
                             <TableRow>
                                 <TableCell
                                     colSpan={colSpan}
@@ -176,23 +177,27 @@ export function ZonesTable({
                                     Загрузка зон...
                                 </TableCell>
                             </TableRow>
-                        ) : currentZonesOnPage.length > 0 ? (
-                            currentZonesOnPage.map(zone => (
-                                // Render Table Row (pass store state/actions and external handlers)
-                                <ZonesTableRow
-                                    key={zone.id}
-                                    zone={zone}
-                                    isSelected={selectedZoneIds.has(zone.id)} // Use .has() for Set
-                                    showSelectionColumn={showSelectionColumn}
-                                    onZoneSelect={toggleZoneSelection} // Store action
-                                    isDmpManager={isDmpManager}
-                                    showStatusActions={showStatusActions}
-                                    onStatusChange={onStatusChange} // Prop from parent
-                                    onUpdateZoneField={onUpdateZoneField} // Prop from parent
-                                    // uniqueSuppliersFromDB prop removed - ZonesTableRow should fetch if needed
-                                    isLoading={isLoading} // From store
-                                />
-                            ))
+                        ) : zones.length > 0 ? ( // Use zones
+                            zones.map(
+                                (
+                                    zone, // Use zones
+                                ) => (
+                                    // Render Table Row (pass store state/actions and external handlers)
+                                    <ZonesTableRow
+                                        key={zone.id}
+                                        zone={zone}
+                                        isSelected={selectedZoneIds.has(zone.id)} // Use .has() for Set
+                                        showSelectionColumn={showSelectionColumn}
+                                        onZoneSelect={toggleZoneSelection} // Store action
+                                        isDmpManager={isDmpManager}
+                                        showStatusActions={showStatusActions}
+                                        onStatusChange={onStatusChange} // Prop from parent
+                                        onUpdateZoneField={onUpdateZoneField} // Prop from parent
+                                        // uniqueSuppliersFromDB prop removed - ZonesTableRow should fetch if needed
+                                        isLoading={isLoading} // From store
+                                    />
+                                ),
+                            )
                         ) : (
                             <TableRow>
                                 <TableCell

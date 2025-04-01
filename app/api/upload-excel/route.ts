@@ -178,8 +178,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       message: "Данные успешно обработаны и сохранены",
-      count: savedData.length,
-      data: savedData,
+      processedRows: savedData.length, // Renamed 'count' for clarity
+      totalRows: data.length, // Total rows read from Excel (before filtering/validation)
+      data: savedData, // Optional: might remove this in production if large
       headers: headers, // Debug: Include headers in success response
     })
   } catch (error) {
@@ -221,7 +222,8 @@ async function createOrUpdateZone(zoneData: ZoneData) {
     market: zoneData["Маркет"] || "",
     newFormat: zoneData["Формат маркета"] || "",
     equipment: zoneData["Оборудование"] || "",
-    dimensions: zoneData["Габариты"] || "",
+    // Ensure dimensions is always a string
+    dimensions: zoneData["Габариты"] !== undefined && zoneData["Габариты"] !== null ? String(zoneData["Габариты"]) : "",
     mainMacrozone: zoneData["Основная Макрозона"] || "",
     adjacentMacrozone: zoneData["Смежная макрозона"] || "",
     status: status,
