@@ -4,6 +4,7 @@ import { BookingStatus, Role } from '@prisma/client'; // Remove Role import
 import BookingRole from '@/lib/enums/BookingRole'; // Import the custom enum
 import { useLoaderStore } from './loaderStore'; // Use the global loader
 import { useBookingRequestStore } from './bookingRequestStore'; // To trigger refresh/update
+import { toast } from '@/components/ui/use-toast'; // Import toast function
 
 // --- Types ---
 
@@ -122,12 +123,22 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                     set({ isCreating: false, selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null }); // Clear selection on success
                     await refreshBookingRequests(); // Refresh the list
                     // await refreshZones(); // Uncomment if zone status might change
+                    toast({ // Add success toast
+                        title: 'Успех',
+                        description: 'Заявка на бронирование успешно создана.',
+                        variant: 'success', // Optional: Add success variant if defined
+                    });
                     return true; // Indicate success
 
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : "Unknown error creating booking request";
                     console.error("Error creating booking request:", errorMessage);
                     set({ createError: errorMessage, isCreating: false });
+                    toast({ // Add error toast
+                        title: 'Ошибка',
+                        description: errorMessage,
+                        variant: 'destructive',
+                    });
                     return false; // Indicate failure
                 }
             },

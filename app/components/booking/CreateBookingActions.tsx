@@ -48,11 +48,7 @@ const CreateBookingActions = () => {
             const success = await createBookingRequest(simplifiedUser);
 
             if (success) {
-                // Add success feedback using toast
-                toast({
-                    title: 'Успех',
-                    description: 'Заявка на бронирование успешно создана.',
-                });
+                // Success toast is now handled by the store action
                 console.log('Booking request created successfully.');
             } else {
                 // Error handling is done within the store, but you can add component-specific feedback here

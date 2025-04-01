@@ -13,13 +13,20 @@ import {
 import { UserCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/use-toast'; // Import useToast
 
 export default function Navigation() {
     const { data: session, status } = useSession();
     const router = useRouter();
+    const { toast } = useToast(); // Initialize useToast
 
     const handleLogout = async () => {
         await signOut({ redirect: false });
+        toast({
+            // Add toast call
+            title: 'Выход',
+            description: 'Вы успешно вышли из системы.',
+        });
         router.push('/login');
     };
 
