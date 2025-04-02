@@ -49,7 +49,7 @@ export default function DmpManagerZonesPage() {
 
         if (confirmed) {
             await bulkUpdateZoneStatus(Array.from(selectedZoneIds), newStatus); // Convert Set to Array
-            // Очистка выбора не нужна, т.к. стор сам это сделает при успехе
+            // Очистка выбора не нужна, т.к. стор сам это сделает при Успешное
         }
     };
 

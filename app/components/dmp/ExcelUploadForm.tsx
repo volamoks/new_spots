@@ -147,7 +147,7 @@ export function ExcelUploadForm() {
             }
 
             toast({
-                title: 'Успех',
+                title: 'Успешно',
                 description: `Данные успешно загружены. Обработано записей: ${data.count}`,
                 variant: 'success',
             });

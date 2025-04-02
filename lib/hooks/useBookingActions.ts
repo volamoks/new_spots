@@ -79,7 +79,7 @@ export const useBookingActions = ({
             updateBookingStatusLocally(booking.id, newStatus);
 
             toast({
-                title: 'Успех',
+                title: 'Успешно',
                 description: `Статус бронирования успешно обновлен на ${newStatus.replace(/_/g, ' ')}.`,
             });
 

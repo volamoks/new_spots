@@ -126,7 +126,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                     await refreshBookingRequests(); // Refresh the list
                     // await refreshZones(); // Uncomment if zone status might change
                     toast({ // Add success toast
-                        title: 'Успех',
+                        title: 'Успешно',
                         description: 'Заявка на бронирование успешно создана.',
                         variant: 'success', // Optional: Add success variant if defined
                     });

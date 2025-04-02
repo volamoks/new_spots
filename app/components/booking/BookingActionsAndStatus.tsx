@@ -1,11 +1,11 @@
 'use client';
 
-import { BookingActions } from './BookingActions';
-import { StatusBadge } from '../StatusBadge';
-import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore'; // Use the correct store type again
-import { BookingStatus } from '@prisma/client'; // Keep BookingStatus
-import { TableCell } from '@/components/ui/table';
-import BookingRole from '@/lib/enums/BookingRole';
+import BookingRole from "@/lib/enums/BookingRole";
+import { BookingRequestWithBookings } from "@/types/booking";
+import { BookingStatus } from "@prisma/client";
+import { StatusBadge } from "../StatusBadge";
+import TableCell from "../ui/TableCell";
+import { BookingActions } from "./BookingActions";
 
 type BookingActionsAndStatusProps = {
     booking: BookingRequestWithBookings['bookings'][0]; // Revert to the original complex type which includes nested zone
