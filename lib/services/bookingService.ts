@@ -100,19 +100,34 @@ export async function createBookingRequest(
     } else {
         // For non-CATEGORY_MANAGER users (suppliers)
         // The supplier is the current user, so we use their ID directly
-
-        // Get the supplier name from the user record
+        // Get the INN associated with the supplier representative user
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { supplierName: true, name: true }
+            select: { inn: true } // Select the INN field
         });
 
-        const supplierName = user?.supplierName || user?.name || 'Unknown Supplier';
+        if (!user?.inn) {
+            throw new Error(`INN not found for user ${userId}. Cannot determine supplier.`);
+        }
+
+        // Find the supplier organization using the user's INN
+        const supplierOrg = await prisma.innOrganization.findUnique({
+            where: {
+                inn: user.inn,
+            },
+        });
+
+        if (!supplierOrg) {
+            throw new Error(`Supplier organization not found for INN ${user.inn}`);
+        }
+
+        // Use the official name from the InnOrganization record
+        const supplierName = supplierOrg.name;
 
         // Generate a simple ID for the booking request
         const simpleId = generateSimpleId('BR');
 
-        // Create booking request with supplier's ID
+        // Create booking request with supplier's ID (the user making the request)
         const bookingRequest = await prisma.bookingRequest.create({
             data: {
                 id: simpleId, // Use our simple ID
@@ -216,21 +231,19 @@ export async function getAllBookings(status?: string) {
             };
         }
 
-        // Fallback to the user's supplierName or name if zone supplier is not available
+        // Fallback: If zone.supplier is missing (shouldn't happen after creation fix),
+        // try to get the official name from the user who created the request.
+        // Avoid using user.name as the supplier name.
         if (bookingRequest.user?.supplierName) {
             return {
                 ...bookingRequest,
-                supplierName: bookingRequest.user.supplierName,
-            };
-        } else if (bookingRequest.user?.name) {
-            return {
-                ...bookingRequest,
-                supplierName: bookingRequest.user.name,
+                supplierName: bookingRequest.user.supplierName, // Use official name
             };
         } else {
+            // If even the user's official name is missing, return N/A
             return {
                 ...bookingRequest,
-                supplierName: 'N/A',
+                supplierName: 'N/A', // Or 'Unknown Supplier'
             };
         }
     });
