@@ -1,15 +1,19 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useFilterStore } from '@/lib/stores/filterStore';
+import { useMemo } from 'react'; // Removed useState, useEffect
+// import { useFilterStore } from '@/lib/stores/filterStore'; // Removed old store import
+import { useBookingRequestStore } from '@/lib/stores/bookingRequestStore'; // Import new store
 import { getCorrespondingMacrozones } from '@/lib/filterData';
-import { SimpleZoneFilterDropdown } from '@/app/components/zones/SimpleZoneFilterDropdown';
+import { UniversalDropdown } from '@/app/components/ui/UniversalDropdown';
 
 interface Props {
     selectedCategory: string;
 }
 
 export default function MacrozoneSelection({ selectedCategory }: Props) {
-    const { macrozoneFilters, toggleFilter } = useFilterStore();
-    const [selectedMacrozones, setSelectedMacrozones] = useState<string[]>(macrozoneFilters);
+    // Get state and actions from the booking request store
+    const { filterCriteria, setFilterCriteria } = useBookingRequestStore();
+    const selectedMacrozones = filterCriteria.macrozone || []; // Get selected from store
+
+    // Removed local state: const [selectedMacrozones, setSelectedMacrozones] = useState<string[]>(macrozoneFilters);
 
     const macrozones = useMemo(() => {
         return getCorrespondingMacrozones(selectedCategory);
@@ -22,26 +26,23 @@ export default function MacrozoneSelection({ selectedCategory }: Props) {
         }));
     }, [macrozones]);
 
-    useEffect(() => {
-        options.forEach(({ value }) => {
-            const isSelected = selectedMacrozones.includes(value);
-            const isInFilter = macrozoneFilters.includes(value);
-
-            if (isSelected && !isInFilter) {
-                toggleFilter('macrozone', value);
-            } else if (!isSelected && isInFilter) {
-                toggleFilter('macrozone', value);
-            }
-        });
-    }, [selectedMacrozones, macrozoneFilters, toggleFilter, options]);
+    // Removed useEffect for syncing local state with store
 
     return (
-        <SimpleZoneFilterDropdown
-            title="Select Macrozone"
+        <UniversalDropdown
+            mode="multiple"
+            title="Select Macrozone" // Optional title context
             options={options}
             selected={selectedMacrozones}
-            onChange={setSelectedMacrozones}
-            placeholder="Search Macrozones..."
+            onChange={newValue => {
+                // Type check for multiple mode
+                if (Array.isArray(newValue)) {
+                    setFilterCriteria({ macrozone: newValue }); // Correctly update store
+                }
+            }}
+            triggerPlaceholder="Выберите Макрозоны"
+            placeholder="Поиск макрозон..."
+            // className="w-full" // Add if needed
         />
     );
 }

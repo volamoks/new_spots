@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-// Removed useState, useEffect, useCallback, useRef, toast, useLoaderStore, debounce
-import { SimpleSelectDropdown } from './SimpleSelectDropdown';
-import { useSelectOptions } from '@/lib/hooks/useSelectOptions'; // Import the new hook
+// Removed SimpleSelectDropdown and useSelectOptions imports
+import { UniversalDropdown } from '@/app/components/ui/UniversalDropdown'; // Import UniversalDropdown
 interface Brand {
     id: string;
     name: string;
@@ -17,42 +16,30 @@ interface BrandSelectorProps {
 }
 
 export function BrandSelector({ value, onChange, disabled }: BrandSelectorProps) {
-    // Use the generic hook to fetch and manage brand options
-    const {
-        options: brandOptions, // Renamed from 'options' for clarity
-        isLoading, // Can use this if specific loading state needed here
-        // error, // Error handling is done within the hook via toast
-        handleSearchChange,
-    } = useSelectOptions<Brand>({
-        apiUrl: '/api/brands',
-        valueField: 'id',
-        labelField: 'name',
-        initialFetchLimit: 100, // Fetch initial 100 brands
-        loaderMessage: 'Загрузка списка брендов...',
-        errorMessage: 'Не удалось загрузить список брендов.',
-    });
-
-    // Find the label for the currently selected value from the options provided by the hook
-    const currentSelectedLabel = brandOptions.find(option => option.value === value)?.label;
-
-    // Handle null value for onChange
-    const handleChange = (selectedValue: string | null) => {
-        onChange(selectedValue === '' ? null : selectedValue);
-    };
+    // Removed useSelectOptions hook call and related logic (isLoading, handleSearchChange, currentSelectedLabel, handleChange)
+    // UniversalDropdown handles data fetching internally
 
     return (
         <div className="w-full max-w mb-6">
             <label className="block text-m font-medium mb-2 mt-4">Выберите Бренд</label>
-            <SimpleSelectDropdown
-                title="Выберите Бренд"
-                options={brandOptions} // Use options from the hook
+            <UniversalDropdown<Brand> // Specify the type if needed for valueField/labelField
+                mode="single"
+                // Data fetching props passed directly
+                apiUrl="/api/brands"
+                valueField="id"
+                labelField="name"
+                initialFetchLimit={100}
+                loaderMessage="Загрузка списка брендов..."
+                errorMessage="Не удалось загрузить список брендов."
+                // Selection props
                 selected={value}
-                selectedLabel={currentSelectedLabel} // Pass the found label
-                onChange={handleChange}
-                onSearchChange={handleSearchChange} // Use search handler from the hook
-                placeholder="Поиск бренда..."
-                isDisabled={disabled || isLoading} // Optionally disable while loading
-                className="w-full" // Apply full width
+                onChange={onChange} // Pass the original onChange directly
+                // UI props
+                title="Выберите Бренд" // Optional title context
+                triggerPlaceholder="Выберите Бренд" // Placeholder for the button
+                placeholder="Поиск бренда..." // Placeholder for the search input
+                isDisabled={disabled} // Pass disabled prop (UniversalDropdown handles internal loading state)
+                className="w-full" // Apply full width to the trigger button
             />
             {/* Loading/error messages are handled globally */}
         </div>

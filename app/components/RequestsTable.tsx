@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ColumnSelector } from './ColumnSelector';
+// import { ColumnSelector } from './ColumnSelector'; // Removed
 import { useBookingRequestStore } from '@/lib/stores/bookingRequestStore'; // Import new store
 import { BookingTable } from './booking/BookingTable';
 import BookingRole from '@/lib/enums/BookingRole';
@@ -36,7 +36,7 @@ const allColumns = [
 export function RequestsTable({ onApprove, onReject, bookings }: RequestsTableProps) {
     // Используем переданные бронирования или получаем их из bookingRequestStore как запасной вариант
     const { bookingRequests: storeBookings } = useBookingRequestStore(); // Use the new state property 'bookingRequests'
-    const [visibleColumns, setVisibleColumns] = useState(allColumns);
+    // const [visibleColumns, setVisibleColumns] = useState(allColumns); // Removed state for column visibility
     const { user } = useAuth();
 
     // Используем переданные бронирования, если они есть, иначе используем бронирования из стора
@@ -53,24 +53,14 @@ export function RequestsTable({ onApprove, onReject, bookings }: RequestsTablePr
             ? BookingRole.DMP
             : BookingRole.SUPPLIER;
 
-    const handleColumnToggle = (column: string) => {
-        setVisibleColumns(prev =>
-            prev.includes(column) ? prev.filter(col => col !== column) : [...prev, column],
-        );
-    };
+    // Removed handleColumnToggle function
 
     return (
         <div>
-            <div className="flex justify-end mb-4">
-                <ColumnSelector
-                    columns={allColumns}
-                    visibleColumns={visibleColumns}
-                    onColumnToggle={handleColumnToggle}
-                />
-            </div>
+            <div className="flex justify-end mb-4">{/* ColumnSelector removed */}</div>
             <BookingTable
                 requests={displayBookings} // Pass the correct variable
-                visibleColumns={visibleColumns}
+                visibleColumns={allColumns} // Pass all columns since selector is removed
                 userRole={userRole}
                 onApprove={onApprove}
                 onReject={onReject}

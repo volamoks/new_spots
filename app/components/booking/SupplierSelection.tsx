@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 // Import the new stores
 import { useSupplierStore } from '@/lib/stores/supplierStore';
 import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
-// Keep the dropdown component
-import { SimpleSelectDropdown } from '@/app/components/booking/SimpleSelectDropdown';
+// Replaced SimpleSelectDropdown with UniversalDropdown
+import { UniversalDropdown } from '@/app/components/ui/UniversalDropdown';
 // Remove unused Supplier type import if not needed elsewhere
 // import { Supplier } from '@/types/supplier';
 
@@ -39,24 +39,22 @@ const SupplierSelection = () => {
         return { value: supplier.inn, label: String(supplier.name) };
     });
 
-    // Find the label for the currently selected value
-    const currentSelectedLabel = supplierOptions.find(
-        option => option.value === selectedSupplierInnForCreation,
-    )?.label;
+    // Removed unused currentSelectedLabel calculation
 
     return (
         <div className="space-y-2">
             <label className="block text-m font-medium pt-4">Выберите Поставщика</label>
-            <SimpleSelectDropdown
-                title="Выбранный поставщик"
-                options={supplierOptions}
-                selected={selectedSupplierInnForCreation || ''} // Use state from bookingActionsStore
-                selectedLabel={currentSelectedLabel} // Pass the found label
-                onChange={setSelectedSupplierInnForCreation} // Use action from bookingActionsStore
-                placeholder="Select a supplier"
+            <UniversalDropdown
+                mode="single"
+                title="Выбранный поставщик" // Optional title context
+                options={supplierOptions} // Pass options from store
+                selected={selectedSupplierInnForCreation} // Pass selected value from store (UniversalDropdown handles null)
+                onChange={setSelectedSupplierInnForCreation} // Pass setter from store
+                triggerPlaceholder="Выберите Поставщика" // Placeholder for the button
+                placeholder="Поиск поставщика..." // Placeholder for the search input
                 className="w-full"
-                // Add a "no value" option if needed
-                // noValueOption={{ value: '', label: 'Не выбрано' }}
+                // isDisabled={isLoading} // Only if loading state is managed here, otherwise rely on global
+                clearSelectionText="-- Не выбрано --" // Optional: Text for clearing selection
             />
         </div>
     );

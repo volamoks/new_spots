@@ -105,9 +105,14 @@ const getRequestDisplayStatus = (
         return 'REQUEST_NEW'; // New status string
     }
 
-    // Fallback - should ideally not be reached with the logic above
-    console.warn('Unexpected state in getRequestDisplayStatus for request:', request.id);
-    return 'REQUEST_UNKNOWN'; // Need to add this to StatusBadge
+    // 4. "В обработке" (Processing) - Default intermediate state
+    // If it's not EMPTY, CLOSED, PROCESSED_KM, or NEW, it implies it's in an
+    // intermediate state, likely awaiting DMP action on KM_APPROVED bookings.
+    return 'REQUEST_PROCESSING'; // New status string
+
+    // Fallback removed as REQUEST_PROCESSING should cover the gap
+    // console.warn('Unexpected state in getRequestDisplayStatus for request:', request.id);
+    // return 'REQUEST_UNKNOWN';
 };
 // End of getRequestDisplayStatus function definition
 
@@ -189,15 +194,14 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
             <Table>
                 <TableHeader>
                     <TableRow>
-                        {/* <TableHead>ID заявки</TableHead> */}
                         <TableHead>ID бронирования</TableHead>
                         <TableHead>Зона</TableHead>
                         <TableHead>Город</TableHead>
                         <TableHead>Магазин</TableHead>
                         <TableHead>Макрозона</TableHead>
-                        <TableHead>Бренд</TableHead> {/* Add Brand Header */}
+                        <TableHead>Бренд</TableHead>
+                        {/* Add Brand Header */}
                         <TableHead>Статус</TableHead>
-                        {/* <TableHead>Дата создания</TableHead> */}
                         {userRole !== BookingRole.SUPPLIER && <TableHead>Действия</TableHead>}
                     </TableRow>
                 </TableHeader>

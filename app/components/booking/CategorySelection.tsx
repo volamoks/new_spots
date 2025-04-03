@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { SimpleSelectDropdown } from '@/app/components/booking/SimpleSelectDropdown';
+// import { SimpleSelectDropdown } from '@/app/components/booking/SimpleSelectDropdown'; // Replaced
+import { UniversalDropdown } from '@/app/components/ui/UniversalDropdown';
 import { categoryData } from '@/lib/filterData';
 
 interface CategorySelectionProps {
@@ -21,14 +22,22 @@ const CategorySelection: React.FC<CategorySelectionProps> = ({
     return (
         <div className="w-full max-w mb-6">
             <label className="block text-m font-medium mb-2 mt-4">Выберите Категорию</label>
-            <SimpleSelectDropdown
-                title="Выбранная категория"
+            <UniversalDropdown
+                mode="single"
+                title="Выбранная категория" // Optional title context
                 options={categories}
                 selected={selectedCategory}
-                selectedLabel={selectedCategory} // Pass selected value as label
-                onChange={onCategorySelect}
-                placeholder="Категория товара"
+                onChange={newValue => {
+                    // Type check for single mode
+                    if (typeof newValue === 'string' || newValue === null) {
+                        // Original onChange expects string, handle null if necessary
+                        onCategorySelect(newValue ?? ''); // Pass empty string if null, adjust if needed
+                    }
+                }}
+                triggerPlaceholder="Выберите Категорию"
+                placeholder="Поиск категории..."
                 className="w-full"
+                clearSelectionText="-- Не выбрано --" // Optional
             />
         </div>
     );

@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 // Import the new stores
 import { useSupplierStore } from '@/lib/stores/supplierStore';
 import { useBookingRequestStore } from '@/lib/stores/bookingRequestStore'; // For filtering
-// Keep the dropdown component
-import { SimpleSelectDropdown } from '@/app/components/booking/SimpleSelectDropdown';
+// Replaced SimpleSelectDropdown with UniversalDropdown
+import { UniversalDropdown } from '@/app/components/ui/UniversalDropdown';
 // Remove unused Supplier type import if not needed elsewhere
 // import { Supplier } from '@/types/supplier';
 
@@ -45,14 +45,22 @@ const ManageSupplierSelection = () => {
     return (
         <div className="space-y-2">
             <label className="block text-m font-medium pt-4">Фильтр по поставщику</label>
-            <SimpleSelectDropdown
-                title="Выбранный поставщик"
-                options={supplierOptions}
-                selected={selectedSupplierInn || ''} // Use state from bookingRequestStore filterCriteria
-                onChange={handleSupplierChange} // Use local handler to update filterCriteria
-                placeholder="Select a supplier"
+            <UniversalDropdown
+                mode="single"
+                title="Выбранный поставщик" // Optional title context
+                options={supplierOptions} // Pass options from store
+                selected={selectedSupplierInn || null} // Pass selected value from filterCriteria (ensure null if undefined)
+                onChange={newValue => {
+                    // Type check for single mode before calling handler
+                    if (typeof newValue === 'string' || newValue === null) {
+                        handleSupplierChange(newValue);
+                    }
+                }}
+                triggerPlaceholder="Фильтр по поставщику" // Placeholder for the button
+                placeholder="Поиск поставщика..." // Placeholder for the search input
                 className="w-full"
-                // noValueOption prop removed as it's not supported by SimpleSelectDropdown
+                isDisabled={isLoading} // Disable while suppliers are loading
+                clearSelectionText="-- Все поставщики --" // Optional: Text for clearing selection
             />
         </div>
     );

@@ -23,6 +23,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         REQUEST_CLOSED: 'bg-gray-300 text-gray-800',
         REQUEST_EMPTY: 'bg-gray-100 text-gray-500',
         REQUEST_UNKNOWN: 'bg-gray-100 text-gray-500',
+        REQUEST_PROCESSING: 'bg-orange-100 text-orange-800', // Added for intermediate state
 
         // New Individual Booking Statuses (Supplier View)
         BOOKING_IN_PROGRESS: 'bg-blue-100 text-blue-800',
@@ -64,6 +65,8 @@ export function StatusBadge({ status }: StatusBadgeProps) {
                 return 'Пустая заявка';
             case 'REQUEST_UNKNOWN':
                 return 'Неизвестный статус заявки';
+            case 'REQUEST_PROCESSING':
+                return 'В обработке'; // Added for intermediate state
 
             // New Individual Booking Statuses (Supplier View)
             case 'BOOKING_IN_PROGRESS':
