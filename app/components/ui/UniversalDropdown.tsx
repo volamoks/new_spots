@@ -91,7 +91,7 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
     // Determine if using async data fetching
     const isAsync = !!apiUrl && !!valueField && !!labelField;
 
-    // Fetch options if async
+    // Fetch options if async (Call hook unconditionally)
     const {
         options: asyncOptions,
         isLoading,
@@ -110,7 +110,6 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
                   errorMessage,
               }
             : { apiUrl: '', valueField: '', labelField: '' }, // Provide dummy values if not async
-        // Removed second argument: !isAsync
     );
 
     const options = isAsync ? asyncOptions : staticOptions ?? [];

@@ -12,15 +12,11 @@ import { redirect } from 'next/navigation';
 
 export default function DMPManagerExportPage() {
     const { data: session, status } = useSession();
-    // Remove lifted state
-    // const [uploadType, setUploadType] = useState<'zones' | 'inn' | 'brands'>('zones');
 
-    // Перенаправляем неавторизованных пользователей или пользователей с неправильной ролью
     if (status === 'unauthenticated') {
         redirect('/login');
     }
 
-    // Проверка роли после загрузки сессии
     if (session && session.user.role !== 'DMP_MANAGER') {
         redirect('/');
     }

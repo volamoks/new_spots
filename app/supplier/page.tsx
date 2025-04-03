@@ -62,7 +62,6 @@ export default function SupplierPage() {
                                 ))}
                             </div>
                         )}
-                        {/* Removed booking creation button and logic */}
                     </CardContent>
                 </Card>
             </main>

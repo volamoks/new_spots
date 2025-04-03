@@ -108,8 +108,6 @@ export function RegisterForm({ className, ...props }: React.HTMLAttributes<HTMLD
             router.push('/login');
         } catch (error) {
             console.error('Submit Error:', error);
-            // Only show generic toast if it wasn't handled as a 409 above
-            // Check if the error message indicates it was thrown by our specific non-409 check
             const isHandled409 =
                 error instanceof Error &&
                 error.message.startsWith('Registration failed with status:');

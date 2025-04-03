@@ -16,7 +16,6 @@ export function ZoneSelectedFilters({
     onRemove,
     className = '',
 }: ZoneSelectedFiltersProps) {
-    // Filter out empty or non-array filter values directly from the prop
     const filtersToShow = Object.entries(filters).filter(
         ([, values]) => Array.isArray(values) && values.length > 0,
     ) as [string, string[]][]; // Use string as key type

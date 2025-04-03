@@ -49,7 +49,20 @@ const SupplierSelection = () => {
                 title="Выбранный поставщик" // Optional title context
                 options={supplierOptions} // Pass options from store
                 selected={selectedSupplierInnForCreation} // Pass selected value from store (UniversalDropdown handles null)
-                onChange={setSelectedSupplierInnForCreation} // Pass setter from store
+                onChange={selectedValue => {
+                    // Adapt the onChange from UniversalDropdown (string | string[] | null)
+                    // to the expected store setter (string | null)
+                    if (Array.isArray(selectedValue)) {
+                        // This shouldn't happen in single mode, but handle defensively
+                        console.warn(
+                            'SupplierSelection received an array value in single mode:',
+                            selectedValue,
+                        );
+                        setSelectedSupplierInnForCreation(null); // Or handle as appropriate
+                    } else {
+                        setSelectedSupplierInnForCreation(selectedValue); // Pass string or null
+                    }
+                }}
                 triggerPlaceholder="Выберите Поставщика" // Placeholder for the button
                 placeholder="Поиск поставщика..." // Placeholder for the search input
                 className="w-full"

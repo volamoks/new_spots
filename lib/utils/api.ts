@@ -104,8 +104,27 @@ export async function fetchApi<T = unknown>( // Changed default to unknown
       return undefined as T; // Or null, depending on desired behavior
     }
 
-    // Assuming the successful response is always JSON
-    return await response.json() as T;
+    // Handle potentially double-stringified JSON
+    const text = await response.text();
+    try {
+      // First parse: handles the outer string quotes
+      const potentiallyInnerJson = JSON.parse(text);
+      // Second parse: handles the inner JSON string (if it was double-stringified)
+      // If it wasn't double-stringified, this might fail, so we catch and return the first parse result.
+      if (typeof potentiallyInnerJson === 'string') {
+        try {
+          return JSON.parse(potentiallyInnerJson) as T;
+        } catch (innerError) {
+          console.warn("Failed to parse inner JSON string, returning first parse result:", innerError);
+          return potentiallyInnerJson as T; // Return the string if inner parse fails
+        }
+      }
+      return potentiallyInnerJson as T; // Return the object if it wasn't a string
+    } catch (error) {
+      console.error("Failed to parse API response text:", error, "Raw text:", text);
+      // If parsing fails entirely, throw an error or return a default value
+      throw new ApiError(`Failed to parse API response: ${error instanceof Error ? error.message : String(error)}`, response.status, text);
+    }
 
   } catch (error) {
     // Log if it's not already an ApiError (which we logged before throwing)

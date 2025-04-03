@@ -7,6 +7,7 @@ interface Brand {
     id: string;
     name: string;
     supplierInn?: string | null;
+    [key: string]: unknown; // Add index signature to satisfy ApiItem constraint
 }
 
 interface BrandSelectorProps {
@@ -33,7 +34,20 @@ export function BrandSelector({ value, onChange, disabled }: BrandSelectorProps)
                 errorMessage="Не удалось загрузить список брендов."
                 // Selection props
                 selected={value}
-                onChange={onChange} // Pass the original onChange directly
+                onChange={selectedValue => {
+                    // Adapt the onChange from UniversalDropdown (string | string[] | null)
+                    // to the expected BrandSelector onChange (string | null)
+                    if (Array.isArray(selectedValue)) {
+                        // This shouldn't happen in single mode, but handle defensively
+                        console.warn(
+                            'BrandSelector received an array value in single mode:',
+                            selectedValue,
+                        );
+                        onChange(null); // Or handle as appropriate, e.g., selectedValue[0] ?? null
+                    } else {
+                        onChange(selectedValue); // Pass string or null
+                    }
+                }}
                 // UI props
                 title="Выберите Бренд" // Optional title context
                 triggerPlaceholder="Выберите Бренд" // Placeholder for the button

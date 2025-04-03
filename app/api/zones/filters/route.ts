@@ -16,7 +16,8 @@ async function getDistinctValues<K extends keyof PrismaZone>(field: K) { // Let 
 
         // Log raw results for debugging specific fields
         if (field === 'mainMacrozone' || field === 'equipment') {
-            console.log(`Raw results for ${String(field)}:`, results);
+            // console.log(`Raw results for ${String(field)}:`, results);
+            console.log('Raw results ');
         }
 
         // Extract the value and filter out nulls/undefined/empty strings robustly
@@ -30,12 +31,12 @@ async function getDistinctValues<K extends keyof PrismaZone>(field: K) { // Let 
 
         // Log filtered results for debugging
         if (field === 'mainMacrozone' || field === 'equipment') {
-            console.log(`Sorted & Filtered values for ${String(field)}:`, filteredValues); // Updated log message
+            // console.log(`Sorted & Filtered values for ${String(field)}:`, filteredValues); // Updated log message
         }
         return filteredValues; // Return the filtered and sorted array
 
     } catch (error) {
-        console.error(`Error fetching distinct values for field ${String(field)}:`, error);
+        // console.error(`Error fetching distinct values for field ${String(field)}:`, error);
         throw error; // Re-throw
     }
 }

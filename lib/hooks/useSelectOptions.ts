@@ -48,6 +48,16 @@ export function useSelectOptions<T>({
 
     const fetchData = useCallback(
         async (searchTerm: string = '', limit?: number) => {
+            // --- Add check for valid apiUrl ---
+            if (!apiUrl) {
+                // If apiUrl is empty or null, don't fetch. Reset state.
+                setOptions([]);
+                setIsLoading(false);
+                setError(null);
+                return;
+            }
+            // --- End check ---
+
             setIsLoading(true);
             setError(null);
             try {
@@ -95,7 +105,9 @@ export function useSelectOptions<T>({
 
     // Debounced fetch function for search
     const debouncedFetchRef = useRef(
-        debounce((searchTerm: string) => {
+        // Adjust function signature to match debounce utility
+        debounce((...args: unknown[]) => {
+            const searchTerm = typeof args[0] === 'string' ? args[0] : ''; // Safely get the first arg as string
             // Fetch without limit when searching, unless a specific limit logic is needed
             fetchData(searchTerm);
         }, debounceDelay),
@@ -111,7 +123,6 @@ export function useSelectOptions<T>({
         isLoading, // Expose local loading state
         error,     // Expose local error state
         handleSearchChange,
-        // Optionally expose refetch function if manual refresh is needed
-        // refetch: fetchData
+
     };
 }

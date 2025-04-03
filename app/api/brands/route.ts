@@ -22,12 +22,18 @@ export async function GET(request: NextRequest) { // Add request parameter
     const baseWhereClauses: Prisma.BrandWhereInput[] = [];
 
     // Supplier specific filtering
-    if (user.role === Role.SUPPLIER && user.inn) {
+    // Supplier specific filtering - ADDED CHECKS for role and inn
+    if (user.role === Role.SUPPLIER) {
+      if (!user.id || !user.inn) {
+        // If essential supplier info is missing in session, return an error
+        console.error(`Supplier user (ID: ${user.id || 'unknown'}) missing INN in session data.`);
+        return NextResponse.json({ message: 'Forbidden: Incomplete supplier information in session' }, { status: 403 });
+      }
       // Filter brands associated with the current supplier user
       baseWhereClauses.push({
         suppliers: {
           some: {
-            id: user.id,
+            id: user.id, // user.id is guaranteed by the check above and the initial session check
           },
         },
       });

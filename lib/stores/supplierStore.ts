@@ -38,10 +38,8 @@ export const useSupplierStore = create<SupplierState>((set) => ({
                 'Загрузка поставщиков...'
             );
 
-            console.log('Raw suppliers data from API:', JSON.stringify(data)); // Log raw data
-            // De-duplicate suppliers based on INN before setting state
             const uniqueSuppliers = Array.from(new Map(data.map(supplier => [supplier.inn.trim(), supplier])).values()); // Trim INN for de-duplication
-            console.log('Unique suppliers after de-duplication:', JSON.stringify(uniqueSuppliers)); // Log unique data
+
             set({ suppliers: uniqueSuppliers, isLoading: false, error: null }); // Set unique suppliers and reset loading/error
 
         } catch (error: unknown) {
@@ -58,7 +56,7 @@ export const useSupplierStore = create<SupplierState>((set) => ({
                 description: errorMessage,
                 variant: 'destructive',
             });
-            // Optionally re-throw or handle error further if needed
+
         }
     },
 }));

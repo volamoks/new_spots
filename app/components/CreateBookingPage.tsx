@@ -4,8 +4,6 @@ import { useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
 import { useZonesStore } from '@/lib/stores/zonesStore';
-// Removed unused useLoaderStore import
-// import { useLoaderStore } from '@/lib/stores/loaderStore';
 import { ZonePagination } from '@/app/components/zones/ZonePagination';
 import CategorySelection from './booking/CategorySelection';
 import { BrandSelector } from './booking/BrandSelector'; // Import BrandSelector
@@ -31,10 +29,6 @@ export default function CreateBookingPage() {
     const filterCriteriaCategory = useZonesStore(state => state.filterCriteria.category); // Select category specifically
     const fetchFilterOptions = useZonesStore(state => state.fetchFilterOptions);
 
-    // Removed unused isLoading from useLoaderStore
-    // const isLoading = useLoaderStore(state => state.isLoading);
-
-    // Corrected useCallback syntax
     const setSelectedCategoryCallback = useCallback(
         (category: string) => {
             setFilterCriteria({ category: category || undefined });
@@ -46,8 +40,8 @@ export default function CreateBookingPage() {
     useEffect(() => {
         if (isAuthenticated) {
             // These actions now trigger the global loader via withLoading in the store
-            fetchZones();
-            fetchFilterOptions();
+            fetchZones(); // Temporarily commented out for debugging
+            fetchFilterOptions(); // Temporarily commented out for debugging
         }
     }, [isAuthenticated, fetchZones, fetchFilterOptions]);
 
