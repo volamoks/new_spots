@@ -8,6 +8,7 @@ import { useZonesStore } from '@/lib/stores/zonesStore';
 // import { useLoaderStore } from '@/lib/stores/loaderStore';
 import { ZonePagination } from '@/app/components/zones/ZonePagination';
 import CategorySelection from './booking/CategorySelection';
+import { BrandSelector } from './booking/BrandSelector'; // Import BrandSelector
 import BookingFilters from './booking/BookingFilters';
 import ZonesTable from './booking/ZonesTable';
 import BookingPageHeader from './booking/BookingPageHeader';
@@ -21,6 +22,8 @@ export default function CreateBookingPage() {
     const setSelectedSupplierInnForCreation = useBookingActionsStore(
         state => state.setSelectedSupplierInnForCreation,
     );
+    const selectedBrandId = useBookingActionsStore(state => state.selectedBrandId); // Get selected brand ID
+    const setSelectedBrandId = useBookingActionsStore(state => state.setSelectedBrandId); // Get action to set brand ID
 
     // Get state and actions from zones store (excluding isLoading)
     const {
@@ -82,6 +85,20 @@ export default function CreateBookingPage() {
                                 onCategorySelect={setSelectedCategoryCallback}
                                 selectedCategory={filterCriteria.category || ''}
                             />
+                            {/* Add BrandSelector below CategorySelection */}
+                            <div className="mt-4">
+                                {' '}
+                                {/* Add some margin */}
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Выберите Бренд (опционально)
+                                </label>
+                                <BrandSelector
+                                    value={selectedBrandId}
+                                    onChange={setSelectedBrandId}
+                                    // Disable if no category is selected? Or handle fetch logic inside BrandSelector
+                                    disabled={!filterCriteria.category}
+                                />
+                            </div>
                         </CardContent>
                     </Card>
 

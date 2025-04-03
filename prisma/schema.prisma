@@ -41,7 +41,7 @@ model User {
   password         String
   role             Role             @default(SUPPLIER)
   category         String?
-  inn              String?
+  inn              String?          @unique // Keep the original unique INN field
   supplierName     String?
   status           UserStatus       @default(ACTIVE)
   createdAt        DateTime         @default(now())
@@ -50,6 +50,9 @@ model User {
   bookingRequests  BookingRequest[]
   supplierBookings BookingRequest[] @relation("BookingSupplier")
   sessions         Session[]
+
+  // Add relation to Brand (Many-to-Many)
+  brands Brand[] @relation("BrandSuppliers")
 }
 
 model VerificationToken {
@@ -111,6 +114,10 @@ model Booking {
   updatedAt        DateTime       @updatedAt
   bookingRequest   BookingRequest @relation(fields: [bookingRequestId], references: [id], onDelete: Cascade)
   zone             Zone           @relation(fields: [zoneId], references: [id])
+  brandId          String?
+  brand            Brand?         @relation(fields: [brandId], references: [id])
+
+  @@index([brandId])
 }
 
 enum RequestStatus {
@@ -150,4 +157,18 @@ model InnOrganization {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Brand {
+  id   String @id @default(cuid())
+  name String @unique
+  // supplierInn String? // Ensure this is removed or commented out
+
+  bookings Booking[]
+
+  // Add relation to User (Suppliers) (Many-to-Many)
+  suppliers User[] @relation("BrandSuppliers")
+
+  // Ensure index is removed or commented out
+  // @@index([supplierInn])
 }

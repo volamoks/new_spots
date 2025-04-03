@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { BookingRequest, type Booking, User, Zone, BookingStatus } from '@prisma/client';
+import { BookingRequest, type Booking, User, Zone, BookingStatus, type Brand } from '@prisma/client'; // Import Brand type
 import { getSession } from 'next-auth/react';
 // Import the standardized loader store
 import { useLoaderStore } from './loaderStore';
@@ -9,7 +9,7 @@ import { useLoaderStore } from './loaderStore';
 
 // Replicated from old stores, might need adjustment based on API/Prisma schema
 export type BookingRequestWithBookings = BookingRequest & {
-    bookings: (Booking & { zone: Zone; bookingRequest: BookingRequest })[];
+    bookings: (Booking & { zone: Zone; bookingRequest: BookingRequest; brand: Brand | null })[]; // Add brand relation here
     supplier: User | null;
     user: User;
     supplierName: string; // Ensure this is consistently available from API
@@ -263,6 +263,7 @@ export const useBookingRequestStore = create<BookingRequestState>()(
                             throw new Error(errorData.error || 'Failed to fetch booking requests');
                         }
                         const fetchedRequests: BookingRequestWithBookings[] = await response.json();
+                        console.log('[Store] Fetched Booking Requests Data:', fetchedRequests); // Log the fetched data structure
 
                         set({
                             bookingRequests: fetchedRequests,

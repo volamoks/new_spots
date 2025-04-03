@@ -7,18 +7,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'; // Import RadioGroup
+import { Label } from '@/components/ui/label'; // Import Label
 import { useToast } from '@/components/ui/use-toast';
 import { Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import { PreviewTable } from '../../dmp-manager/upload/preview-table';
-import type { ZoneData } from '@/types/zone';
+// import type { ZoneData } from '@/types/zone'; // Ensure this line is commented out or removed
 import * as XLSX from 'xlsx';
 
 export function ExcelUploadForm() {
+    // Remove props
     const [file, setFile] = useState<File | null>(null);
+    // Restore internal state for uploadType
+    const [uploadType, setUploadType] = useState<'zones' | 'inn' | 'brands'>('zones');
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [errors, setErrors] = useState<string[]>([]);
-    const [previewData, setPreviewData] = useState<ZoneData[]>([]);
+    // Make previewData more generic, though validation/display might need adjustment
+    const [previewData, setPreviewData] = useState<Record<string, any>[]>([]);
     const router = useRouter();
     const { toast } = useToast();
 
@@ -50,7 +56,8 @@ export function ExcelUploadForm() {
                             }
                         }
 
-                        const jsonData = XLSX.utils.sheet_to_json<ZoneData>(worksheet);
+                        // Use generic Record type for preview
+                        const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
                         setPreviewData(jsonData);
                     } catch (error: unknown) {
                         console.error('Ошибка чтения файла:', error);
@@ -67,7 +74,11 @@ export function ExcelUploadForm() {
         }
     };
 
-    const validateData = (data: ZoneData[]): string[] => {
+    // Update validateData to accept generic data and check based on uploadType
+    const validateData = (
+        data: Record<string, any>[],
+        type: 'zones' | 'inn' | 'brands',
+    ): string[] => {
         const errors: string[] = [];
         data.forEach((row, index) => {
             const rowNum = index + 2; // +2 because Excel starts from 1 and we have header row
@@ -80,21 +91,44 @@ export function ExcelUploadForm() {
                 ]),
             );
 
-            // Check for required fields using cleaned column names
-            if (!cleanRow['Уникальный идентификатор']) {
-                errors.push(`Строка ${rowNum}: Отсутствует уникальный идентификатор`);
-            }
-            if (!cleanRow['Город']) {
-                errors.push(`Строка ${rowNum}: Отсутствует город`);
-            }
-            if (!cleanRow['Маркет']) {
-                errors.push(`Строка ${rowNum}: Отсутствует маркет`);
-            }
-            if (!cleanRow['Основная Макрозона']) {
-                errors.push(`Строка ${rowNum}: Отсутствует основная макрозона`);
-            }
-            if (!cleanRow['Статус']) {
-                errors.push(`Строка ${rowNum}: Отсутствует статус`);
+            // Validation based on type
+            if (type === 'zones') {
+                // Check for required fields using cleaned column names
+                if (!cleanRow['Уникальный идентификатор']) {
+                    errors.push(`Строка ${rowNum}: Отсутствует уникальный идентификатор`);
+                }
+                if (!cleanRow['Город']) {
+                    errors.push(`Строка ${rowNum}: Отсутствует город`);
+                }
+                if (!cleanRow['Маркет']) {
+                    errors.push(`Строка ${rowNum}: Отсутствует маркет`);
+                }
+                if (!cleanRow['Основная Макрозона']) {
+                    errors.push(`Строка ${rowNum}: Отсутствует основная макрозона`);
+                }
+                // Note: Status validation was removed here, but present in API. Add back if needed.
+                // if (!cleanRow['Статус']) {
+                //     errors.push(`Строка ${rowNum}: Отсутствует статус`);
+                // }
+                // Add back the filter check from API if needed client-side
+                // if (!cleanRow["Поставщик"] || !cleanRow["Brand"] || !cleanRow["Категория товара"]) {
+                //     errors.push(`Строка ${rowNum}: Отсутствуют Поставщик, Brand или Категория товара (необходимы для типа 'zones')`);
+                // }
+            } else if (type === 'inn') {
+                if (!cleanRow['Поставщик']) {
+                    errors.push(`Строка ${rowNum}: Отсутствует название поставщика`);
+                }
+                if (!cleanRow['Налоговый номер']) {
+                    errors.push(`Строка ${rowNum}: Отсутствует ИНН`);
+                }
+            } else if (type === 'brands') {
+                if (!cleanRow['Название Бренда']) {
+                    errors.push(`Строка ${rowNum}: Отсутствует Название Бренда`);
+                }
+                // Optional INN format validation
+                // if (cleanRow["ИНН Поставщика"] && !/^\d{10,12}$/.test(String(cleanRow["ИНН Поставщика"]))) {
+                //   errors.push(`Строка ${rowNum}: Некорректный формат ИНН Поставщика`)
+                // }
             }
         });
         return errors;
@@ -107,7 +141,8 @@ export function ExcelUploadForm() {
             return;
         }
 
-        const validationErrors = validateData(previewData);
+        // Pass uploadType to validateData
+        const validationErrors = validateData(previewData, uploadType);
         if (validationErrors.length > 0) {
             setErrors(validationErrors);
             return;
@@ -119,6 +154,7 @@ export function ExcelUploadForm() {
 
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('type', uploadType); // Add upload type to form data
 
         try {
             // Имитация прогресса загрузки
@@ -148,7 +184,10 @@ export function ExcelUploadForm() {
 
             toast({
                 title: 'Успешно',
-                description: `Данные успешно загружены. Обработано записей: ${data.count}`,
+                // Adjust success message based on type and API response structure
+                description: `Данные (${uploadType}) успешно загружены. Обработано строк: ${
+                    data.processedRows ?? data.count ?? 'N/A'
+                }. Всего строк в файле: ${data.totalRows ?? 'N/A'}`,
                 variant: 'success',
             });
 
@@ -170,11 +209,41 @@ export function ExcelUploadForm() {
         }
     };
 
+    console.log('Rendering ExcelUploadForm, current uploadType:', uploadType); // Add console log here
     return (
         <form
             onSubmit={handleSubmit}
-            className="space-y-4"
+            className="space-y-6" // Increased spacing
         >
+            {/* Add Radio Group for Upload Type */}
+            <RadioGroup
+                value={uploadType} // Use internal state value
+                onValueChange={(value: 'zones' | 'inn' | 'brands') => setUploadType(value)} // Use internal state setter
+                className="flex space-x-4"
+            >
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem
+                        value="zones"
+                        id="r-zones"
+                    />
+                    <Label htmlFor="r-zones">Зоны</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem
+                        value="inn"
+                        id="r-inn"
+                    />
+                    <Label htmlFor="r-inn">ИНН Поставщиков</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem
+                        value="brands"
+                        id="r-brands"
+                    />
+                    <Label htmlFor="r-brands">Бренды</Label>
+                </div>
+            </RadioGroup>
+
             <div className="grid w-full items-center gap-1.5">
                 <div className="flex items-center space-x-2">
                     <FileSpreadsheet className="h-6 w-6 text-muted-foreground" />
@@ -209,7 +278,8 @@ export function ExcelUploadForm() {
             {previewData.length > 0 && (
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Предпросмотр данных</h3>
-                    <PreviewTable data={previewData} />
+                    {/* Cast data for PreviewTable - assumes it expects ZoneData structure */}
+                    <PreviewTable data={previewData as any[]} />
                 </div>
             )}
 

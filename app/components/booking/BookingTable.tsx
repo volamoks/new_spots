@@ -13,8 +13,8 @@ import {
 import { StatusBadge } from '../StatusBadge';
 // Import the type from the new store
 import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore';
-import { BookingActionsAndStatus } from './BookingActionsAndStatus';
-// import { BookingActions } from './BookingActions';
+// import { BookingActionsAndStatus } from './BookingActionsAndStatus'; // Removed unused import
+import { BookingActions } from './BookingActions'; // Added import
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -29,66 +29,89 @@ type BookingTableProps = {
     onReject?: (requestId: string, zoneId: string) => void;
 };
 
+// Helper function moved outside the component
+// Calculates the display status for an individual booking based on role
+const getBookingDisplayStatus = (status: BookingStatus, role: BookingRole): string => {
+    if (role === BookingRole.SUPPLIER) {
+        switch (status) {
+            case BookingStatus.PENDING_KM:
+            case BookingStatus.KM_APPROVED:
+                return 'BOOKING_IN_PROGRESS'; // "В работе"
+            case BookingStatus.DMP_APPROVED:
+                return 'BOOKING_APPROVED'; // "Согласовано"
+            case BookingStatus.KM_REJECTED:
+            case BookingStatus.DMP_REJECTED:
+                return 'BOOKING_REJECTED'; // "Отклонено"
+            default:
+                return 'BOOKING_UNKNOWN'; // Fallback for unexpected statuses
+        }
+    } else {
+        // For KM/DMP, return the original status enum value
+        return status;
+    }
+};
+
+// Helper function to calculate the OVERALL status for the BookingRequest header
+// Calculates the OVERALL status for the BookingRequest header
+const getRequestDisplayStatus = (
+    request: BookingRequestWithBookings,
+    // role: BookingRole, // Role no longer needed for header status logic
+): string => {
+    // Return type is now always a string
+    // Handle cases with no bookings gracefully
+    if (!request.bookings || request.bookings.length === 0) {
+        // If no bookings, maybe default to a 'NEW' or 'EMPTY' status?
+        // For now, let's use a specific string.
+        return 'REQUEST_EMPTY'; // Need to add this to StatusBadge
+    }
+
+    const bookingStatuses = request.bookings.map(b => b.status);
+
+    // Define status categories
+    const kmProcessedStatuses: BookingStatus[] = [
+        BookingStatus.KM_APPROVED,
+        BookingStatus.KM_REJECTED,
+    ];
+    const dmpProcessedStatuses: BookingStatus[] = [
+        BookingStatus.DMP_APPROVED,
+        BookingStatus.DMP_REJECTED,
+    ];
+    // A request is fully closed if every booking is either rejected by KM or processed by DMP
+    const closedStatuses: BookingStatus[] = [
+        BookingStatus.KM_REJECTED, // KM rejection closes the booking
+        ...dmpProcessedStatuses, // Any DMP action closes the booking
+    ];
+
+    // 1. "Заявка закрыта" (Request Closed)
+    // If ALL bookings are in a state considered 'closed'
+    if (bookingStatuses.every(s => closedStatuses.includes(s))) {
+        return 'REQUEST_CLOSED'; // New status string
+    }
+
+    // 2. "Обработано КМ" (Processed by KM)
+    // If ALL bookings have been processed by KM (approved or rejected)
+    // AND the request is not closed (checked above)
+    const allKmProcessed = bookingStatuses.every(s => kmProcessedStatuses.includes(s));
+    if (allKmProcessed) {
+        return 'REQUEST_PROCESSED_KM'; // New status string
+    }
+
+    // 3. "Новая заявка" (New Request)
+    // If ANY booking is still PENDING_KM (or potentially the request's initial status is NEW)
+    if (
+        bookingStatuses.some(s => s === BookingStatus.PENDING_KM) ||
+        request.status === RequestStatus.NEW
+    ) {
+        return 'REQUEST_NEW'; // New status string
+    }
+
+    // Fallback - should ideally not be reached with the logic above
+    console.warn('Unexpected state in getRequestDisplayStatus for request:', request.id);
+    return 'REQUEST_UNKNOWN'; // Need to add this to StatusBadge
+};
+// End of getRequestDisplayStatus function definition
+
 export function BookingTable({ requests, userRole, onApprove, onReject }: BookingTableProps) {
-    // Helper function moved inside the component
-    // Calculates the OVERALL status for the BookingRequest header
-    const getRequestDisplayStatus = (
-        request: BookingRequestWithBookings,
-        // role: BookingRole, // Role no longer needed for header status logic
-    ): string => {
-        // Return type is now always a string
-        // Handle cases with no bookings gracefully
-        if (!request.bookings || request.bookings.length === 0) {
-            // If no bookings, maybe default to a 'NEW' or 'EMPTY' status?
-            // For now, let's use a specific string.
-            return 'REQUEST_EMPTY'; // Need to add this to StatusBadge
-        }
-
-        const bookingStatuses = request.bookings.map(b => b.status);
-
-        // Define status categories
-        const kmProcessedStatuses: BookingStatus[] = [
-            BookingStatus.KM_APPROVED,
-            BookingStatus.KM_REJECTED,
-        ];
-        const dmpProcessedStatuses: BookingStatus[] = [
-            BookingStatus.DMP_APPROVED,
-            BookingStatus.DMP_REJECTED,
-        ];
-        // A request is fully closed if every booking is either rejected by KM or processed by DMP
-        const closedStatuses: BookingStatus[] = [
-            BookingStatus.KM_REJECTED, // KM rejection closes the booking
-            ...dmpProcessedStatuses, // Any DMP action closes the booking
-        ];
-
-        // 1. "Заявка закрыта" (Request Closed)
-        // If ALL bookings are in a state considered 'closed'
-        if (bookingStatuses.every(s => closedStatuses.includes(s))) {
-            return 'REQUEST_CLOSED'; // New status string
-        }
-
-        // 2. "Обработано КМ" (Processed by KM)
-        // If ALL bookings have been processed by KM (approved or rejected)
-        // AND the request is not closed (checked above)
-        const allKmProcessed = bookingStatuses.every(s => kmProcessedStatuses.includes(s));
-        if (allKmProcessed) {
-            return 'REQUEST_PROCESSED_KM'; // New status string
-        }
-
-        // 3. "Новая заявка" (New Request)
-        // If ANY booking is still PENDING_KM (or potentially the request's initial status is NEW)
-        if (
-            bookingStatuses.some(s => s === BookingStatus.PENDING_KM) ||
-            request.status === RequestStatus.NEW
-        ) {
-            return 'REQUEST_NEW'; // New status string
-        }
-
-        // Fallback - should ideally not be reached with the logic above
-        console.warn('Unexpected state in getRequestDisplayStatus for request:', request.id);
-        return 'REQUEST_UNKNOWN'; // Need to add this to StatusBadge
-    };
-    // Removed extra closing brace here that was breaking the component scope - This comment is now inaccurate as the function signature changed.
     const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>(() => {
         const expanded: Record<string, boolean> = {};
         requests.forEach(request => {
@@ -172,6 +195,7 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                         <TableHead>Город</TableHead>
                         <TableHead>Магазин</TableHead>
                         <TableHead>Макрозона</TableHead>
+                        <TableHead>Бренд</TableHead> {/* Add Brand Header */}
                         <TableHead>Статус</TableHead>
                         {/* <TableHead>Дата создания</TableHead> */}
                         {userRole !== BookingRole.SUPPLIER && <TableHead>Действия</TableHead>}
@@ -192,7 +216,7 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                         )}
                                     >
                                         <TableCell
-                                            colSpan={10}
+                                            colSpan={11} // Corrected colspan
                                             className="font-bold"
                                             onClick={() => toggleExpand(request.id)}
                                         >
@@ -236,14 +260,29 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                                 <TableCell>{booking.zone.city}</TableCell>
                                                 <TableCell>{booking.zone.market}</TableCell>
                                                 <TableCell>{booking.zone.mainMacrozone}</TableCell>
-
-                                                <BookingActionsAndStatus
-                                                    booking={booking}
-                                                    userRole={userRole}
-                                                    requestId={request.id}
-                                                    onApprove={memoizedOnApprove}
-                                                    onReject={memoizedOnReject}
-                                                />
+                                                <TableCell>
+                                                    {booking.brand?.name || 'N/A'}
+                                                </TableCell>
+                                                {/* Wrap StatusBadge and BookingActions in separate TableCells */}
+                                                <TableCell>
+                                                    <StatusBadge
+                                                        status={getBookingDisplayStatus(
+                                                            booking.status,
+                                                            userRole,
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                {userRole !== BookingRole.SUPPLIER && (
+                                                    <TableCell>
+                                                        <BookingActions
+                                                            booking={booking}
+                                                            userRole={userRole}
+                                                            requestId={request.id}
+                                                            onApprove={memoizedOnApprove}
+                                                            onReject={memoizedOnReject}
+                                                        />
+                                                    </TableCell>
+                                                )}
                                             </TableRow>
                                         ))}
                                 </React.Fragment>
@@ -252,7 +291,7 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                     ) : (
                         <TableRow>
                             <TableCell
-                                colSpan={9}
+                                colSpan={10} // Corrected colspan
                                 className="text-center py-4"
                             >
                                 Нет заявок на бронирование

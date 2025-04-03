@@ -42,6 +42,12 @@ interface InnData extends ExcelData {
   "Налоговый номер"?: string;
 }
 
+// Интерфейс для данных Брендов
+interface BrandData extends ExcelData {
+  "Название Бренда"?: string; // Brand Name
+  "ИНН Поставщика"?: string; // Optional Supplier INN
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest) {
 
     // Get the range and find headers
     const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:Z1")
+    console.log(`[Data Reading] Detected sheet range: ${JSON.stringify(range)}`); // Log the detected range
     const headers: { [key: string]: number } = {}
 
     // First, collect all headers and clean them
@@ -107,6 +114,7 @@ export async function POST(req: NextRequest) {
       }
       data.push(row)
     }
+    console.log(`[Data Reading] Populated data array with ${data.length} rows.`); // Log the size of the data array
 
     // Validate data based on type
     const validationErrors: string[] = []
@@ -151,6 +159,20 @@ export async function POST(req: NextRequest) {
           validationErrors.push(`Строка ${rowNum}: Отсутствует ИНН`)
         }
       })
+    } else if (type === "brands") {
+      // Validate all data for 'brands' type
+      console.log(`[Brands Path] Validating ${dataToProcess.length} rows for brands.`); // Log count before validation
+      dataToProcess.forEach((row, index) => {
+        const rowNum = index + 2 // +2 because Excel starts from 1 and we have header row
+
+        if (!row["Название Бренда"]) {
+          validationErrors.push(`Строка ${rowNum}: Отсутствует Название Бренда`)
+        }
+        // Optional: Add validation for INN format if provided
+        // if (row["ИНН Поставщика"] && !/^\d{10,12}$/.test(String(row["ИНН Поставщика"]))) {
+        //   validationErrors.push(`Строка ${rowNum}: Некорректный формат ИНН Поставщика`)
+        // }
+      })
     }
 
     if (validationErrors.length > 0) {
@@ -172,6 +194,29 @@ export async function POST(req: NextRequest) {
     } else if (type === "inn") {
       // For 'inn', dataToProcess is the original 'data'
       savedData = await Promise.all(dataToProcess.map(row => createOrUpdateSupplier(row as InnData)))
+    } else if (type === "brands") {
+      // For 'brands', dataToProcess is the original 'data'
+      console.log(`[Brands Path] Attempting to save ${dataToProcess.length} brand rows.`); // Log count before saving
+      // Use Promise.allSettled or map with individual try/catch to handle row errors
+      const results = await Promise.all(dataToProcess.map(async (row, index) => {
+        try {
+          // console.log(`[Brands Path] Processing row ${index + 2}:`, row); // Uncomment for very verbose logging
+          const result = await createOrUpdateBrand(row as BrandData);
+          return { status: 'fulfilled', value: result, rowNum: index + 2 };
+        } catch (error) {
+          console.error(`[Brands Path] Error processing row ${index + 2}:`, error);
+          return { status: 'rejected', reason: error, rowNum: index + 2 };
+        }
+      }));
+
+      // Filter successful results
+      savedData = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      const failedCount = results.filter(r => r.status === 'rejected').length;
+
+      console.log(`[Brands Path] Successfully saved ${savedData.length} brand rows.`);
+      if (failedCount > 0) {
+        console.warn(`[Brands Path] Failed to save ${failedCount} brand rows.`);
+      }
     } else {
       return NextResponse.json({ error: "Неизвестный тип импорта" }, { status: 400 })
     }
@@ -300,6 +345,70 @@ async function createOrUpdateSupplier(innData: InnData) {
   } catch (error) {
     console.error("Ошибка при сохранении организации:", error);
     console.error("Данные организации:", { inn, organizationName });
+    throw error;
+  }
+}
+
+async function createOrUpdateBrand(brandData: BrandData) {
+  const brandName = brandData["Название Бренда"]?.toString().trim();
+  const supplierInnsString = brandData["ИНН Поставщика"]?.toString().trim() || "";
+
+  if (!brandName) {
+    throw new Error("Название бренда обязательно");
+  }
+
+  // Parse comma-separated INNs, trim whitespace, and filter out empty strings
+  const supplierInns = supplierInnsString
+    .split(',')
+    .map(inn => inn.trim())
+    .filter(inn => inn.length > 0);
+
+  // Find supplier users based on the parsed INNs
+  const suppliersToConnect = await prisma.user.findMany({
+    where: {
+      inn: {
+        in: supplierInns,
+      },
+      role: 'SUPPLIER', // Ensure we only link to actual suppliers
+    },
+    select: {
+      id: true, // Select only the ID for connecting
+    },
+  });
+
+  if (supplierInns.length > 0 && suppliersToConnect.length !== supplierInns.length) {
+    // Optional: Warn if some provided INNs didn't match existing suppliers
+    // const foundInns = suppliersToConnect.map(u => u.id); // Removed unused variable
+    // Need to re-fetch INNs if we want to show which ones were not found
+    console.warn(`[Brand Upload] For brand "${brandName}", some supplier INNs were not found or did not correspond to a SUPPLIER user: ${supplierInns.join(', ')}. Found ${suppliersToConnect.length} valid suppliers.`);
+  }
+
+  const connectData = suppliersToConnect.map(supplier => ({ id: supplier.id }));
+
+  try {
+    // Upsert the brand
+    return await prisma.brand.upsert({
+      where: { name: brandName },
+      update: {
+        // Use 'set' to replace existing suppliers with the new list
+        // Use 'connect' if you only want to add without removing existing ones (less common for bulk upload)
+        suppliers: {
+          set: connectData, // Replaces all existing connections for this brand
+        },
+      },
+      create: {
+        name: brandName,
+        suppliers: {
+          connect: connectData, // Connects the found suppliers on creation
+        },
+      },
+    });
+  } catch (error) {
+    console.error(`Ошибка при сохранении бренда "${brandName}":`, error);
+    console.error("Данные бренда:", { brandName, supplierInns, connectData });
+    if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+      console.error(`Brand name "${brandName}" might already exist.`);
+    }
     throw error;
   }
 }

@@ -1,14 +1,19 @@
 'use client';
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react'; // Remove useState
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Added CardDescription
 import { DataExportCard } from '@/app/components/DataExportCard';
-import { DataImportCard } from '@/app/components/DataImportCard';
+// import { DataImportCard } from '@/app/components/DataImportCard'; // Remove generic import card
+import { ExcelUploadForm } from '@/app/components/dmp/ExcelUploadForm'; // Import specific upload form
+import { TemplateDownloadButton } from '@/app/components/dmp/TemplateDownloadButton'; // Import download button
+// Remove RadioGroup and Label imports if no longer needed elsewhere
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
 export default function DMPManagerExportPage() {
     const { data: session, status } = useSession();
+    // Remove lifted state
+    // const [uploadType, setUploadType] = useState<'zones' | 'inn' | 'brands'>('zones');
 
     // Перенаправляем неавторизованных пользователей или пользователей с неправильной ролью
     if (status === 'unauthenticated') {
@@ -28,18 +33,32 @@ export default function DMPManagerExportPage() {
                         <CardTitle className="text-2xl font-bold text-corporate">
                             Экспорт и импорт данных
                         </CardTitle>
+                        {/* Add description here */}
+                        <CardDescription>
+                            На этой странице вы можете экспортировать данные из системы или
+                            импортировать новые данные (Зоны, ИНН, Бренды).
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-gray-600">
-                            На этой странице вы можете экспортировать данные из системы в формате
-                            Excel или импортировать новые данные.
-                        </p>
-                    </CardContent>
+                    <CardContent>{/* Content removed from here, handled below */}</CardContent>
                 </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <DataExportCard />
-                    <DataImportCard />
+                    {/* Replace DataImportCard with specific components */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Импорт данных</CardTitle>
+                            <CardDescription>
+                                Загрузите файл Excel с данными (Зоны, ИНН Поставщиков, Бренды).
+                                Убедитесь, что структура файла соответствует шаблону.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {/* Render components without passing uploadType state */}
+                            <TemplateDownloadButton />
+                            <ExcelUploadForm />
+                        </CardContent>
+                    </Card>
                 </div>
             </main>
         </div>

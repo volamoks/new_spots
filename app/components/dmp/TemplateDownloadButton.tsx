@@ -6,16 +6,23 @@ import { useToast } from '@/components/ui/use-toast';
 import { Download } from 'lucide-react';
 import { generateExcelTemplate } from '@/lib/excel-template';
 
-export function TemplateDownloadButton() {
+// Define props
+interface TemplateDownloadButtonProps {
+    uploadType: 'zones' | 'inn' | 'brands';
+}
+
+export function TemplateDownloadButton({ uploadType }: TemplateDownloadButtonProps) {
     const { toast } = useToast();
 
     const downloadTemplate = () => {
         try {
-            const blob = generateExcelTemplate();
+            // Pass the type to the generation function
+            const blob = generateExcelTemplate(uploadType);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'template-zones.xlsx';
+            // Set filename based on type
+            a.download = `template-${uploadType}.xlsx`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);

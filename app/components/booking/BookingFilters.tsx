@@ -51,26 +51,26 @@ const BookingFilters = () => {
         {
             title: 'Город',
             options: cityOptions,
-            selected: filterCriteria.cityFilters, // Match FilterCriteria keys
-            filterKey: 'cityFilters' as keyof FilterCriteria & string,
+            selected: filterCriteria.city, // Use new key 'city'
+            filterKey: 'city' as keyof FilterCriteria & string, // Use new key 'city'
         },
         {
             title: 'Маркет',
             options: marketOptions,
-            selected: filterCriteria.marketFilters, // Match FilterCriteria keys
-            filterKey: 'marketFilters' as keyof FilterCriteria & string,
+            selected: filterCriteria.market, // Use new key 'market'
+            filterKey: 'market' as keyof FilterCriteria & string, // Use new key 'market'
         },
         {
             title: 'Макрозона',
             options: macrozoneOptions,
-            selected: filterCriteria.macrozoneFilters, // Match FilterCriteria keys
-            filterKey: 'macrozoneFilters' as keyof FilterCriteria & string,
+            selected: filterCriteria.macrozone, // Use new key 'macrozone'
+            filterKey: 'macrozone' as keyof FilterCriteria & string, // Use new key 'macrozone'
         },
         {
             title: 'Оборудование',
             options: equipmentOptions,
-            selected: filterCriteria.equipmentFilters, // Match FilterCriteria keys
-            filterKey: 'equipmentFilters' as keyof FilterCriteria & string,
+            selected: filterCriteria.equipment, // Use new key 'equipment'
+            filterKey: 'equipment' as keyof FilterCriteria & string, // Use new key 'equipment'
         },
     ];
 
@@ -107,42 +107,26 @@ const BookingFilters = () => {
                 />
                 {/* Selected Filters Display */}
                 <SelectedFiltersDisplay
-                    // Cast the mapped object to satisfy the prop type, adding a dummy status
+                    // Pass the relevant parts of filterCriteria directly
+                    // Note: SelectedFiltersDisplay expects BookingRequestFilters type,
+                    // but we are using it with FilterCriteria from useZonesStore.
+                    // This might require adjusting SelectedFiltersDisplay or creating a variant.
+                    // For now, we cast, assuming the relevant keys match.
                     filterCriteria={
                         {
-                            city: filterCriteria.cityFilters,
-                            market: filterCriteria.marketFilters,
-                            macrozone: filterCriteria.macrozoneFilters,
-                            equipment: filterCriteria.equipmentFilters,
-                            status: [], // Add dummy status to satisfy BookingRequestFilters type
-                            // Ensure other required fields from BookingRequestFilters are handled if necessary
-                            // (e.g., supplierIds, dateFrom, dateTo might need dummy values if required)
-                            supplierIds: [], // Add dummy supplierIds
-                            dateFrom: undefined, // Add dummy dateFrom
-                            dateTo: undefined, // Add dummy dateTo
-                            searchTerm: filterCriteria.searchTerm, // Pass search term if SelectedFiltersDisplay uses it
-                            supplierName: '', // Pass dummy supplierName
-                        } as BookingRequestFilters
-                    } // Explicit cast
-                    setFilterCriteria={updates => {
-                        // Map the keys back when updating the store, ignoring status
-                        const mappedUpdates: Partial<FilterCriteria> = {};
-                        // Check for existence before assigning to avoid overwriting with undefined
-                        if ('city' in updates && updates.city !== undefined)
-                            mappedUpdates.cityFilters = updates.city;
-                        if ('market' in updates && updates.market !== undefined)
-                            mappedUpdates.marketFilters = updates.market;
-                        if ('macrozone' in updates && updates.macrozone !== undefined)
-                            mappedUpdates.macrozoneFilters = updates.macrozone;
-                        if ('equipment' in updates && updates.equipment !== undefined)
-                            mappedUpdates.equipmentFilters = updates.equipment;
-                        if ('searchTerm' in updates && updates.searchTerm !== undefined)
-                            mappedUpdates.searchTerm = updates.searchTerm;
-                        // Ignore status, supplierIds, dates, supplierName updates from SelectedFiltersDisplay
-                        if (Object.keys(mappedUpdates).length > 0) {
-                            setFilterCriteria(mappedUpdates);
-                        }
-                    }}
+                            ...filterCriteria,
+                            // Add dummy fields expected by BookingRequestFilters but not in FilterCriteria
+                            status: [],
+                            supplierIds: filterCriteria.supplier || [], // Map 'supplier' from store to 'supplierIds'
+                            dateFrom: undefined,
+                            dateTo: undefined,
+                            supplierName: '',
+                        } as BookingRequestFilters // Cast needed due to type mismatch
+                    }
+                    // Pass the store's setFilterCriteria directly
+                    setFilterCriteria={
+                        setFilterCriteria as (criteria: Partial<BookingRequestFilters>) => void
+                    } // Cast needed due to type mismatch
                 />
                 {/* Reset Button */}
                 <div className="flex justify-end pt-4">

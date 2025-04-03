@@ -13,11 +13,11 @@ import { useLoaderStore } from './loaderStore'; // Import the loader store
 export interface FilterCriteria {
     searchTerm: string;
     activeTab: string; // Corresponds to ZoneStatus or 'all'
-    cityFilters: string[];
-    marketFilters: string[];
-    macrozoneFilters: string[];
-    equipmentFilters: string[];
-    supplierFilters: string[];
+    city: string[]; // Renamed from cityFilters
+    market: string[]; // Renamed from marketFilters
+    macrozone: string[]; // Renamed from macrozoneFilters
+    equipment: string[]; // Renamed from equipmentFilters
+    supplier: string[]; // Renamed from supplierFilters
     // Add category filter if needed
     category?: string;
 }
@@ -78,11 +78,11 @@ interface ZonesState {
 const initialFilterCriteria: FilterCriteria = {
     searchTerm: '',
     activeTab: 'all',
-    cityFilters: [],
-    marketFilters: [],
-    macrozoneFilters: [],
-    equipmentFilters: [],
-    supplierFilters: [],
+    city: [], // Renamed from cityFilters
+    market: [], // Renamed from marketFilters
+    macrozone: [], // Renamed from macrozoneFilters
+    equipment: [], // Renamed from equipmentFilters
+    supplier: [], // Renamed from supplierFilters
     category: undefined,
 };
 
@@ -140,11 +140,11 @@ export const useZonesStore = create<ZonesState>()(
                         if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
                             params.append('status', filterCriteria.activeTab);
                         }
-                        filterCriteria.macrozoneFilters.forEach(mz => params.append('macrozone', mz));
-                        filterCriteria.cityFilters.forEach(city => params.append('city', city));
-                        filterCriteria.marketFilters.forEach(market => params.append('market', market));
-                        filterCriteria.equipmentFilters.forEach(eq => params.append('equipment', eq));
-                        filterCriteria.supplierFilters.forEach(sup => params.append('supplier', sup));
+                        filterCriteria.macrozone.forEach(mz => params.append('macrozone', mz)); // Use 'macrozone'
+                        filterCriteria.city.forEach(city => params.append('city', city)); // Use 'city'
+                        filterCriteria.market.forEach(market => params.append('market', market)); // Use 'market'
+                        filterCriteria.equipment.forEach(eq => params.append('equipment', eq)); // Use 'equipment'
+                        filterCriteria.supplier.forEach(sup => params.append('supplier', sup)); // Use 'supplier'
                         if (filterCriteria.category) {
                             params.append('category', filterCriteria.category);
                         }

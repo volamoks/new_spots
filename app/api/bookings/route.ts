@@ -12,7 +12,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { zoneIds, supplierId } = await req.json();
+    const body = await req.json();
+    const { zoneIds, supplierId, brandId } = body; // Add brandId
+    console.log('[API Route] Received booking request body:', body); // Log entire body
+    console.log(`[API Route] Extracted brandId: ${brandId}`); // Log extracted brandId
 
     // Ensure zoneIds is an array
     const zoneIdsArray = Array.isArray(zoneIds) ? zoneIds : [zoneIds];
@@ -38,7 +41,8 @@ export async function POST(req: Request) {
       zoneIdsArray,
       session.user.role,
       session.user.category,
-      supplierId
+      supplierId,
+      brandId // Pass brandId to the service function
     );
 
     return NextResponse.json(result);

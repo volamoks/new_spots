@@ -1,14 +1,16 @@
 'use client';
 
-import BookingRole from "@/lib/enums/BookingRole";
-import { BookingRequestWithBookings } from "@/types/booking";
-import { BookingStatus } from "@prisma/client";
-import { StatusBadge } from "../StatusBadge";
-import TableCell from "../ui/TableCell";
-import { BookingActions } from "./BookingActions";
+import BookingRole from '@/lib/enums/BookingRole';
+// Removed incorrect import from '@/types/booking'
+// Import the type from the store instead
+import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore';
+import { BookingStatus } from '@prisma/client';
+import { StatusBadge } from '../StatusBadge';
+import { BookingActions } from './BookingActions';
 
 type BookingActionsAndStatusProps = {
-    booking: BookingRequestWithBookings['bookings'][0]; // Revert to the original complex type which includes nested zone
+    // Use the correct type for a single booking from the store's definition
+    booking: BookingRequestWithBookings['bookings'][number];
     userRole: BookingRole;
     requestId: string;
     onApprove: (bookingId: string, zoneId: string) => void;
@@ -47,20 +49,16 @@ export function BookingActionsAndStatus({
 
     return (
         <>
-            <TableCell>
-                <StatusBadge status={displayStatus} />
-            </TableCell>
+            <StatusBadge status={displayStatus} />
             {/* Conditionally render actions cell only if not a supplier */}
             {userRole !== BookingRole.SUPPLIER && (
-                <TableCell>
-                    <BookingActions
-                        booking={booking}
-                        userRole={userRole}
-                        requestId={requestId}
-                        onApprove={onApprove}
-                        onReject={onReject}
-                    />
-                </TableCell>
+                <BookingActions
+                    booking={booking}
+                    userRole={userRole}
+                    requestId={requestId}
+                    onApprove={onApprove}
+                    onReject={onReject}
+                />
             )}
         </>
     );

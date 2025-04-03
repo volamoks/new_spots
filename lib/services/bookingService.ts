@@ -18,6 +18,7 @@ function generateSimpleId(prefix: string) {
  * @param userRole Роль пользователя
  * @param userCategory Категория пользователя (опционально)
  * @param supplierInn ИНН поставщика (опционально)
+ * @param brandId ID бренда (опционально)
  * @returns Запрос на бронирование со связанными бронированиями
  */
 export async function createBookingRequest(
@@ -26,7 +27,9 @@ export async function createBookingRequest(
     userRole: string,
     userCategory?: string | null,
     supplierInn?: string | null,
+    brandId?: string | null, // Add brandId parameter
 ) {
+    console.log(`[Service] createBookingRequest called with userId: ${userId}, zoneIds: ${zoneIds.length}, userRole: ${userRole}, supplierInn: ${supplierInn}, brandId: ${brandId}`); // Log input params
     if (userRole === 'CATEGORY_MANAGER') {
         if (!supplierInn) {
             throw new Error('Для бронирования необходимо выбрать поставщика');
@@ -83,8 +86,10 @@ export async function createBookingRequest(
                 'KM_APPROVED' as BookingStatus,
                 userId,
                 supplierOrg.name, // Pass the supplier NAME instead of INN
-                bookingSimpleId // Pass the simple ID
+                bookingSimpleId, // Pass the simple ID
+                brandId // Pass brandId to createBooking
             );
+            console.log(`[Service] Called createBooking for zone ${zone.id} with brandId: ${brandId}`); // Log before createBooking call
             bookings.push(booking);
 
             // Update zone status and set the supplier name
@@ -93,6 +98,8 @@ export async function createBookingRequest(
                 data: {
                     status: 'BOOKED',
                     supplier: supplierOrg.name, // Use the supplier NAME instead of INN
+                    // Also update the brand on the zone itself? This might be desired.
+                    brand: brandId ? (await prisma.brand.findUnique({ where: { id: brandId } }))?.name : null,
                 },
             });
         }
@@ -162,8 +169,10 @@ export async function createBookingRequest(
                 'PENDING_KM' as BookingStatus,
                 userId,
                 supplierName, // Use the supplier NAME
-                bookingSimpleId // Pass the simple ID
+                bookingSimpleId, // Pass the simple ID
+                brandId // Pass brandId to createBooking
             );
+            console.log(`[Service] Called createBooking for zone ${zone.id} with brandId: ${brandId}`); // Log before createBooking call
             bookings.push(booking);
 
             await prisma.zone.update({
@@ -171,6 +180,8 @@ export async function createBookingRequest(
                 data: {
                     status: 'BOOKED',
                     supplier: supplierName, // Use the supplier NAME
+                    // Also update the brand on the zone itself? This might be desired.
+                    brand: brandId ? (await prisma.brand.findUnique({ where: { id: brandId } }))?.name : null,
                 },
             });
         }
@@ -198,7 +209,13 @@ export async function getAllBookings(status?: string) {
             bookings: {
                 include: {
                     zone: true,
-                    bookingRequest: true,
+                    bookingRequest: true, // Might be redundant if already fetching parent request
+                    brand: { // Explicitly select needed brand fields
+                        select: {
+                            id: true,
+                            name: true,
+                        }
+                    },
                 },
                 orderBy: {
                     createdAt: 'desc', // Sort bookings from newest to oldest

@@ -61,23 +61,29 @@ export async function getBookingRequestById(id: string) {
  * @param userId ID пользователя
  * @param supplierName Имя поставщика (опционально)
  * @param bookingId Простой ID для бронирования (опционально)
+ * @param brandId ID бренда (опционально)
  * @returns Созданное бронирование
  */
 export async function createBooking(
   bookingRequestId: string,
   zoneId: string,
   status: BookingStatus,
-  userId: string,
+  userId: string, // Note: userId is passed but not currently used in the create call
   supplierName?: string,
   bookingId?: string,
+  brandId?: string | null, // Add brandId parameter
 ) {
+  const dataToCreate = {
+    id: bookingId, // Use the provided simple ID if available
+    bookingRequestId,
+    zoneId,
+    status,
+    brandId: brandId || null, // Add brandId here, ensuring it's null if undefined/empty
+  };
+  console.log(`[Data Fn] Creating booking with data:`, dataToCreate); // Log data before create
+  console.log(`[Data Fn] Value of brandId being passed to prisma.booking.create:`, brandId); // Log the specific brandId value
   const booking = await prisma.booking.create({
-    data: {
-      id: bookingId, // Use the provided simple ID if available
-      bookingRequestId,
-      zoneId,
-      status,
-    },
+    data: dataToCreate,
   });
 
   // Update the zone's supplier if supplierName is provided

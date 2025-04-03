@@ -5,6 +5,7 @@ import BookingRole from '@/lib/enums/BookingRole'; // Import the custom enum
 import { useLoaderStore } from './loaderStore'; // Use the global loader
 import { useBookingRequestStore } from './bookingRequestStore'; // To trigger refresh/update
 import { toast } from '@/components/ui/use-toast'; // Import toast function
+import { useZonesStore } from './zonesStore'; // Import zones store
 
 // --- Types ---
 
@@ -19,6 +20,7 @@ interface BookingActionsState {
     // State for Creation Process (loading handled globally)
     selectedZonesForCreation: Set<string>; // Use Set for efficiency
     selectedSupplierInnForCreation: string | null;
+    selectedBrandId: string | null; // Add state for selected brand ID
     // isCreating: boolean; // Removed, use global loader
     createError: string | null;
 
@@ -32,6 +34,7 @@ interface BookingActionsState {
     removeSelectedZoneForCreation: (zoneId: string) => void;
     clearSelectedZonesForCreation: () => void;
     setSelectedSupplierInnForCreation: (inn: string | null) => void;
+    setSelectedBrandId: (brandId: string | null) => void; // Add action for brand ID
 
     createBookingRequest: (user: SimplifiedUser) => Promise<boolean>; // Returns true on success
     updateBookingStatus: (bookingId: string, status: BookingStatus, role: BookingRole) => Promise<boolean>; // Use custom BookingRole enum
@@ -46,6 +49,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
             // Initial State
             selectedZonesForCreation: new Set(),
             selectedSupplierInnForCreation: null,
+            selectedBrandId: null, // Initialize brand ID state
             // isCreating: false, // Removed
             createError: null,
             // isUpdatingStatus: false, // Removed
@@ -76,13 +80,16 @@ export const useBookingActionsStore = create<BookingActionsState>()(
             setSelectedSupplierInnForCreation: (inn) => {
                 set({ selectedSupplierInnForCreation: inn });
             },
+            setSelectedBrandId: (brandId) => {
+                set({ selectedBrandId: brandId });
+            },
 
             createBookingRequest: async (user) => {
-                const { selectedZonesForCreation, selectedSupplierInnForCreation } = get();
+                const { selectedZonesForCreation, selectedSupplierInnForCreation, selectedBrandId } = get(); // Get selectedBrandId
                 const { withLoading } = useLoaderStore.getState();
                 const refreshBookingRequests = useBookingRequestStore.getState().fetchBookingRequests;
                 // Potentially refresh zones if their status changes after booking
-                // const refreshZones = useZonesStore.getState().fetchZones; // Removed unused variable
+                const refreshZones = useZonesStore.getState().fetchZones;
 
                 if (selectedZonesForCreation.size === 0) {
                     set({ createError: 'Please select at least one zone.' });
@@ -104,7 +111,9 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                         zoneIds: zoneIds,
                         supplierId: selectedSupplierInnForCreation, // API should handle null if appropriate
                         userId: user.id, // Assuming user object is passed in
+                        brandId: selectedBrandId, // Add brandId to the request payload
                     };
+                    console.log('[Store Action] Creating booking with requestData:', requestData); // Log request data
 
                     await withLoading(
                         fetch('/api/bookings', {
@@ -122,9 +131,9 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                     );
 
                     // set({ isCreating: false }); // Removed - Handled by withLoading
-                    set({ selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null }); // Clear selection on success
+                    set({ selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null, selectedBrandId: null }); // Clear selection on success (including brand)
                     await refreshBookingRequests(); // Refresh the list
-                    // await refreshZones(); // Uncomment if zone status might change
+                    await refreshZones(); // Refresh zones list
                     toast({ // Add success toast
                         title: 'Успешно',
                         description: 'Заявка на бронирование успешно создана.',
