@@ -41,7 +41,7 @@ model User {
   password         String
   role             Role             @default(SUPPLIER)
   category         String?
-  inn              String?          @unique
+  inn              String?
   supplierName     String?
   status           UserStatus       @default(ACTIVE)
   createdAt        DateTime         @default(now())

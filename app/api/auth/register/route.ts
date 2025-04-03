@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
-import { hash } from "bcrypt"
-import { prisma } from "@/lib/prisma"
+import { NextResponse } from "next/server";
+import { hash } from "bcrypt";
+import { Prisma } from "@prisma/client"; // Import Prisma namespace
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
@@ -29,10 +30,35 @@ export async function POST(req: Request) {
       },
     })
   } catch (error) {
-    let message = "An unknown error occurred";
-    if (error instanceof Error) {
-      message = error.message;
+    console.error("Registration Error:", error); // Log the full error for debugging
+
+    // Check for Prisma unique constraint violation (P2002)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      let field = 'Значение'; // Default field name
+      // Prisma's error.meta.target is an array of strings indicating the fields involved
+      const target = error.meta?.target as string[];
+      if (target?.includes('email')) {
+        field = 'Email';
+      } else if (target?.includes('inn')) {
+        field = 'ИНН';
+      }
+      return NextResponse.json(
+        { error: `${field} уже используется.` },
+        { status: 409 } // 409 Conflict
+      );
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+
+    // Log other types of errors for inspection
+    if (error instanceof Error) {
+      console.error("Non-Prisma Error:", error.message);
+    } else {
+      console.error("Unknown Error Type:", error);
+    }
+
+    // Generic error for other issues
+    return NextResponse.json(
+      { error: "Произошла ошибка при регистрации. Пожалуйста, попробуйте еще раз." },
+      { status: 500 }
+    );
   }
 }
