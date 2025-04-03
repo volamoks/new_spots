@@ -25,14 +25,11 @@ export default function CreateBookingPage() {
     const selectedBrandId = useBookingActionsStore(state => state.selectedBrandId); // Get selected brand ID
     const setSelectedBrandId = useBookingActionsStore(state => state.setSelectedBrandId); // Get action to set brand ID
 
-    // Get state and actions from zones store (excluding isLoading)
-    const {
-        setFilterCriteria,
-        fetchZones,
-        filterCriteria,
-        fetchFilterOptions,
-        // isLoading, // Removed - use global loader store
-    } = useZonesStore();
+    // Select specific state and actions from zones store
+    const setFilterCriteria = useZonesStore(state => state.setFilterCriteria);
+    const fetchZones = useZonesStore(state => state.fetchZones);
+    const filterCriteriaCategory = useZonesStore(state => state.filterCriteria.category); // Select category specifically
+    const fetchFilterOptions = useZonesStore(state => state.fetchFilterOptions);
 
     // Removed unused isLoading from useLoaderStore
     // const isLoading = useLoaderStore(state => state.isLoading);
@@ -53,6 +50,14 @@ export default function CreateBookingPage() {
             fetchFilterOptions();
         }
     }, [isAuthenticated, fetchZones, fetchFilterOptions]);
+
+    // Add effect to log category changes
+    useEffect(() => {
+        console.log(
+            'Filter criteria category changed in CreateBookingPage:',
+            filterCriteriaCategory, // Use specifically selected category
+        );
+    }, [filterCriteriaCategory]); // Depend on the specifically selected category
 
     useEffect(() => {
         if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {
@@ -83,27 +88,20 @@ export default function CreateBookingPage() {
                             {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
                             <CategorySelection
                                 onCategorySelect={setSelectedCategoryCallback}
-                                selectedCategory={filterCriteria.category || ''}
+                                selectedCategory={filterCriteriaCategory || ''} // Use specifically selected category
                             />
-                            {/* Add BrandSelector below CategorySelection */}
-                            <div className="mt-4">
-                                {' '}
-                                {/* Add some margin */}
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Выберите Бренд (опционально)
-                                </label>
+
+                            {filterCriteriaCategory && ( // Use specifically selected category
                                 <BrandSelector
                                     value={selectedBrandId}
                                     onChange={setSelectedBrandId}
-                                    // Disable if no category is selected? Or handle fetch logic inside BrandSelector
-                                    disabled={!filterCriteria.category}
+                                    disabled={!filterCriteriaCategory} // Use specifically selected category
                                 />
-                            </div>
+                            )}
                         </CardContent>
                     </Card>
-
                     {/* Render content if category is selected */}
-                    {filterCriteria.category && filtersAndContent}
+                    {filterCriteriaCategory && filtersAndContent}
                 </div>
             </main>
         </div>

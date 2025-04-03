@@ -2,7 +2,8 @@
 
 import { ZoneStatus } from '@/types/zone';
 import { Button } from '@/components/ui/button';
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Added
+// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import consolidated hook
 
 interface ZoneStatusActionsProps {
     zoneId: string;
@@ -13,7 +14,7 @@ interface ZoneStatusActionsProps {
 }
 
 export function ZoneStatusActions({ zoneId, currentStatus }: ZoneStatusActionsProps) {
-    const { isLoading, changeZoneStatus } = useDmpManagerZones(); // Added
+    const { isLoading, changeZoneStatus } = useRoleData('dmp'); // Use consolidated hook for DMP role
 
     const normalizedStatus =
         typeof currentStatus === 'string' && currentStatus in ZoneStatus

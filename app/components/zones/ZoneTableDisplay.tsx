@@ -11,16 +11,28 @@ import {
 } from '@/components/ui/table';
 import { Zone } from '@/types/zone';
 import { ZoneManagementTableRow } from './ZoneManagementTableRow';
-// Import the Zustand store hook
-import { useZonesManagementStore } from '@/lib/stores/zonesManagementStore';
+// Remove Zustand store import
+// import { useZonesManagementStore } from '@/lib/stores/zonesManagementStore';
 
-export function ZoneTableDisplay() {
-    // Consume Zustand store for the data needed
-    const { filteredZones, originalZones } = useZonesManagementStore(state => ({
-        filteredZones: state.filteredZones,
-        originalZones: state.originalZones, // Get original zones for count
-    }));
-    const originalZoneCount = originalZones.length; // Calculate count
+// Define props for the component
+interface ZoneTableDisplayProps {
+    originalZones: Zone[];
+    filteredZones: Zone[];
+    onRefresh: () => void; // Add onRefresh prop
+}
+
+export function ZoneTableDisplay({
+    originalZones,
+    filteredZones,
+    onRefresh,
+}: ZoneTableDisplayProps) {
+    // Destructure props including onRefresh
+    // Remove Zustand store usage
+    // const { filteredZones, originalZones } = useZonesManagementStore(state => ({
+    //     filteredZones: state.filteredZones,
+    //     originalZones: state.originalZones, // Get original zones for count
+    // }));
+    const originalZoneCount = originalZones.length; // Calculate count from prop
 
     return (
         <>
@@ -40,22 +52,22 @@ export function ZoneTableDisplay() {
                     </TableHeader>
                     <TableBody>
                         {filteredZones.length > 0 ? (
-                            /* Map filtered zones from store */
+                            /* Map filtered zones from props */
                             filteredZones.map((zone: Zone) => (
                                 <ZoneManagementTableRow
                                     key={zone.id}
                                     zone={zone}
-                                    // onRefresh is now consumed directly in ZoneManagementTableRow from the store
+                                    onRefresh={onRefresh} // Pass onRefresh down
                                 />
                             ))
                         ) : (
                             /* Display message when no zones match filters or no zones exist */
                             <TableRow>
                                 <TableCell
-                                    colSpan={7}
+                                    colSpan={7} // Adjusted colspan if columns change
                                     className="text-center py-4 text-gray-500"
                                 >
-                                    {/* Use original count from store */}
+                                    {/* Use original count from prop */}
                                     {originalZoneCount === 0
                                         ? 'Зоны не найдены'
                                         : 'Нет зон, соответствующих фильтрам'}

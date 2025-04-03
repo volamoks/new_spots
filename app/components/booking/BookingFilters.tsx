@@ -1,142 +1,170 @@
-import React from 'react';
-import { useZonesStore, type FilterCriteria } from '@/lib/stores/zonesStore';
-import { useLoaderStore } from '@/lib/stores/loaderStore'; // Import loader store
+import React, { useEffect, useState } from 'react'; // Import useState and useCallback
+import {
+    useZonesStore,
+    type FilterCriteria, // Use FilterCriteria from zonesStore
+} from '@/lib/stores/zonesStore'; // Import zonesStore
+import { useLoaderStore } from '@/lib/stores/loaderStore';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { SearchFilters } from './SearchFilters'; // Import the new component
-import { DropdownFilterGroup } from './DropdownFilterGroup'; // Import the new component
-import { SelectedFiltersDisplay } from './SelectedFiltersDisplay'; // Import the new component
-import { useAuth } from '@/lib/hooks/useAuth'; // Import useAuth
-// Import BookingRequestFilters type if needed for SelectedFiltersDisplay prop typing
+import { useAuth } from '@/lib/hooks/useAuth';
+// Removed DateRangeFilter import
+
+import { DropdownFilterGroup } from './DropdownFilterGroup';
+import { SelectedFiltersDisplay } from './SelectedFiltersDisplay';
+// Import BookingRequestFilters only for casting if SelectedFiltersDisplay strictly requires it
 import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
 
-const BookingFilters = () => {
-    // Get non-loading state/actions from zones store
-    const { filterCriteria, uniqueFilterValues, setFilterCriteria, resetFilters } = useZonesStore();
-    // Get loading state from global loader store
-    const isLoading = useLoaderStore(state => state.isLoading);
-    const { session } = useAuth(); // Get session using useAuth
-    const userRole = session?.user?.role; // Extract user role
+// Removed translateStatus helper as status filter is removed
 
-    // Destructure unique values for convenience
+const BookingFilters = () => {
+    // Renamed component
+    const { user } = useAuth();
     const {
+        filterCriteria,
+        setFilterCriteria,
+        resetFilters,
+        fetchZones, // Use fetchZones from zonesStore
+        uniqueFilterValues,
+    } = useZonesStore(); // Use zonesStore hook
+
+    const isLoading = useLoaderStore(state => state.isLoading);
+
+    // Local state for the search input value
+    const [localSearchTerm, setLocalSearchTerm] = useState(filterCriteria.searchTerm || '');
+
+    // Update local state if store state changes externally
+    useEffect(() => {
+        setLocalSearchTerm(filterCriteria.searchTerm || '');
+    }, [filterCriteria.searchTerm]);
+
+    // Extract unique values for zone filters from zonesStore
+    const {
+        // suppliers: uniqueSuppliers, // Removed supplier dropdown data
         cities: uniqueCities,
         markets: uniqueMarkets,
-        macrozones: uniqueMacrozones, // Use uniqueMacrozones from the store directly
+        macrozones: uniqueMacrozones,
         equipments: uniqueEquipments,
+        // statuses: uniqueStatuses, // Removed status data
     } = uniqueFilterValues;
 
-    // Prepare options for dropdowns
-    const cityOptions = Array.isArray(uniqueCities)
-        ? uniqueCities.map(city => ({ value: city, label: city }))
-        : [];
-    const marketOptions = Array.isArray(uniqueMarkets)
-        ? uniqueMarkets.map(market => ({ value: market, label: market }))
-        : [];
-    const macrozoneOptions = Array.isArray(uniqueMacrozones)
-        ? uniqueMacrozones.map(macrozone => ({
-              value: macrozone,
-              label: macrozone,
-          }))
-        : [];
-    const equipmentOptions = Array.isArray(uniqueEquipments)
-        ? uniqueEquipments.map(equipment => ({
-              value: equipment,
-              label: equipment,
-          }))
-        : [];
+    // Fetch zones on component mount (or when needed)
+    // Note: CreateBookingPage already calls fetchZones and fetchFilterOptions,
+    // so this might be redundant depending on exact usage context.
+    // Consider removing if CreateBookingPage handles initial fetch.
+    useEffect(() => {
+        // fetchZones(); // Potentially redundant, called by parent
+    }, [fetchZones]);
 
-    // Configuration for Zone Dropdowns
+    // Removed statusOptions
+
+    // Options for zone filters
+    const cityOptions = uniqueCities.map(city => ({ value: city, label: city }));
+    const marketOptions = uniqueMarkets.map(market => ({ value: market, label: market }));
+    const macrozoneOptions = uniqueMacrozones.map(macrozone => ({
+        value: macrozone,
+        label: macrozone,
+    }));
+    const equipmentOptions = uniqueEquipments.map(equipment => ({
+        value: equipment,
+        label: equipment,
+    }));
+
+    // Removed supplierOptions
+
+    // Removed mainDropdowns (Status, Supplier)
+
+    // Configuration for Zone Dropdowns (using keys from useZonesStore)
     const zoneDropdowns = [
         {
             title: 'Город',
             options: cityOptions,
-            selected: filterCriteria.city, // Use new key 'city'
-            filterKey: 'city' as keyof FilterCriteria & string, // Use new key 'city'
+            selected: filterCriteria.city, // Use 'city' key
+            filterKey: 'city' as keyof FilterCriteria & string,
         },
         {
             title: 'Маркет',
             options: marketOptions,
-            selected: filterCriteria.market, // Use new key 'market'
-            filterKey: 'market' as keyof FilterCriteria & string, // Use new key 'market'
+            selected: filterCriteria.market, // Use 'market' key
+            filterKey: 'market' as keyof FilterCriteria & string,
         },
         {
             title: 'Макрозона',
             options: macrozoneOptions,
-            selected: filterCriteria.macrozone, // Use new key 'macrozone'
-            filterKey: 'macrozone' as keyof FilterCriteria & string, // Use new key 'macrozone'
+            selected: filterCriteria.macrozone, // Use 'macrozone' key
+            filterKey: 'macrozone' as keyof FilterCriteria & string,
         },
         {
             title: 'Оборудование',
             options: equipmentOptions,
-            selected: filterCriteria.equipment, // Use new key 'equipment'
-            filterKey: 'equipment' as keyof FilterCriteria & string, // Use new key 'equipment'
+            selected: filterCriteria.equipment, // Use 'equipment' key
+            filterKey: 'equipment' as keyof FilterCriteria & string,
         },
+        // Removed supplier dropdown from here
     ];
-
-    // Handle search term change
-    const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFilterCriteria({ searchTerm: e.target.value });
-    };
-
-    // Note: Supplier name search is omitted as it wasn't present in the original BookingFilters
-    // and might not be relevant when selecting zones for a *new* booking.
 
     return (
         <Card className="mb-6 shadow-sm">
             <CardContent className="p-6 space-y-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Выбор фильтров зон</h3>{' '}
-                {/* TODO: i18n */}
-                {/* Search Field (using SearchFilters component, but only the searchTerm part) */}
-                <SearchFilters
-                    searchTerm={filterCriteria.searchTerm}
-                    // supplierName is not used here, pass empty string
-                    supplierName=""
-                    isLoading={isLoading} // Use global isLoading
+                {/* Changed title slightly */}
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Выбор фильтров зон</h3>
+                {/* Removed Date Filters */}
+                {/* Search Fields */}
+                {/* <SearchFilters
+                    searchTerm={localSearchTerm} // Use local state for input value
+                    // Pass supplierName if needed, otherwise empty string or null
+                    // Assuming supplierName is not part of zonesStore filterCriteria
+                    supplierName={''} // Or filterCriteria.supplierName if added to store
+                    isLoading={isLoading}
                     onSearchTermChange={handleSearchTermChange}
-                    // No supplier name change handler needed here
-                    onSupplierNameChange={() => {}} // Provide a dummy function
-                    userRole={userRole} // Pass userRole prop
-                />
+                    // Removed onSupplierNameChange prop as it's not used here
+                    onSupplierNameChange={() => {}} // Keep a dummy prop if SearchFilters requires it
+                    userRole={user?.role}
+                /> */}
+                {/* Removed Main Filters (Status, Supplier Dropdowns) */}
                 {/* Zone Filters (Dropdowns) */}
                 <DropdownFilterGroup
-                    groupTitle="Фильтры зон" // Add a title for clarity
+                    groupTitle="Фильтры зон"
                     dropdowns={zoneDropdowns}
-                    setFilterCriteria={setFilterCriteria}
-                    isLoading={isLoading} // Use global isLoading
+                    setFilterCriteria={setFilterCriteria} // Pass store action directly
+                    isLoading={isLoading}
                 />
                 {/* Selected Filters Display */}
                 <SelectedFiltersDisplay
-                    // Pass the relevant parts of filterCriteria directly
-                    // Note: SelectedFiltersDisplay expects BookingRequestFilters type,
-                    // but we are using it with FilterCriteria from useZonesStore.
-                    // This might require adjusting SelectedFiltersDisplay or creating a variant.
-                    // For now, we cast, assuming the relevant keys match.
+                    // Cast the relevant parts of filterCriteria from useZonesStore
+                    // to satisfy the BookingRequestFilters type expected by SelectedFiltersDisplay.
+                    // This relies on the overlapping keys (city, market, etc.) having the same meaning.
                     filterCriteria={
                         {
-                            ...filterCriteria,
-                            // Add dummy fields expected by BookingRequestFilters but not in FilterCriteria
+                            // Map keys from useZonesStore FilterCriteria
+                            city: filterCriteria.city,
+                            market: filterCriteria.market,
+                            macrozone: filterCriteria.macrozone,
+                            equipment: filterCriteria.equipment,
+                            supplierIds: filterCriteria.supplier || [], // Map 'supplier' to 'supplierIds'
+                            searchTerm: filterCriteria.searchTerm,
+                            // Add dummy fields expected by BookingRequestFilters
                             status: [],
-                            supplierIds: filterCriteria.supplier || [], // Map 'supplier' from store to 'supplierIds'
                             dateFrom: undefined,
                             dateTo: undefined,
-                            supplierName: '',
-                        } as BookingRequestFilters // Cast needed due to type mismatch
+                            supplierName: '', // Assuming not used here
+                        } as BookingRequestFilters // Cast needed
                     }
-                    // Pass the store's setFilterCriteria directly
+                    // Pass the store's setFilterCriteria directly, casting the type
                     setFilterCriteria={
                         setFilterCriteria as (criteria: Partial<BookingRequestFilters>) => void
-                    } // Cast needed due to type mismatch
+                    }
                 />
                 {/* Reset Button */}
                 <div className="flex justify-end pt-4">
                     <Button
                         variant="outline"
                         onClick={resetFilters}
-                        disabled={isLoading} // Use global isLoading
+                        disabled={isLoading}
                         className="whitespace-nowrap"
                     >
-                        Сбросить фильтры
+                        {/* Changed button text slightly */}
+                        Сбросить фильтры зон
                     </Button>
                 </div>
             </CardContent>

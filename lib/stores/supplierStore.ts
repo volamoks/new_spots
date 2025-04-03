@@ -1,4 +1,10 @@
 import { create } from 'zustand';
+// Remove useLoaderStore import
+// import { useLoaderStore } from './loaderStore';
+// Import the new utility and ApiError
+import { fetchWithLoading, ApiError } from '@/lib/utils/api'; // Adjust path if necessary
+// Import toast function
+import { toast } from '@/components/ui/use-toast';
 
 // Define a supplier type (can be refined based on actual API response)
 export interface Supplier {
@@ -10,37 +16,49 @@ export interface Supplier {
 
 interface SupplierState {
     suppliers: Supplier[];
-    isLoading: boolean;
+    isLoading: boolean; // Keep for potential direct use, though global loader handles UI
     error: string | null;
     fetchSuppliers: () => Promise<void>;
 }
 
 export const useSupplierStore = create<SupplierState>((set) => ({
     suppliers: [],
-    isLoading: false,
+    isLoading: false, // Initial state
     error: null,
 
     fetchSuppliers: async () => {
+        // Set loading state locally (optional, as fetchWithLoading handles global)
         set({ isLoading: true, error: null });
+
         try {
-            const response = await fetch('/api/suppliers');
-            if (!response.ok) {
-                let errorMsg = 'Failed to fetch suppliers';
-                try {
-                    const errorData = await response.json();
-                    errorMsg = errorData.error || errorMsg;
-                } catch {
-                    // Ignore if response is not JSON
-                }
-                throw new Error(errorMsg);
-            }
-            const data: Supplier[] = await response.json();
-            // console.log('Fetched suppliers data:', data); // <-- REMOVE THIS LINE
-            set({ suppliers: data, isLoading: false });
+            // Use the new fetchWithLoading utility
+            const data = await fetchWithLoading<Supplier[]>(
+                '/api/suppliers',
+                'GET',
+                'Загрузка поставщиков...'
+            );
+
+            console.log('Raw suppliers data from API:', JSON.stringify(data)); // Log raw data
+            // De-duplicate suppliers based on INN before setting state
+            const uniqueSuppliers = Array.from(new Map(data.map(supplier => [supplier.inn.trim(), supplier])).values()); // Trim INN for de-duplication
+            console.log('Unique suppliers after de-duplication:', JSON.stringify(uniqueSuppliers)); // Log unique data
+            set({ suppliers: uniqueSuppliers, isLoading: false, error: null }); // Set unique suppliers and reset loading/error
+
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+            let errorMessage = 'An unknown error occurred';
+            if (error instanceof ApiError || error instanceof Error) {
+                errorMessage = error.message;
+            }
             console.error("Error fetching suppliers:", errorMessage);
+            // Set local error state and ensure suppliers are cleared on error
             set({ error: errorMessage, isLoading: false, suppliers: [] });
+            // Add error toast
+            toast({
+                title: 'Ошибка загрузки поставщиков',
+                description: errorMessage,
+                variant: 'destructive',
+            });
+            // Optionally re-throw or handle error further if needed
         }
     },
 }));

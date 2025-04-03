@@ -11,7 +11,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { CheckCircle, Loader2 } from 'lucide-react'; // Added Loader2
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import consolidated hook
 import { useCreateBooking } from '@/lib/hooks/useCreateBooking'; // Import the booking hook
 
 interface ZoneSelectionActionsPanelProps {
@@ -34,16 +35,19 @@ export function ZoneSelectionActionsPanel({
         uniqueFilterValues,
         selectedZoneIds, // Get selected IDs directly from the store
         clearSelection, // Assuming this action exists to clear selection
-    } = useDmpManagerZones();
+    } = useRoleData((session?.user?.role as 'dmp' | 'supplier' | 'categoryManager') || 'supplier'); // Use consolidated hook, provide role dynamically, default/fallback needed
 
     // Setup the booking hook
+    // Note: useCreateBooking might need refactoring if it relies on the removed stores/hooks
+    // For now, assume it uses useBookingActionsStore correctly.
+    // The clearSelection call might need adjustment if the action name changes in useRoleData
     const handleBookingSuccess = useCallback(() => {
         if (clearSelection) {
             clearSelection(); // Clear selection in the store on success
         } else {
             console.warn('clearSelection action not found in useDmpManagerZones store');
         }
-    }, [clearSelection]);
+    }, [clearSelection]); // Dependency remains clearSelection from the hook
 
     const { createBooking, isBookingLoading } = useCreateBooking({
         onSuccess: handleBookingSuccess,

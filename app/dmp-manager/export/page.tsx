@@ -55,7 +55,7 @@ export default function DMPManagerExportPage() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {/* Render components without passing uploadType state */}
-                            <TemplateDownloadButton />
+                            <TemplateDownloadButton uploadType={'zones'} />
                             <ExcelUploadForm />
                         </CardContent>
                     </Card>

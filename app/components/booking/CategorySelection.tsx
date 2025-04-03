@@ -25,6 +25,7 @@ const CategorySelection: React.FC<CategorySelectionProps> = ({
                 title="Выбранная категория"
                 options={categories}
                 selected={selectedCategory}
+                selectedLabel={selectedCategory} // Pass selected value as label
                 onChange={onCategorySelect}
                 placeholder="Категория товара"
                 className="w-full"

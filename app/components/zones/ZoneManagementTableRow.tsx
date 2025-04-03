@@ -8,12 +8,13 @@ import { Zone, ZoneStatus } from '@/types/zone';
 import { useLoaderStore } from '@/lib/stores/loaderStore';
 import { useToast } from '@/components/ui/use-toast';
 import { updateZoneStatus, deleteZone } from '@/lib/services/zoneService';
-// Import the Zustand store hook
-import { useZonesManagementStore } from '@/lib/stores/zonesManagementStore';
+// Remove Zustand store import
+// import { useZonesManagementStore } from '@/lib/stores/zonesManagementStore';
 
-// Props no longer include onRefresh
+// Define props including onRefresh
 interface ZoneManagementTableRowProps {
     zone: Zone;
+    onRefresh: () => void; // Add onRefresh prop
 }
 
 // Helper function to get display text for status
@@ -45,12 +46,13 @@ const getStatusClass = (status: ZoneStatus | string): string => {
 
 export function ZoneManagementTableRow({
     zone,
+    onRefresh, // Destructure onRefresh from props
 }: ZoneManagementTableRowProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const { withLoading } = useLoaderStore();
     const { toast } = useToast();
-    // Get onRefresh from the Zustand store
-    const onRefresh = useZonesManagementStore(state => state.onRefresh);
+    // Remove Zustand store usage
+    // const onRefresh = useZonesManagementStore(state => state.onRefresh);
     const currentStatus = zone.status;
 
     // Internal handler for changing zone status
@@ -70,7 +72,7 @@ export function ZoneManagementTableRow({
                 description: `Статус зоны ${zone.uniqueIdentifier} успешно изменен на ${newStatus}`,
                 variant: 'default',
             });
-            onRefresh(); // Use store action
+            onRefresh(); // Use prop function
         } catch (error) {
             toast({
                 title: 'Ошибка',
@@ -106,7 +108,7 @@ export function ZoneManagementTableRow({
                 description: `Зона "${zone.uniqueIdentifier}" успешно удалена.`,
                 variant: 'default',
             });
-            onRefresh(); // Use store action
+            onRefresh(); // Use prop function
         } catch (error) {
             toast({
                 title: 'Ошибка удаления',

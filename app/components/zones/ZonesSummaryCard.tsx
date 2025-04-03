@@ -1,10 +1,11 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
+import { useZonesStore } from '@/lib/stores/zonesStore'; // Import base zones store
 
 export function ZonesSummaryCard({}) {
-    const { totalCount: filteredCount } = useDmpManagerZones(); // Use totalCount as filteredCount
+    const { totalCount: filteredCount } = useZonesStore(); // Use base zones store
     const title = 'Доступные зоны для бронирования';
     const description = 'Выберите зоны для создания заявки на бронирование';
 

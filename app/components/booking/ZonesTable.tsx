@@ -2,7 +2,8 @@ import React from 'react';
 import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
 import ZonesTableRow from './ZonesTableRow'; // Import the new row component
 import ZonesTableHeader from './ZonesTableHeader'; // Import the new header component
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
+import { useZonesStore } from '@/lib/stores/zonesStore'; // Import base zones store
 
 // Removed isLoading prop definition
 // interface ZonesTableProps {
@@ -15,7 +16,7 @@ const ZonesTable: React.FC = () => {
         useBookingActionsStore();
 
     // isLoading is no longer needed here, global loader handles it
-    const { zones } = useDmpManagerZones();
+    const { zones } = useZonesStore(); // Use base zones store
 
     const handleZoneSelection = (uniqueIdentifier: string) => {
         if (selectedZonesForCreation.has(uniqueIdentifier)) {

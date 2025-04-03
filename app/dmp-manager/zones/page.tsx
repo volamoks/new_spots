@@ -2,10 +2,10 @@
 
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import the new hook
 import { ZoneStatus } from '@/types/zone'; // Убран неиспользуемый Zone
 import { ZonesSummaryCard } from '@/app/components/zones/ZonesSummaryCard';
-import { ZonesFilters } from '@/app/components/zones/ZonesFilters';
+
 import { ZonesTable } from '@/app/components/zones/ZonesTable';
 import { Button } from '@/components/ui/button'; // Добавлено
 import { Check, X, Trash2, Ban } from 'lucide-react'; // Добавлены иконки
@@ -23,7 +23,7 @@ export default function DmpManagerZonesPage() {
 
         bulkUpdateZoneStatus,
         bulkDeleteZones,
-    } = useDmpManagerZones();
+    } = useRoleData('dmp'); // Use the new hook with the 'dmp' role
 
     useEffect(() => {
         if (session) {
@@ -72,9 +72,9 @@ export default function DmpManagerZonesPage() {
                 <ZonesSummaryCard />
                 <div className="mb-6">
                     {' '}
-                    {/* Обертка для заголовка фильтров */}
+                    Обертка для заголовка фильтров
                     <h3 className="text-xl font-semibold mb-4">Выбор фильтров зон</h3>
-                    <ZonesFilters />
+                    {/* <ZonesFilters /> */}
                 </div>
                 {selectedZoneIds.size > 0 && ( // Use .size for Set
                     <div className="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200 shadow-sm">

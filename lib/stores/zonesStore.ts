@@ -2,7 +2,12 @@ import { create } from 'zustand';
 import { Zone, ZoneKeys } from "@/types/zone"; // Removed ZoneStatus as it's not used here directly
 import { devtools } from 'zustand/middleware';
 import { ZoneStatus as PrismaZoneStatus } from "@prisma/client"; // Import Prisma status for filter options type
-import { useLoaderStore } from './loaderStore'; // Import the loader store
+// Remove useLoaderStore import
+// import { useLoaderStore } from './loaderStore';
+// Import the new utility and ApiError
+import { fetchWithLoading, ApiError } from '@/lib/utils/api'; // Adjust path if necessary
+// Import toast function
+import { toast } from '@/components/ui/use-toast';
 
 // --- Helper Functions ---
 
@@ -42,7 +47,7 @@ interface UniqueFilterValues {
     statuses: PrismaZoneStatus[]; // Use Prisma enum type
 }
 
-interface ZonesState {
+export interface ZonesState { // Export the interface
     // Core State
     zones: Zone[];
     totalCount: number;
@@ -70,6 +75,8 @@ interface ZonesState {
     toggleSelectAll: (select: boolean) => void;
     clearSelection: () => void;
     updateZoneLocally: (zoneId: string, updates: Partial<Zone>) => void;
+    removeZonesLocally: (zoneIds: string[]) => void; // Added
+    clearSpecificFilters: (filterKeys: Array<keyof FilterCriteria>) => void; // Added
     resetFilters: () => void;
 }
 
@@ -125,91 +132,91 @@ export const useZonesStore = create<ZonesState>()(
             // --- Actions ---
             fetchZones: async () => {
                 const { filterCriteria, sortCriteria, paginationCriteria } = get();
-                const { withLoading } = useLoaderStore.getState(); // Get loader helper
+                // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
 
-                // Define the actual fetch logic
-                const fetchLogic = async () => {
-                    // Don't reset filtersError here, only zone fetch error
-                    // Remove internal isLoading set: set({ isLoading: true, error: null });
-                    set({ error: null }); // Reset only error
+                // Set local loading state (optional)
+                set({ isLoading: true, error: null });
 
-                    try {
-                        const params = new URLSearchParams();
+                try {
+                    const params = new URLSearchParams();
 
-                        // --- Append Filters ---
-                        if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
-                            params.append('status', filterCriteria.activeTab);
-                        }
-                        filterCriteria.macrozone.forEach(mz => params.append('macrozone', mz)); // Use 'macrozone'
-                        filterCriteria.city.forEach(city => params.append('city', city)); // Use 'city'
-                        filterCriteria.market.forEach(market => params.append('market', market)); // Use 'market'
-                        filterCriteria.equipment.forEach(eq => params.append('equipment', eq)); // Use 'equipment'
-                        filterCriteria.supplier.forEach(sup => params.append('supplier', sup)); // Use 'supplier'
-                        if (filterCriteria.category) {
-                            params.append('category', filterCriteria.category);
-                        }
-                        // Add searchTerm if API supports it
-
-                        // --- Append Sorting ---
-                        if (sortCriteria.field && sortCriteria.direction) {
-                            params.append('sortField', sortCriteria.field);
-                            params.append('sortDirection', sortCriteria.direction);
-                        }
-
-                        // --- Append Pagination ---
-                        params.append('page', paginationCriteria.currentPage.toString());
-                        params.append('pageSize', paginationCriteria.itemsPerPage.toString());
-
-                        const url = `/api/zones?${params.toString()}`;
-                        console.log("--- DEBUG: Fetching zones URL ---");
-                        console.log("URL:", url);
-                        console.log("Current Filter Criteria:", filterCriteria);
-                        console.log("--- END DEBUG ---");
-
-
-                        const response = await fetch(url);
-                        if (!response.ok) {
-                            const errorData = await response.json().catch(() => ({ error: `Failed to fetch zones (status: ${response.status})` }));
-                            throw new Error(errorData.error || `Failed to fetch zones (status: ${response.status})`);
-                        }
-
-                        const { zones: fetchedZones, totalCount: fetchedTotalCount } = await response.json();
-
-                        if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
-                            console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
-                            throw new Error("Invalid response structure from API");
-                        }
-
-                        set({
-                            zones: fetchedZones,
-                            totalCount: fetchedTotalCount,
-                            // Remove internal isLoading set: isLoading: false,
-                            // REMOVED calculation of unique values here
-                        });
-
-                    } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : "Unknown error fetching zones";
-                        console.error("Error fetching zones:", errorMessage);
-                        // Remove internal isLoading set: set({ error: errorMessage, isLoading: false, zones: [], totalCount: 0 });
-                        set({ error: errorMessage, zones: [], totalCount: 0 }); // Set error, clear data
+                    // --- Append Filters ---
+                    if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
+                        params.append('status', filterCriteria.activeTab);
                     }
-                };
+                    filterCriteria.macrozone.forEach(mz => params.append('macrozone', mz));
+                    filterCriteria.city.forEach(city => params.append('city', city));
+                    filterCriteria.market.forEach(market => params.append('market', market));
+                    filterCriteria.equipment.forEach(eq => params.append('equipment', eq));
+                    filterCriteria.supplier.forEach(sup => params.append('supplier', sup));
+                    if (filterCriteria.category) {
+                        params.append('category', filterCriteria.category);
+                    }
+                    if (filterCriteria.searchTerm) {
+                        params.append('searchTerm', filterCriteria.searchTerm);
+                    }
 
-                // Wrap the fetch logic with the global loader
-                await withLoading(fetchLogic(), 'Загрузка зон...'); // Pass loading message
+                    // --- Append Sorting ---
+                    if (sortCriteria.field && sortCriteria.direction) {
+                        params.append('sortField', sortCriteria.field);
+                        params.append('sortDirection', sortCriteria.direction);
+                    }
+
+                    // --- Append Pagination ---
+                    params.append('page', paginationCriteria.currentPage.toString());
+                    params.append('pageSize', paginationCriteria.itemsPerPage.toString());
+
+                    const url = `/api/zones?${params.toString()}`;
+                    console.log("--- DEBUG: Fetching zones URL ---");
+                    console.log("URL:", url);
+                    console.log("Current Filter Criteria:", filterCriteria);
+                    console.log("--- END DEBUG ---");
+
+                    // Use fetchWithLoading
+                    const { zones: fetchedZones, totalCount: fetchedTotalCount } = await fetchWithLoading<{ zones: Zone[], totalCount: number }>(
+                        url,
+                        'GET',
+                        'Загрузка зон...'
+                    );
+
+                    if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
+                        console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
+                        throw new Error("Invalid response structure from API");
+                    }
+
+                    set({
+                        zones: fetchedZones,
+                        totalCount: fetchedTotalCount,
+                        isLoading: false, // Reset local loading
+                        error: null,
+                    });
+
+                } catch (error) {
+                    const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error fetching zones";
+                    console.error("Error fetching zones:", errorMessage);
+                    set({ error: errorMessage, isLoading: false, zones: [], totalCount: 0 }); // Set error, clear data, reset loading
+                    // Add error toast
+                    toast({
+                        title: 'Ошибка загрузки зон',
+                        description: errorMessage,
+                        variant: 'destructive',
+                    });
+                }
             },
 
             // New action to fetch filter options
             fetchFilterOptions: async () => {
-                // Don't reset main error state here
                 set({ isLoadingFilters: true, filtersError: null });
                 try {
-                    const response = await fetch('/api/zones/filters');
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch filter options' }));
-                        throw new Error(errorData.error || 'Failed to fetch filter options');
-                    }
-                    const options: UniqueFilterValues = await response.json();
+                    // Use fetchWithLoading - Note: This will trigger the *global* loader.
+                    // If a separate indicator is truly needed, consider not using fetchWithLoading here
+                    // or adding a key to withLoading if that feature exists.
+                    // For now, we use fetchWithLoading for consistency.
+                    const options = await fetchWithLoading<UniqueFilterValues>(
+                        '/api/zones/filters',
+                        'GET',
+                        'Загрузка опций фильтров...'
+                    );
 
                     // Validate fetched options structure if necessary
                     if (!options || typeof options !== 'object' || !Array.isArray(options.cities)) {
@@ -219,12 +226,19 @@ export const useZonesStore = create<ZonesState>()(
 
                     set({
                         uniqueFilterValues: options,
-                        isLoadingFilters: false,
+                        isLoadingFilters: false, // Reset local loading
+                        filtersError: null,
                     });
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : "Unknown error fetching filter options";
+                    const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error fetching filter options";
                     console.error("Error fetching filter options:", errorMessage);
-                    set({ filtersError: errorMessage, isLoadingFilters: false });
+                    set({ filtersError: errorMessage, isLoadingFilters: false }); // Set error, reset loading
+                    // Add error toast
+                    toast({
+                        title: 'Ошибка загрузки опций фильтров',
+                        description: errorMessage,
+                        variant: 'destructive',
+                    });
                 }
             },
 
@@ -234,7 +248,7 @@ export const useZonesStore = create<ZonesState>()(
                     filterCriteria: { ...state.filterCriteria, ...criteriaUpdate },
                     paginationCriteria: { ...state.paginationCriteria, currentPage }
                 }));
-                get().fetchZones(); // This will now trigger the global loader
+                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
             },
 
             setSortCriteria: (newSortCriteria) => {
@@ -243,14 +257,14 @@ export const useZonesStore = create<ZonesState>()(
                     sortCriteria: newSortCriteria,
                     paginationCriteria: { ...state.paginationCriteria, currentPage }
                 }));
-                get().fetchZones(); // This will now trigger the global loader
+                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
             },
 
             setPaginationCriteria: (criteriaUpdate) => {
                 set((state) => ({
                     paginationCriteria: { ...state.paginationCriteria, ...criteriaUpdate }
                 }));
-                get().fetchZones(); // This will now trigger the global loader
+                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
             },
 
             toggleZoneSelection: (zoneId) => {
@@ -292,6 +306,37 @@ export const useZonesStore = create<ZonesState>()(
                 // get().fetchZones();
             },
 
+            removeZonesLocally: (zoneIds) => {
+                set((state) => {
+                    const newZones = state.zones.filter(zone => !zoneIds.includes(zone.id));
+                    const removedCount = state.zones.length - newZones.length;
+                    return {
+                        zones: newZones,
+                        totalCount: Math.max(0, state.totalCount - removedCount), // Adjust total count
+                        selectedZoneIds: new Set(Array.from(state.selectedZoneIds).filter(id => !zoneIds.includes(id))) // Remove from selection too
+                    };
+                });
+                // Note: This is optimistic. If the API call in roleActionsStore fails,
+                // zones might need to be restored or a full refresh triggered.
+            },
+
+            clearSpecificFilters: (filterKeys) => {
+                set((state) => {
+                    const newFilterCriteria = { ...state.filterCriteria };
+                    filterKeys.forEach((key: keyof FilterCriteria) => { // Explicitly type key
+                        if (key in initialFilterCriteria) {
+                            // Reset the specific key to its initial value using indexed access
+                            (newFilterCriteria as FilterCriteria)[key] = initialFilterCriteria[key]; // Use more specific type assertion
+                        }
+                    });
+                    return {
+                        filterCriteria: newFilterCriteria,
+                        paginationCriteria: { ...state.paginationCriteria, currentPage: 1 } // Reset page
+                    };
+                });
+                get().fetchZones(); // Refetch after clearing filters
+            },
+
             resetFilters: () => {
                 set({
                     filterCriteria: initialFilterCriteria,
@@ -299,7 +344,7 @@ export const useZonesStore = create<ZonesState>()(
                     paginationCriteria: { ...get().paginationCriteria, currentPage: 1 },
                     selectedZoneIds: new Set(),
                 });
-                get().fetchZones(); // This will now trigger the global loader
+                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
             },
         }),
         { name: 'zonesStore' }

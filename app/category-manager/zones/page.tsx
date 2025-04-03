@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useZonesStore, FilterCriteria } from '@/lib/stores/zonesStore';
-import { useBookingActionsStore, SimplifiedUser } from '@/lib/stores/bookingActionsStore'; // Correct store
+// Removed useZonesStore and useBookingActionsStore imports
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import the new hook
+// Removed unused FilterCriteria import
+import { SimplifiedUser } from '@/lib/stores/bookingActionsStore'; // Keep SimplifiedUser type
 import { ZonesSummaryCard } from '@/app/components/zones/ZonesSummaryCard';
 import { ZonesFilters } from '@/app/components/zones/ZonesFilters';
 import { ZonesTable } from '@/app/components/zones/ZonesTable';
@@ -36,18 +38,23 @@ export default function CategoryManagerZonesPage() {
     const [categories, setCategories] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-    // --- Get state and actions from the refactored zones store ---
-    const { zones, totalCount, setFilterCriteria, fetchFilterOptions } = useZonesStore(); // Added fetchFilterOptions
-
-    // --- Get state and actions from booking actions store ---
+    // --- Get state and actions from the consolidated hook ---
     const {
+        zones,
+        totalCount,
+        // isLoading, // Removed unused state
+        // error,     // Removed unused state
+        setFilterCriteria,
+        fetchFilterOptions,
+        refreshZones, // Get refreshZones for initial load
+
         selectedZonesForCreation,
         selectedSupplierInnForCreation,
-        // addSelectedZoneForCreation, // Removed - Handled by ZonesTable/Row internally
-        // removeSelectedZoneForCreation, // Removed - Handled by ZonesTable/Row internally
         setSelectedSupplierInnForCreation,
-        createBookingRequest,
-    } = useBookingActionsStore(); // Use the correct hook
+        createBookingRequest, // This now comes from useRoleData
+
+        // Note: updateZoneField might also be available via useRoleData if needed
+    } = useRoleData('categoryManager');
 
     // Fetch suppliers and categories on component mount
     useEffect(() => {
@@ -73,18 +80,31 @@ export default function CategoryManagerZonesPage() {
         fetchFilterOptions();
     }, [fetchFilterOptions]); // Added fetchFilterOptions dependency
 
-    // Fetch zones when session loads or selectedCategory changes
+    // Fetch initial zones (filtered by CM's category) and filter options on mount
     useEffect(() => {
         if (session) {
-            console.log('Applying category filter and fetching zones for category manager');
+            refreshZones(); // Fetches initial zones based on CM's category (defined in roleActionsStore)
+            fetchFilterOptions();
+        }
+    }, [session, refreshZones, fetchFilterOptions]); // Dependencies updated
+
+    // Refetch zones when the selected category filter changes manually
+    useEffect(() => {
+        // Avoid running on initial mount if selectedCategory starts as null/undefined
+        // Only run when selectedCategory actually changes *after* initial load.
+        // We might need a flag or check if it's not the initial state.
+        // For simplicity, let's assume setFilterCriteria handles redundant calls gracefully.
+        if (session) {
+            // Ensure session exists before applying filters
+            console.log('Manual category filter change, applying filter criteria...');
             setFilterCriteria({
                 category:
                     selectedCategory === 'ALL_CATEGORIES'
-                        ? undefined
-                        : selectedCategory || undefined,
-            } as Partial<FilterCriteria>);
+                        ? undefined // Clear category filter
+                        : selectedCategory || undefined, // Apply selected or default (if any)
+            }); // setFilterCriteria triggers fetchZones internally
         }
-    }, [session, selectedCategory, setFilterCriteria]);
+    }, [selectedCategory, session, setFilterCriteria]); // Dependency on selectedCategory
 
     // handleZoneSelection removed - ZonesTable/Row uses store action directly
 

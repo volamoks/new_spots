@@ -9,7 +9,8 @@ import { ZoneStatusActions } from './ZoneStatusActions';
 import { useSession } from 'next-auth/react'; // Import useSession
 import { EditableSupplierCell } from './EditableSupplierCell';
 import { EditableBrandCell } from './EditableBrandCell';
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import consolidated hook
 
 interface ZonesTableRowProps {
     zone: Zone;
@@ -33,7 +34,7 @@ export function ZonesTableRow({
     onUpdateZoneField,
 }: ZonesTableRowProps) {
     // --- Get state from store ---
-    const { isLoading, selectedZoneIds, toggleZoneSelection } = useDmpManagerZones();
+    const { isLoading, selectedZoneIds, toggleZoneSelection } = useRoleData('dmp'); // Use consolidated hook
     const isSelected = selectedZoneIds.has(zone.id);
     // --- Get session ---
     const { data: session } = useSession();

@@ -8,7 +8,8 @@ import { ZonePagination } from './ZonePagination';
 import { ZonesTableHeader } from './ZonesTableHeader';
 import { ZonesTableRow } from './ZonesTableRow';
 import { ZoneSelectionActionsPanel } from './ZoneSelectionActionsPanel';
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import consolidated hook
 // import { useSupplierStore } from '@/lib/stores/supplierStore'; // Возможно, понадобится для uniqueSuppliers, если их нет в zonesStore
 
 // Component no longer takes props
@@ -25,7 +26,7 @@ export function ZonesTable() {
         setSortCriteria,
         toggleSelectAll,
         updateZoneField, // Action for updating supplier/brand
-    } = useDmpManagerZones();
+    } = useRoleData('dmp'); // Use consolidated hook for DMP role
 
     // --- Session and Role Logic ---
     const { data: session } = useSession();

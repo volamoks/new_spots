@@ -1,147 +1,127 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react'; // Removed useRef, useEffect
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, ChevronsUpDown } from 'lucide-react'; // Use ChevronsUpDown
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
+// Import Command components
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+// Removed Input import
 
 // Generic interface for filter criteria objects
 interface ZoneFilterDropdownProps<T> {
     title: string;
     options: Array<{ value: string; label: string }>;
-    selected: string[];
-    placeholder?: string;
+    selected: string[]; // Keep as array for multi-select
+    placeholder?: string; // Placeholder for CommandInput
+    emptySearchText?: string; // Text for CommandEmpty
     isDisabled?: boolean;
     className?: string;
-    filterKey: keyof T & string; // The key in the filter criteria object to update
-    setFilterCriteria: (criteria: Partial<T>) => void; // Function to update the filter criteria state
+    filterKey: keyof T & string;
+    setFilterCriteria: (criteria: Partial<T>) => void;
 }
 
 export function SimpleZoneFilterDropdown<T>({
     title,
     options,
     selected,
-    placeholder = 'Поиск...', // Default search placeholder text
+    placeholder = 'Поиск...',
+    emptySearchText = 'Ничего не найдено',
     isDisabled = false,
     className = '',
     filterKey,
     setFilterCriteria,
 }: ZoneFilterDropdownProps<T>) {
     const [open, setOpen] = useState(false);
-    const [searchValue, setSearchValue] = useState('');
-    const popoverRef = useRef<HTMLDivElement>(null);
+    // Removed searchValue state - CommandInput handles its own state
+    // Removed popoverRef
 
-    // Ensure selected is an array
+    // Ensure selected is always an array
     const safeSelected = Array.isArray(selected) ? selected : [];
 
-    // Close popover when clicking outside of it
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            // Check if the click is outside the popover content area
-            if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        };
+    // Removed useEffect for click outside
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []); // Empty dependency array ensures this effect runs only once on mount
-
-    // Handles selecting/deselecting an option
+    // Handles selecting/deselecting an option (logic remains the same)
     const handleSelect = (value: string) => {
-        // Toggle the presence of the value in the selected array
         const newSelected = safeSelected.includes(value)
-            ? safeSelected.filter(item => item !== value) // Remove if already selected
-            : [...safeSelected, value]; // Add if not selected
-
-        // Update the parent component's filter criteria state
-        // The type assertion is used because TypeScript cannot guarantee
-        // that filterKey is a valid key of Partial<T> dynamically here.
+            ? safeSelected.filter(item => item !== value)
+            : [...safeSelected, value];
         setFilterCriteria({ [filterKey]: newSelected } as Partial<T>);
     };
 
-    // Filter options based on the search input value (case-insensitive)
-    const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchValue.toLowerCase()),
-    );
+    // Removed manual filtering logic - Command handles filtering
 
     return (
-        <Popover
-            open={open}
-            onOpenChange={setOpen}
-        >
+        <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
                     disabled={isDisabled}
-                    className={cn('justify-between', className)}
+                    className={cn('w-full justify-between', className)} // Ensure w-full
                 >
                     <span className="truncate">
                         {title} {safeSelected.length > 0 && `(${safeSelected.length})`}
                     </span>
-                    {open ? (
-                        <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    ) : (
-                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    )}
+                    {/* Use ChevronsUpDown consistently */}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent
-                className="p-0 w-full"
-                align="start"
-            >
-                <div
-                    ref={popoverRef}
-                    className="flex flex-col"
-                >
-                    <div className="flex items-center border-b px-3">
-                        <Input
-                            placeholder={placeholder}
-                            value={searchValue}
-                            onChange={e => setSearchValue(e.target.value)}
-                            className="h-10 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                    </div>
+            <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                {/* Use Command structure */}
+                <Command>
+                    <CommandInput placeholder={placeholder} />
+                    <CommandList>
+                        <CommandEmpty>{emptySearchText}</CommandEmpty>
+                        <CommandGroup>
+                            {/* Map options to CommandItem */}
+                            {options.map(option => {
+                                const isSelected = safeSelected.includes(option.value);
+                                return (
+                                    <CommandItem
+                                        key={option.value}
+                                        value={option.label} // Value used for Command filtering
+                                        onSelect={() => {
+                                            // Call handleSelect to toggle selection state
+                                            handleSelect(option.value);
+                                            // Keep the popover open for multi-select
+                                            // We don't call setOpen(false) here
+                                        }}
+                                        // Prevent default CommandItem behavior which closes popover
+                                        // This might not be strictly necessary depending on Command version/impl,
+                                        // but ensures the popover stays open.
+                                        // Alternatively, manage 'open' state manually if needed.
+                                        // For now, let's rely on not calling setOpen(false) in onSelect.
 
-                    {/* Display message if no options match the search */}
-                    {filteredOptions.length === 0 ? (
-                        <div className="py-6 text-center text-sm">Ничего не найдено</div> // TODO: Consider internationalization (i18n) for this text
-                    ) : (
-                        // Scrollable list of filtered options
-                        <div className="max-h-[200px] overflow-y-auto p-1">
-                            {filteredOptions.map(option => (
-                                <div
-                                    key={option.value}
-                                    className={cn(
-                                        'flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm cursor-pointer hover:bg-accent',
-                                        safeSelected.includes(option.value) ? 'bg-accent' : '',
-                                    )}
-                                    onClick={() => handleSelect(option.value)}
-                                >
-                                    <div
-                                        className={cn(
-                                            'flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                                            safeSelected.includes(option.value)
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'opacity-50',
-                                        )}
                                     >
-                                        {safeSelected.includes(option.value) && (
-                                            <Check className="h-3 w-3" />
-                                        )}
-                                    </div>
-                                    <span>{option.label}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                                        {/* Checkbox representation */}
+                                        <div
+                                            className={cn(
+                                                'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
+                                                isSelected
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'opacity-50 [&_svg]:invisible', // Hide checkmark if not selected
+                                            )}
+                                        >
+                                            <Check className={cn('h-4 w-4')} />
+                                        </div>
+                                        {/* Label */}
+                                        <span>{option.label}</span>
+                                    </CommandItem>
+                                );
+                            })}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
             </PopoverContent>
         </Popover>
     );

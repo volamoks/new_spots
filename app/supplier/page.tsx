@@ -1,126 +1,71 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Zone } from '@/types/zone';
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
-// import Navigation from "../components/Navigation";
+import { useEffect } from 'react';
+import { useSession } from 'next-auth/react'; // Import useSession
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import the new hook
+// Removed Zone import if not used directly
+// Removed Button import if not used
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+// Removed useToast if not used after removing handleSubmit
 
 export default function SupplierPage() {
-  const [zones, setZones] = useState<Zone[]>([]);
-  const [selectedZones, setSelectedZones] = useState<string[]>([]);
-  const { toast } = useToast();
+    const { data: session } = useSession(); // Get session
+    const {
+        zones,
+        isLoading, // Use isLoading from store
+        error, // Use error from store
+        fetchZones, // Use fetchZones from store
+    } = useRoleData('supplier'); // Use the hook for supplier role
 
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const response = await fetch("/api/zones");
-        const data = await response.json();
-        setZones(data);
-      } catch (error) {
-        console.error("Failed to fetch zones:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch zones.",
-          variant: "destructive",
-        });
-      }
-    };
+    useEffect(() => {
+        // Fetch zones when session is available
+        if (session) {
+            fetchZones(); // This will fetch zones filtered by supplier INN
+        }
+    }, [session, fetchZones]);
 
-    fetchZones();
-  }, [toast]);
+    // Removed handleZoneSelection and handleSubmit as suppliers likely don't create bookings here
 
-  const handleZoneSelection = (zoneId: string) => {
-    setSelectedZones((prevSelectedZones) =>
-      prevSelectedZones.includes(zoneId)
-        ? prevSelectedZones.filter((id) => id !== zoneId)
-        : [...prevSelectedZones, zoneId]
-    );
-  };
-
-  const handleSubmit = async () => {
-    try {
-      const response = await fetch("/api/bookings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ zoneIds: selectedZones }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create booking request");
-      }
-
-      // const data = await response.json();
-      toast({
-        title: "Success",
-        description: "Booking request created successfully.",
-        variant: "success"
-      });
-      setSelectedZones([]); // Clear selected zones after successful submission
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unknown error occurred";
-      console.error("Error creating booking request:", error);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* <Navigation /> */}
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-corporate">
-              Панель поставщика
-            </CardTitle>
-            <CardDescription>
-              Создание заявок на бронирование.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <h2 className="text-lg font-semibold mb-4">Выберите зоны:</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {zones.map((zone) => (
-                <Card key={zone.id}>
-                  <CardHeader className="flex flex-row items-center justify-between space-x-2 pb-2">
-                    <CardTitle className="text-base font-medium">
-                      {zone.city} - {zone.market} - {zone.number}
-                    </CardTitle>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={selectedZones.includes(zone.uniqueIdentifier)}
-                      onChange={() => handleZoneSelection(zone.uniqueIdentifier)}
-                    />
-                  </CardHeader>
+    return (
+        <div className="min-h-screen flex flex-col bg-gray-50">
+            {/* <Navigation /> */}
+            <main className="flex-grow container mx-auto px-4 py-8">
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle className="text-2xl font-bold text-corporate">
+                            Панель поставщика
+                        </CardTitle>
+                        <CardDescription>
+                            Просмотр доступных зон для поставщика. Создание заявок на бронирование.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <h2 className="text-lg font-semibold mb-4">Ваши зоны:</h2>
+                        {isLoading && <p>Загрузка зон...</p>}
+                        {error && <p className="text-red-500">Ошибка загрузки зон: {error}</p>}
+                        {!isLoading && !error && zones.length === 0 && <p>Нет доступных зон.</p>}
+                        {!isLoading && !error && zones.length > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {zones.map(zone => (
+                                    <Card key={zone.id}>
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-base font-medium">
+                                                {zone.city} - {zone.market} - {zone.number}
+                                            </CardTitle>
+                                            <CardDescription>
+                                                Статус: {zone.status}{' '}
+                                                {/* Display status or other relevant info */}
+                                            </CardDescription>
+                                        </CardHeader>
+                                        {/* Add CardContent if more details are needed */}
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                        {/* Removed booking creation button and logic */}
+                    </CardContent>
                 </Card>
-              ))}
-            </div>
-            <Button
-              className="mt-4"
-              onClick={handleSubmit}
-              disabled={selectedZones.length === 0}
-            >
-              Создать запрос
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
-    </div>
-  );
+            </main>
+        </div>
+    );
 }

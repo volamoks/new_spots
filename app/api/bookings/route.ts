@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+// Assume getAllBookings will be updated to handle filters and pagination
 import { createBookingRequest, getAllBookings } from "@/lib/services/bookingService";
 import { handleApiError } from "@/lib/utils/api";
+import { BookingStatus, Prisma } from "@prisma/client"; // Import BookingStatus and Prisma namespace
+import type { UserRole } from "@/lib/enums/BookingRole"; // Assuming UserRole might be defined here or similar path based on project structure
 
 // Create a new booking request with multiple bookings
 export async function POST(req: Request) {
@@ -13,11 +16,10 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { zoneIds, supplierId, brandId } = body; // Add brandId
-    console.log('[API Route] Received booking request body:', body); // Log entire body
-    console.log(`[API Route] Extracted brandId: ${brandId}`); // Log extracted brandId
+    const { zoneIds, supplierId, brandId } = body;
+    console.log('[API Route] Received booking request body:', body);
+    console.log(`[API Route] Extracted brandId: ${brandId}`);
 
-    // Ensure zoneIds is an array
     const zoneIdsArray = Array.isArray(zoneIds) ? zoneIds : [zoneIds];
 
     if (zoneIdsArray.length === 0) {
@@ -27,22 +29,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // Для КМ проверяем наличие поставщика
-    if (session.user.role === "CATEGORY_MANAGER" && !supplierId) {
+    // Ensure session.user.role is treated as UserRole enum
+    const userRole = session.user.role as Prisma.UserRole; // Use Prisma.UserRole
+
+    if (userRole === UserRole.CATEGORY_MANAGER && !supplierId) {
       return NextResponse.json(
         { error: "Supplier ID is required for Category Manager bookings" },
         { status: 400 },
       );
     }
 
-    // Вызов сервисной функции вместо внутренней логики
     const result = await createBookingRequest(
       session.user.id,
       zoneIdsArray,
-      session.user.role,
+      userRole, // Pass the validated role
       session.user.category,
       supplierId,
-      brandId // Pass brandId to the service function
+      brandId
     );
 
     return NextResponse.json(result);
@@ -51,20 +54,74 @@ export async function POST(req: Request) {
   }
 }
 
-// Get booking requests based on user role and optional requestId
+// Get booking requests with filtering and pagination
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) { // Ensure session.user exists
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status");
 
-    const bookingRequests = await getAllBookings(status ?? undefined);
+    // --- Extract Pagination ---
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
 
-    return NextResponse.json(bookingRequests);
+    // --- Extract Filters ---
+    // Helper to safely get array or undefined
+    const getAllOrUndefined = (key: string): string[] | undefined => {
+      const values = searchParams.getAll(key);
+      return values.length > 0 ? values : undefined;
+    };
+
+    // Helper to safely get string or undefined
+    const getOrUndefined = (key: string): string | undefined => {
+      const value = searchParams.get(key);
+      return value === null || value === '' ? undefined : value;
+    };
+
+    const filters = {
+      // Use getAll for potential multiple status values
+      status: getAllOrUndefined("status") as BookingStatus[] | undefined, // Cast or validate if necessary
+      supplierName: getOrUndefined("supplierName"),
+      dateFrom: getOrUndefined("dateFrom"),
+      dateTo: getOrUndefined("dateTo"),
+      supplierInn: getOrUndefined("supplierInn"),
+      supplierIds: getAllOrUndefined("supplierIds"), // Array of strings
+      city: getAllOrUndefined("city"), // Array of strings
+      market: getAllOrUndefined("market"), // Array of strings
+      macrozone: getAllOrUndefined("macrozone"), // Array of strings
+      equipment: getAllOrUndefined("equipment"), // Array of strings
+      searchTerm: getOrUndefined("searchTerm"),
+    };
+
+    // Clean up filters: remove undefined keys
+    const cleanedFilters = Object.fromEntries(
+      Object.entries(filters).filter((entry) => entry[1] !== undefined) // Access value by index to avoid unused variable
+    );
+
+    console.log('[API Route - GET /bookings] Filters:', cleanedFilters);
+    console.log('[API Route - GET /bookings] Pagination:', { page, pageSize });
+
+    // Prepare user object for the service function
+    const serviceUser = {
+      id: session.user.id,
+      role: session.user.role as Prisma.UserRole, // Use Prisma.UserRole
+      inn: session.user.inn, // Pass INN if available
+    };
+
+    // Call the service function (needs modification)
+    // It should now accept filters and pagination options
+    const { data, totalCount } = await getAllBookings({
+      filters: cleanedFilters, // Pass cleaned filters
+      pagination: { page, pageSize },
+      user: serviceUser // Pass user info for role-based filtering in service
+    });
+
+    // Return data in the expected format
+    return NextResponse.json({ data, totalCount });
+
   } catch (error) {
     return handleApiError(error);
   }

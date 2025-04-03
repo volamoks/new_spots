@@ -10,7 +10,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 // Import the store hook
-import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore';
+// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import the consolidated hook
 
 export function ZonePagination() {
     const {
@@ -18,7 +19,7 @@ export function ZonePagination() {
         totalCount, // Assuming this is the filtered count
         isLoading,
         setPaginationCriteria,
-    } = useDmpManagerZones();
+    } = useRoleData('dmp'); // Use the consolidated hook for DMP role
 
     const { currentPage, itemsPerPage } = paginationCriteria;
     const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));

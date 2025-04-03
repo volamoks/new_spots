@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { ZoneStatus } from '@/types/zone';
 import { debounce } from '@/lib/utils/debounce';
-// Import the Zustand store hook
-import { useZonesManagementStore } from '@/lib/stores/zonesManagementStore';
+// Remove Zustand store import
+// import { useZonesManagementStore } from '@/lib/stores/zonesManagementStore';
 // Import loader store hook for the loading state
 import { useLoaderStore } from '@/lib/stores/loaderStore';
 
@@ -15,12 +15,18 @@ export interface ZoneFilterValues {
     statusFilter: string; // Or ZoneStatus | 'all'
 }
 
-export function ZoneFilters() {
-    // Consume Zustand store
-    const { handleFilterChange, onRefresh } = useZonesManagementStore(state => ({
-        handleFilterChange: state.handleFilterChange,
-        onRefresh: state.onRefresh,
-    }));
+// Define props for the component
+interface ZoneFiltersProps {
+    onFilterChange: (filters: ZoneFilterValues) => void;
+    onRefresh: () => void;
+}
+
+export function ZoneFilters({ onFilterChange, onRefresh }: ZoneFiltersProps) { // Destructure props
+    // Remove Zustand store usage
+    // const { handleFilterChange, onRefresh } = useZonesManagementStore(state => ({
+    //     handleFilterChange: state.handleFilterChange,
+    //     onRefresh: state.onRefresh,
+    // }));
     // Consume loader store for loading state
     const isLoading = useLoaderStore(state => state.isLoading);
 
@@ -33,13 +39,14 @@ export function ZoneFilters() {
         // Wrap the callback to match the generic debounce signature
         debounce((...args: unknown[]) => {
             if (args.length > 0 && typeof args[0] === 'object' && args[0] !== null) {
-                handleFilterChange(args[0] as ZoneFilterValues); // Call store action
+                // Call the prop function instead of store action
+                onFilterChange(args[0] as ZoneFilterValues);
             }
         }, 300),
-        [handleFilterChange], // Depend on the action from the store
+        [onFilterChange], // Depend on the prop function
     );
 
-    // Effect to call the debounced store action whenever filters change
+    // Effect to call the debounced prop function whenever filters change
     useEffect(() => {
         debouncedOnFilterChange({ searchTerm, statusFilter });
         return () => debouncedOnFilterChange.cancel?.();
@@ -65,7 +72,7 @@ export function ZoneFilters() {
             </div>
             <div className="w-full sm:w-auto">
                 <button
-                    onClick={onRefresh} // Use store action
+                    onClick={onRefresh} // Use prop function
                     className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading} // Use loader store state
                 >

@@ -1,59 +1,64 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react'; // Removed useRef and useEffect
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+// Use ChevronsUpDown consistently, import Check
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
+// Import Command components
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+// Removed Input import
 
 interface SimpleSelectDropdownProps {
-    title: string;
+    title: string; // Changed label to title for consistency with original prop name
     options: Array<{ value: string; label: string }>;
-    selected: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
+    selected: string | null;
+    selectedLabel?: string; // Explicitly pass the label for the selected value
+    onChange: (value: string | null) => void;
+    onSearchChange?: (search: string) => void;
+    placeholder?: string; // Placeholder for CommandInput
+    triggerPlaceholder?: string; // Placeholder for the trigger button when nothing selected
+    clearSelectionText?: string; // Text for clear option
+    emptySearchText?: string; // Text when search yields no results
     isDisabled?: boolean;
     className?: string;
 }
 
 export function SimpleSelectDropdown({
-    title,
+    title, // Use title
     options,
     selected,
+    selectedLabel, // Add selectedLabel prop
     onChange,
-    placeholder = 'Поиск...',
+    onSearchChange,
+    placeholder = 'Поиск...', // For CommandInput
+    triggerPlaceholder = 'Выберите...', // Default trigger placeholder
+    clearSelectionText = '-- Не выбрано --',
+    emptySearchText = 'Ничего не найдено.',
     isDisabled = false,
     className = '',
 }: SimpleSelectDropdownProps) {
     const [open, setOpen] = useState(false);
-    const [searchValue, setSearchValue] = useState('');
-    const popoverRef = useRef<HTMLDivElement>(null);
+    // searchValue is now handled internally by CommandInput, but we might need it if filtering is manual
+    // const [searchValue, setSearchValue] = useState(''); // Keep if manual filtering needed
 
-    // Закрываем попап при клике вне его
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        };
+    // Removed popoverRef and click outside logic, Popover handles this
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    // Обработчик выбора опции
-    const handleSelect = (value: string) => {
-        onChange(value);
-        setOpen(false);
+    // Filter function for Command (case-insensitive substring match)
+    // cmdk expects the filter function to return a number (1 for match, 0 for no match)
+    const filter = (value: string, search: string): number => {
+        return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
     };
 
-    // Фильтрация опций по поисковому запросу
-    const filteredOptions = options.filter(option =>
-        option.label.toLowerCase().includes(searchValue.toLowerCase()),
-    );
+    // Use the passed selectedLabel prop directly for display
 
     return (
         <Popover
@@ -66,54 +71,72 @@ export function SimpleSelectDropdown({
                     role="combobox"
                     aria-expanded={open}
                     disabled={isDisabled}
-                    className={cn('justify-between', className)}
+                    className={cn('w-full justify-between', className)} // Ensure w-full is applied if needed
                 >
                     <span className="truncate">
-                        {title} {selected && `: ${options.find(o => o.value === selected)?.label}`}
+                        {/* Display title and selected label, or trigger placeholder */}
+                        {selected && selectedLabel
+                            ? `${title}: ${selectedLabel}`
+                            : triggerPlaceholder}
                     </span>
-                    {open ? (
-                        <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    ) : (
-                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    )}
+                    {/* Use ChevronsUpDown consistently */}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent
-                className="p-0 w-full"
-                align="start"
-            >
-                <div
-                    ref={popoverRef}
-                    className="flex flex-col"
-                >
-                    <div className="flex items-center border-b px-3">
-                        <Input
-                            placeholder={placeholder}
-                            value={searchValue}
-                            onChange={e => setSearchValue(e.target.value)}
-                            className="h-10 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                    </div>
-
-                    {filteredOptions.length === 0 ? (
-                        <div className="py-6 text-center text-sm">Ничего не найдено</div>
-                    ) : (
-                        <div className="max-h-[200px] overflow-y-auto p-1">
-                            {filteredOptions.map(option => (
-                                <div
-                                    key={option.value}
+            {/* Adjust width and height constraints as needed */}
+            <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                {/* Use Command component structure */}
+                <Command filter={filter}>
+                    <CommandInput
+                        placeholder={placeholder}
+                        onValueChange={onSearchChange} // Call the callback on input change
+                    />
+                    <CommandList>
+                        <CommandEmpty>{emptySearchText}</CommandEmpty>
+                        <CommandGroup>
+                            {/* Option to clear selection */}
+                            <CommandItem
+                                key="clear-selection"
+                                value="" // Use a distinct value or handle specially
+                                onSelect={() => {
+                                    onChange(null); // Pass null to indicate clearing
+                                    setOpen(false);
+                                }}
+                            >
+                                <Check
                                     className={cn(
-                                        'flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm cursor-pointer hover:bg-accent',
-                                        selected === option.value ? 'bg-accent' : '',
+                                        'mr-2 h-4 w-4',
+                                        selected === null ? 'opacity-100' : 'opacity-0', // Check if selected is null
                                     )}
-                                    onClick={() => handleSelect(option.value)}
+                                />
+                                {clearSelectionText}
+                            </CommandItem>
+                            {/* Map options to CommandItem */}
+                            {options.map(option => (
+                                <CommandItem
+                                    key={option.value}
+                                    value={option.label} // Command uses this for filtering/display
+                                    onSelect={currentValue => {
+                                        // Find the option based on the label selected in Command
+                                        const selectedOption = options.find(
+                                            opt => opt.label === currentValue,
+                                        );
+                                        onChange(selectedOption ? selectedOption.value : null);
+                                        setOpen(false);
+                                    }}
                                 >
-                                    <span>{option.label}</span>
-                                </div>
+                                    <Check
+                                        className={cn(
+                                            'mr-2 h-4 w-4',
+                                            selected === option.value ? 'opacity-100' : 'opacity-0',
+                                        )}
+                                    />
+                                    {option.label}
+                                </CommandItem>
                             ))}
-                        </div>
-                    )}
-                </div>
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
             </PopoverContent>
         </Popover>
     );

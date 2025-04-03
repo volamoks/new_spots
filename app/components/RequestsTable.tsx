@@ -35,13 +35,13 @@ const allColumns = [
 ];
 export function RequestsTable({ onApprove, onReject, bookings }: RequestsTableProps) {
     // Используем переданные бронирования или получаем их из bookingRequestStore как запасной вариант
-    const { filteredBookingRequests: storeBookings } = useBookingRequestStore(); // Use new store and state name
+    const { bookingRequests: storeBookings } = useBookingRequestStore(); // Use the new state property 'bookingRequests'
     const [visibleColumns, setVisibleColumns] = useState(allColumns);
     const { user } = useAuth();
 
     // Используем переданные бронирования, если они есть, иначе используем бронирования из стора
     // Используем переданные бронирования, если они есть, иначе используем бронирования из стора
-    const filteredBookings = bookings || storeBookings;
+    const displayBookings = bookings || storeBookings; // Use the data from props or the current page data from store
 
     if (!user) {
         return null; // or a loading state
@@ -69,7 +69,7 @@ export function RequestsTable({ onApprove, onReject, bookings }: RequestsTablePr
                 />
             </div>
             <BookingTable
-                requests={filteredBookings}
+                requests={displayBookings} // Pass the correct variable
                 visibleColumns={visibleColumns}
                 userRole={userRole}
                 onApprove={onApprove}

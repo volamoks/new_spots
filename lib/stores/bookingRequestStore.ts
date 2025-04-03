@@ -1,196 +1,82 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { BookingRequest, type Booking, User, Zone, BookingStatus, type Brand } from '@prisma/client'; // Import Brand type
+import { BookingRequest, type Booking, User, Zone, BookingStatus, type Brand } from '@prisma/client';
 import { getSession } from 'next-auth/react';
-// Import the standardized loader store
-import { useLoaderStore } from './loaderStore';
+// Remove useLoaderStore import
+// import { useLoaderStore } from './loaderStore';
+// Import the new utility and ApiError
+import { fetchWithLoading, ApiError } from '@/lib/utils/api'; // Adjust path if necessary
 
 // --- Types ---
 
-// Replicated from old stores, might need adjustment based on API/Prisma schema
+// Keep existing type
 export type BookingRequestWithBookings = BookingRequest & {
-    bookings: (Booking & { zone: Zone; bookingRequest: BookingRequest; brand: Brand | null })[]; // Add brand relation here
+    bookings: (Booking & { zone: Zone; bookingRequest: BookingRequest; brand: Brand | null })[];
     supplier: User | null;
     user: User;
-    supplierName: string; // Ensure this is consistently available from API
+    supplierName: string;
 };
 
-// Define a simplified supplier type for filters
-export interface SimpleSupplier {
-    inn: string;
-    name: string;
-}
-
-// Define filter criteria type
+// Keep existing filter type
 export interface BookingRequestFilters {
     status: BookingStatus[];
-    supplierName?: string; // Search term for supplier name
+    supplierName?: string;
     dateFrom?: string;
     dateTo?: string;
-    supplierInn?: string; // Specific INN for filtering (e.g., for supplier role)
-    supplierIds?: string[]; // For multi-select supplier filter (using INN or unique ID)
+    supplierInn?: string;
+    supplierIds?: string[];
     city?: string[];
     market?: string[];
     macrozone?: string[];
     equipment?: string[];
-    searchTerm?: string; // General search across multiple fields
+    searchTerm?: string;
 }
 
-// Define unique values type for populating filter options
-interface UniqueFilterValues {
-    suppliers: SimpleSupplier[];
+// Type for supplier options fetched from API
+export interface SupplierOption {
+    inn: string;
+    name: string;
+}
+
+// Type for all filter options fetched from API
+export interface FilterOptions {
     cities: string[];
     markets: string[];
     macrozones: string[];
     equipments: string[];
-    statuses: BookingStatus[];
+    suppliers: SupplierOption[];
 }
 
-// Define the store state
+// Define the store state with pagination AND filter options
 interface BookingRequestState {
     // Core State
     bookingRequests: BookingRequestWithBookings[];
-    // isLoading state is removed as it will be handled by the global loaderStore
     error: string | null;
+    isLoading: boolean; // Add local loading state for main data
 
     // Criteria State
     filterCriteria: BookingRequestFilters;
 
-    // Derived State
-    filteredBookingRequests: BookingRequestWithBookings[];
-    uniqueFilterValues: UniqueFilterValues;
+    // Pagination State
+    page: number;
+    pageSize: number;
+    totalCount: number;
+
+    // Filter Options State
+    filterOptions: FilterOptions;
+    isLoadingOptions: boolean; // Separate loading state for options
+    optionsError: string | null;
 
     // Actions
-    fetchBookingRequests: () => Promise<void>;
+    fetchBookingRequests: (page?: number, pageSize?: number) => Promise<void>;
+    fetchFilterOptions: (context?: 'create' | 'manage') => Promise<void>; // Accept optional context
     setFilterCriteria: (criteria: Partial<BookingRequestFilters>) => void;
-    updateBookingRequestLocally: (requestId: string, updates: Partial<BookingRequestWithBookings>) => void; // For optimistic UI or updates after actions
-    updateBookingStatusLocally: (bookingId: string, newStatus: BookingStatus) => void; // Specific local update for booking status
+    updateBookingRequestLocally: (requestId: string, updates: Partial<BookingRequestWithBookings>) => void;
+    updateBookingStatusLocally: (bookingId: string, newStatus: BookingStatus) => void;
     resetFilters: () => void;
-    _recalculateDerivedState: () => void; // Internal action
+    setPage: (page: number) => void;
+    setPageSize: (pageSize: number) => void;
 }
-
-// --- Helper Functions ---
-
-// Extract unique values for filters
-const calculateUniqueValues = (requests: BookingRequestWithBookings[]): UniqueFilterValues => {
-    const suppliersMap = new Map<string, SimpleSupplier>();
-    const citiesSet = new Set<string>();
-    const marketsSet = new Set<string>();
-    const macrozonesSet = new Set<string>();
-    const equipmentsSet = new Set<string>();
-    const statusesSet = new Set<BookingStatus>();
-
-    requests.forEach(req => {
-        // Suppliers
-        if (req.supplier && req.supplier.inn && req.supplier.name) {
-            suppliersMap.set(req.supplier.inn, { inn: req.supplier.inn, name: req.supplier.name });
-        } else if (req.supplierName && req.supplierName !== 'N/A') {
-            // Fallback if supplier relation isn't loaded but name exists
-            // Use name as key if INN is missing, less reliable
-            if (!Array.from(suppliersMap.values()).some(s => s.name.toLowerCase() === req.supplierName.toLowerCase())) {
-                suppliersMap.set(req.supplierName, { inn: req.supplierName, name: req.supplierName });
-            }
-        }
-
-        // Zone attributes and statuses from nested bookings
-        req.bookings.forEach(b => {
-            if (b.zone) {
-                if (b.zone.city) citiesSet.add(b.zone.city);
-                if (b.zone.market) marketsSet.add(b.zone.market);
-                if (b.zone.mainMacrozone) macrozonesSet.add(b.zone.mainMacrozone);
-                if (b.zone.equipment) equipmentsSet.add(b.zone.equipment);
-            }
-            statusesSet.add(b.status);
-        });
-    });
-
-    return {
-        suppliers: Array.from(suppliersMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
-        cities: Array.from(citiesSet).sort(),
-        markets: Array.from(marketsSet).sort(),
-        macrozones: Array.from(macrozonesSet).sort(),
-        equipments: Array.from(equipmentsSet).sort(),
-        statuses: Array.from(statusesSet).sort(),
-    };
-};
-
-// Apply filters to booking requests
-const applyFilters = (requests: BookingRequestWithBookings[], filters: BookingRequestFilters): BookingRequestWithBookings[] => {
-    let filtered = [...requests];
-
-    // Filter by status (any booking within the request must match)
-    if (filters.status && filters.status.length > 0) {
-        filtered = filtered.filter(req => req.bookings.some(b => filters.status.includes(b.status)));
-    }
-
-    // Filter by supplier name (search term)
-    if (filters.supplierName && filters.supplierName.trim() !== '') {
-        const term = filters.supplierName.toLowerCase().trim();
-        filtered = filtered.filter(req => req.supplierName?.toLowerCase().includes(term));
-    }
-
-    // Filter by date range (createdAt of the request)
-    if (filters.dateFrom) {
-        const fromDate = new Date(filters.dateFrom).setHours(0, 0, 0, 0);
-        filtered = filtered.filter(req => new Date(req.createdAt).setHours(0, 0, 0, 0) >= fromDate);
-    }
-    if (filters.dateTo) {
-        const toDate = new Date(filters.dateTo).setHours(23, 59, 59, 999);
-        filtered = filtered.filter(req => new Date(req.createdAt).getTime() <= toDate); // Convert Date to timestamp
-    }
-
-    // Filter by specific supplier INN (for supplier role)
-    if (filters.supplierInn) {
-        filtered = filtered.filter(req => req.supplier?.inn === filters.supplierInn);
-    }
-
-    // Filter by multiple selected supplier IDs (INN or name as fallback)
-    if (filters.supplierIds && filters.supplierIds.length > 0) {
-        filtered = filtered.filter(req => {
-            const supplierId = req.supplier?.inn || req.supplierName; // Use INN first, fallback to name
-            return supplierId && filters.supplierIds!.includes(supplierId);
-        });
-    }
-
-    // Filter by zone attributes (any booking within the request must match)
-    if (filters.city && filters.city.length > 0) {
-        filtered = filtered.filter(req => req.bookings.some(b => b.zone?.city && filters.city!.includes(b.zone.city)));
-    }
-    if (filters.market && filters.market.length > 0) {
-        filtered = filtered.filter(req => req.bookings.some(b => b.zone?.market && filters.market!.includes(b.zone.market)));
-    }
-    if (filters.macrozone && filters.macrozone.length > 0) {
-        filtered = filtered.filter(req => req.bookings.some(b => b.zone?.mainMacrozone && filters.macrozone!.includes(b.zone.mainMacrozone)));
-    }
-    if (filters.equipment && filters.equipment.length > 0) {
-        filtered = filtered.filter(req => req.bookings.some(b => b.zone?.equipment && filters.equipment!.includes(b.zone.equipment)));
-    }
-
-    // General search term (across request and nested booking fields)
-    if (filters.searchTerm && filters.searchTerm.trim() !== '') {
-        const term = filters.searchTerm.toLowerCase().trim();
-        filtered = filtered.filter(req => {
-            // Search basic request fields
-            if (req.supplierName?.toLowerCase().includes(term) ||
-                req.user?.name?.toLowerCase().includes(term) ||
-                req.user?.email?.toLowerCase().includes(term)) {
-                return true;
-            }
-            // Search nested booking/zone fields
-            return req.bookings.some(b =>
-                b.zone?.uniqueIdentifier?.toLowerCase().includes(term) ||
-                b.zone?.city?.toLowerCase().includes(term) ||
-                b.zone?.market?.toLowerCase().includes(term) ||
-                b.zone?.mainMacrozone?.toLowerCase().includes(term) ||
-                b.zone?.equipment?.toLowerCase().includes(term) ||
-                b.zone?.supplier?.toLowerCase().includes(term)
-            );
-        });
-    }
-
-    return filtered;
-};
-
 
 // --- Initial State ---
 
@@ -208,6 +94,20 @@ const initialFilterCriteria: BookingRequestFilters = {
     searchTerm: '',
 };
 
+const initialPagination = {
+    page: 1,
+    pageSize: 20,
+    totalCount: 0,
+};
+
+const initialFilterOptions: FilterOptions = {
+    cities: [],
+    markets: [],
+    macrozones: [],
+    equipments: [],
+    suppliers: [],
+};
+
 // --- Store Definition ---
 
 export const useBookingRequestStore = create<BookingRequestState>()(
@@ -215,84 +115,154 @@ export const useBookingRequestStore = create<BookingRequestState>()(
         (set, get) => ({
             // Core State
             bookingRequests: [],
-            // isLoading removed from initial state
             error: null,
+            isLoading: false, // Initialize local loading state
 
             // Criteria State
             filterCriteria: initialFilterCriteria,
 
-            // Derived State
-            filteredBookingRequests: [],
-            uniqueFilterValues: { suppliers: [], cities: [], markets: [], macrozones: [], equipments: [], statuses: [] },
+            // Pagination State
+            ...initialPagination,
 
-            // --- Internal Action ---
-            _recalculateDerivedState: () => {
-                const { bookingRequests, filterCriteria } = get();
-                const filtered = applyFilters(bookingRequests, filterCriteria);
-                set({ filteredBookingRequests: filtered });
-            },
+            // Filter Options State
+            filterOptions: initialFilterOptions,
+            isLoadingOptions: false,
+            optionsError: null,
 
-            // --- Public Actions ---
-            fetchBookingRequests: async () => {
-                console.log('fetchBookingRequests action started'); // Add log
-                // Get withLoading helper from the loader store
-                const { withLoading } = useLoaderStore.getState();
+            // --- Actions ---
 
-                // Check if user is authenticated before fetching
+            fetchBookingRequests: async (page = get().page, pageSize = get().pageSize) => {
+                console.log(`fetchBookingRequests action started for page: ${page}, pageSize: ${pageSize}`);
+                // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
                 const session = await getSession();
+
                 if (!session) {
                     console.log("fetchBookingRequests: No active session, skipping fetch.");
-                    // Clear state if unauthenticated
-                    set({ bookingRequests: [], filteredBookingRequests: [], error: null });
+                    set({ bookingRequests: [], totalCount: 0, page: 1, error: null, isLoading: false }); // Reset loading
                     return;
                 }
 
-                // Define the actual fetch and processing logic
-                const fetchAndProcessRequests = async () => {
-                    set({ error: null }); // Reset error before fetch
-                    try {
-                        const response = await fetch('/api/bookings');
-                        if (!response.ok) {
-                            if (response.status === 401) {
-                                console.warn("fetchBookingRequests: Received 401 Unauthorized.");
-                                // Clear data on auth error, don't set error state to avoid potential loops/toasts
-                                set({ bookingRequests: [], filteredBookingRequests: [] });
-                                return; // Exit the async function within withLoading
+                // Set local loading state
+                set({ isLoading: true, error: null });
+
+                try {
+                    const currentFilters = get().filterCriteria;
+                    const params = new URLSearchParams();
+                    params.append('page', page.toString());
+                    params.append('pageSize', pageSize.toString());
+
+                    Object.entries(currentFilters).forEach(([key, value]) => {
+                        if (value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0)) {
+                            if (Array.isArray(value)) {
+                                value.forEach(item => params.append(key, item));
+                            } else {
+                                params.append(key, String(value));
                             }
-                            const errorData = await response.json().catch(() => ({ error: 'Failed to fetch booking requests' }));
-                            throw new Error(errorData.error || 'Failed to fetch booking requests');
                         }
-                        const fetchedRequests: BookingRequestWithBookings[] = await response.json();
-                        console.log('[Store] Fetched Booking Requests Data:', fetchedRequests); // Log the fetched data structure
+                    });
 
-                        set({
-                            bookingRequests: fetchedRequests,
-                            uniqueFilterValues: calculateUniqueValues(fetchedRequests),
-                            error: null, // Clear error on success
-                        });
-                        get()._recalculateDerivedState(); // Apply initial filters
-                    } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : "Unknown error fetching booking requests";
-                        console.error("Error fetching booking requests:", errorMessage);
-                        // Set error state only for actual errors, not auth issues handled above
-                        if (errorMessage !== 'Unauthorized') {
-                            set({ error: errorMessage, bookingRequests: [], filteredBookingRequests: [] });
-                        } else {
-                            // Ensure data is cleared if somehow an Unauthorized error wasn't caught earlier
-                            set({ bookingRequests: [], filteredBookingRequests: [], error: null });
-                        }
+                    const url = `/api/bookings?${params.toString()}`;
+                    console.log(`Fetching /api/bookings with params: ${params.toString()}`);
+
+                    // Use fetchWithLoading
+                    const result = await fetchWithLoading<{ data: BookingRequestWithBookings[], totalCount: number }>(
+                        url,
+                        'GET',
+                        'Загрузка заявок...'
+                    );
+
+                    if (!result || typeof result.totalCount !== 'number' || !Array.isArray(result.data)) {
+                        console.error("Invalid API response structure:", result);
+                        throw new Error('Invalid API response structure received.');
                     }
-                }; // <-- This semicolon closes the function definition
 
-                // Execute the logic and wrap the resulting promise with the loader
-                await withLoading(fetchAndProcessRequests(), 'Загрузка заявок...');
+                    console.log(`[Store] Fetched ${result.data.length} Booking Requests (Total: ${result.totalCount})`);
+                    set({
+                        bookingRequests: result.data,
+                        totalCount: result.totalCount,
+                        page: page,
+                        pageSize: pageSize,
+                        isLoading: false, // Reset loading
+                        error: null,
+                    });
+                } catch (error) {
+                    let errorMessage = "Unknown error fetching booking requests";
+                    // Handle potential ApiError from fetchWithLoading
+                    if (error instanceof ApiError) {
+                        // Handle specific statuses like 401 if needed
+                        if (error.status === 401) {
+                            console.warn("fetchBookingRequests: Received 401 Unauthorized.");
+                            set({ bookingRequests: [], totalCount: 0, page: 1, error: null, isLoading: false });
+                            return; // Exit early for 401
+                        }
+                        errorMessage = error.message;
+                    } else if (error instanceof Error) {
+                        errorMessage = error.message;
+                    }
+                    console.error("Error fetching booking requests:", errorMessage);
+                    set({ error: errorMessage, isLoading: false, bookingRequests: [], totalCount: 0 }); // Reset loading
+                }
+            },
+
+            fetchFilterOptions: async (context = 'manage') => { // Default context to 'manage'
+                console.log('fetchFilterOptions action started');
+                // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
+
+                set({ isLoadingOptions: true, optionsError: null }); // Manage specific loading state
+
+                try {
+                    const session = await getSession();
+                    if (!session) {
+                        console.log("fetchFilterOptions: No active session, skipping fetch.");
+                        set({ filterOptions: initialFilterOptions, isLoadingOptions: false });
+                        return;
+                    }
+
+                    const apiUrl = `/api/bookings/filter-options?context=${context}`;
+                    console.log(`Fetching filter options with URL: ${apiUrl}`);
+
+                    // Use fetchWithLoading
+                    const fetchedOptions = await fetchWithLoading<FilterOptions>(
+                        apiUrl,
+                        'GET',
+                        'Загрузка опций фильтров...'
+                    );
+
+                    if (!fetchedOptions || !Array.isArray(fetchedOptions.cities) || !Array.isArray(fetchedOptions.suppliers)) {
+                        console.error("Invalid filter options response structure:", fetchedOptions);
+                        throw new Error('Invalid filter options response structure received.');
+                    }
+
+                    console.log('[Store] Fetched Filter Options:', fetchedOptions);
+                    set({
+                        filterOptions: fetchedOptions,
+                        isLoadingOptions: false, // Reset loading
+                        optionsError: null,
+                    });
+
+                } catch (error) {
+                    let errorMessage = "Unknown error fetching filter options";
+                     // Handle potential ApiError from fetchWithLoading
+                    if (error instanceof ApiError) {
+                         // Handle specific statuses like 401 if needed
+                        if (error.status === 401) {
+                            console.warn("fetchFilterOptions: Received 401 Unauthorized.");
+                            set({ filterOptions: initialFilterOptions, isLoadingOptions: false, optionsError: null }); // Reset loading, clear error
+                            return; // Exit early for 401
+                        }
+                        errorMessage = error.message;
+                    } else if (error instanceof Error) {
+                        errorMessage = error.message;
+                    }
+                    console.error("Error fetching filter options:", errorMessage);
+                    set({ optionsError: errorMessage, isLoadingOptions: false, filterOptions: initialFilterOptions }); // Reset loading
+                }
             },
 
             setFilterCriteria: (criteriaUpdate) => {
-                set((state) => ({
-                    filterCriteria: { ...state.filterCriteria, ...criteriaUpdate },
-                }));
-                get()._recalculateDerivedState();
+                const newCriteria = { ...get().filterCriteria, ...criteriaUpdate };
+                set({ filterCriteria: newCriteria, page: 1 });
+                get().fetchBookingRequests(1, get().pageSize); // Will use fetchWithLoading
             },
 
             updateBookingRequestLocally: (requestId, updates) => {
@@ -301,10 +271,6 @@ export const useBookingRequestStore = create<BookingRequestState>()(
                         req.id === requestId ? { ...req, ...updates } : req
                     )
                 }));
-                // Recalculate derived state as filters might be affected
-                get()._recalculateDerivedState();
-                // Optionally recalculate unique values if relevant fields changed
-                // set({ uniqueFilterValues: calculateUniqueValues(get().bookingRequests) });
             },
 
             updateBookingStatusLocally: (bookingId, newStatus) => {
@@ -316,15 +282,25 @@ export const useBookingRequestStore = create<BookingRequestState>()(
                         )
                     }))
                 }));
-                // Recalculate derived state as status filter might be affected
-                get()._recalculateDerivedState();
-                // Optionally recalculate unique statuses
-                // set({ uniqueFilterValues: calculateUniqueValues(get().bookingRequests) });
             },
 
             resetFilters: () => {
-                set({ filterCriteria: initialFilterCriteria });
-                get()._recalculateDerivedState();
+                set({ filterCriteria: initialFilterCriteria, page: 1 });
+                get().fetchBookingRequests(1, get().pageSize); // Will use fetchWithLoading
+            },
+
+            setPage: (newPage) => {
+                if (newPage !== get().page) {
+                    set({ page: newPage });
+                    get().fetchBookingRequests(newPage, get().pageSize); // Will use fetchWithLoading
+                }
+            },
+
+            setPageSize: (newPageSize) => {
+                if (newPageSize !== get().pageSize) {
+                    set({ pageSize: newPageSize, page: 1 });
+                    get().fetchBookingRequests(1, newPageSize); // Will use fetchWithLoading
+                }
             },
         }),
         { name: 'bookingRequestStore' }

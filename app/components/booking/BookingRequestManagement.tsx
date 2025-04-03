@@ -2,7 +2,10 @@
 
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useBookingRequestStore } from '@/lib/stores/bookingRequestStore';
+import {
+    useBookingRequestStore,
+    type BookingRequestWithBookings,
+} from '@/lib/stores/bookingRequestStore'; // Import type too
 import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
 import { useToast } from '@/components/ui/use-toast'; // Import useToast directly
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -21,10 +24,16 @@ interface BookingRequestManagementProps {
 const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ role: propRole }) => {
     // Get state/actions from new stores
     const {
-        filteredBookingRequests, // Renamed state
-        fetchBookingRequests, // Renamed action
-        setFilterCriteria, // New action for filtering
-        error: requestError, // Error from fetching requests
+        bookingRequests, // Use the current page data
+        fetchBookingRequests,
+        setFilterCriteria,
+        error: requestError,
+        // Pagination state and actions
+        page,
+        pageSize,
+        totalCount,
+        setPage,
+        // setPageSize, // Removed as it's not used in the current UI
     } = useBookingRequestStore();
 
     const {
@@ -65,7 +74,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
     const handleRefreshBookings = async () => {
         try {
             // setLoading calls removed - handled by fetchBookingRequests internally
-            await fetchBookingRequests();
+            await fetchBookingRequests(page, pageSize); // Refetch current page
         } catch (error) {
             // Error handling is now primarily within the store action,
             // but catch unexpected errors during the call itself.
@@ -78,7 +87,10 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
 
     // Helper to find bookingId
     const findBookingId = (requestId: string, zoneId: string): string | undefined => {
-        const request = filteredBookingRequests.find(req => req.id === requestId);
+        // Find within the current page's data
+        const request = bookingRequests.find(
+            (req: BookingRequestWithBookings) => req.id === requestId,
+        );
         const booking = request?.bookings.find(b => b.zoneId === zoneId);
         return booking?.id;
     };
@@ -175,9 +187,8 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                             <p className="text-gray-600 mt-2">
                                 Количество заявок:{' '}
                                 <span className="font-semibold">
-                                    {filteredBookingRequests.length}
-                                </span>{' '}
-                                {/* Use new state name */}
+                                    {totalCount} {/* Display total count from server */}
+                                </span>
                             </p>
                             <Button
                                 onClick={handleRefreshBookings}
@@ -209,8 +220,35 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                         <RequestsTable
                             onApprove={handleApprove}
                             onReject={handleReject}
-                            bookings={filteredBookingRequests} // Use new state name
+                            bookings={bookingRequests} // Pass current page data
                         />
+                        {/* Add Pagination Controls */}
+                        <div className="flex items-center justify-end space-x-2 py-4">
+                            <span className="text-sm text-gray-700">
+                                Page {page} of {Math.ceil(totalCount / pageSize)} ({totalCount}{' '}
+                                items)
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(page - 1)}
+                                disabled={page <= 1}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(page + 1)}
+                                disabled={page * pageSize >= totalCount}
+                            >
+                                Next
+                            </Button>
+                            {/* Optional: Page size selector */}
+                            {/* <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+                                {[10, 20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
+                            </select> */}
+                        </div>
                     </CardContent>
                 </Card>
             </main>

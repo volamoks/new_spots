@@ -2,10 +2,13 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { BookingStatus, Role } from '@prisma/client'; // Remove Role import
 import BookingRole from '@/lib/enums/BookingRole'; // Import the custom enum
-import { useLoaderStore } from './loaderStore'; // Use the global loader
+// Remove useLoaderStore import
+// import { useLoaderStore } from './loaderStore';
 import { useBookingRequestStore } from './bookingRequestStore'; // To trigger refresh/update
 import { toast } from '@/components/ui/use-toast'; // Import toast function
 import { useZonesStore } from './zonesStore'; // Import zones store
+// Import the new utility and ApiError
+import { fetchWithLoading, ApiError } from '@/lib/utils/api'; // Adjust path if necessary
 
 // --- Types ---
 
@@ -16,7 +19,7 @@ export interface SimplifiedUser { // Added export
     // Add other relevant fields like category if needed
 }
 
-interface BookingActionsState {
+export interface BookingActionsState { // Export the interface
     // State for Creation Process (loading handled globally)
     selectedZonesForCreation: Set<string>; // Use Set for efficiency
     selectedSupplierInnForCreation: string | null;
@@ -85,147 +88,113 @@ export const useBookingActionsStore = create<BookingActionsState>()(
             },
 
             createBookingRequest: async (user) => {
-                const { selectedZonesForCreation, selectedSupplierInnForCreation, selectedBrandId } = get(); // Get selectedBrandId
-                const { withLoading } = useLoaderStore.getState();
+                const { selectedZonesForCreation, selectedSupplierInnForCreation, selectedBrandId } = get();
+                // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
                 const refreshBookingRequests = useBookingRequestStore.getState().fetchBookingRequests;
-                // Potentially refresh zones if their status changes after booking
                 const refreshZones = useZonesStore.getState().fetchZones;
 
                 if (selectedZonesForCreation.size === 0) {
                     set({ createError: 'Please select at least one zone.' });
                     return false;
                 }
-                // Supplier INN might be optional depending on the role creating the booking
-                // Add validation if required for the specific user role
-                // if (!selectedSupplierInnForCreation && user.role !== 'SOME_ROLE_THAT_DOESNT_NEED_SUPPLIER') {
-                //     set({ createError: 'Please select a supplier.' });
-                //     return false;
-                // }
 
-                // set({ isCreating: true, createError: null }); // Removed - Handled by withLoading
                 set({ createError: null }); // Reset error before attempt
 
                 try {
                     const zoneIds = Array.from(selectedZonesForCreation);
                     const requestData = {
                         zoneIds: zoneIds,
-                        supplierId: selectedSupplierInnForCreation, // API should handle null if appropriate
-                        userId: user.id, // Assuming user object is passed in
-                        brandId: selectedBrandId, // Add brandId to the request payload
+                        supplierId: selectedSupplierInnForCreation,
+                        userId: user.id,
+                        brandId: selectedBrandId,
                     };
-                    console.log('[Store Action] Creating booking with requestData:', requestData); // Log request data
+                    console.log('[Store Action] Creating booking with requestData:', requestData);
 
-                    await withLoading(
-                        fetch('/api/bookings', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(requestData),
-                        }).then(async response => {
-                            if (!response.ok) {
-                                const errorData = await response.json().catch(() => ({ error: 'Failed to create booking request' }));
-                                throw new Error(errorData.error || 'Failed to create booking request');
-                            }
-                            return response.json();
-                        }),
-                        'Creating booking request...'
+                    // Use fetchWithLoading
+                    await fetchWithLoading(
+                        '/api/bookings',
+                        'POST',
+                        'Creating booking request...',
+                        requestData
                     );
 
-                    // set({ isCreating: false }); // Removed - Handled by withLoading
-                    set({ selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null, selectedBrandId: null }); // Clear selection on success (including brand)
-                    await refreshBookingRequests(); // Refresh the list
-                    await refreshZones(); // Refresh zones list
-                    toast({ // Add success toast
+                    set({ selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null, selectedBrandId: null });
+                    await refreshBookingRequests();
+                    await refreshZones();
+                    toast({
                         title: 'Успешно',
                         description: 'Заявка на бронирование успешно создана.',
-                        variant: 'success', // Optional: Add success variant if defined
+                        variant: 'success',
                     });
-                    return true; // Indicate success
+                    return true;
 
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : "Unknown error creating booking request";
+                    const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error creating booking request";
                     console.error("Error creating booking request:", errorMessage);
-                    set({ createError: errorMessage }); // Removed isCreating: false
-                    toast({ // Add error toast
+                    set({ createError: errorMessage });
+                    toast({
                         title: 'Ошибка',
                         description: errorMessage,
                         variant: 'destructive',
                     });
-                    return false; // Indicate failure
+                    return false;
                 }
             },
 
             updateBookingStatus: async (bookingId, status, role) => {
-                const { withLoading } = useLoaderStore.getState();
+                // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
                 const updateLocalStatus = useBookingRequestStore.getState().updateBookingStatusLocally;
-                // const refreshBookingRequests = useBookingRequestStore.getState().fetchBookingRequests; // Removed unused variable
 
-                // set({ isUpdatingStatus: true, updateStatusError: null }); // Removed - Handled by withLoading
                 set({ updateStatusError: null }); // Reset error before attempt
 
                 try {
-                    await withLoading(
-                        fetch(`/api/bookings/${bookingId}`, { // Assuming PATCH endpoint exists
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status, role: role.toString() }), // Pass role if needed by API
-                        }).then(async response => {
-                            if (!response.ok) {
-                                const errorData = await response.json().catch(() => ({ error: 'Failed to update booking status' }));
-                                throw new Error(errorData.error || 'Failed to update booking status');
-                            }
-                            return response.json();
-                        }),
-                        'Updating booking status...'
+                    // Use fetchWithLoading
+                    await fetchWithLoading(
+                        `/api/bookings/${bookingId}`,
+                        'PATCH',
+                        'Updating booking status...',
+                        { status, role: role.toString() } // Pass role if needed by API
                     );
 
-                    // set({ isUpdatingStatus: false }); // Removed - Handled by withLoading
                     // Optimistic update or full refresh:
                     updateLocalStatus(bookingId, status);
                     // OR await refreshBookingRequests();
-                    return true; // Indicate success
+                    return true;
 
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : "Unknown error updating booking status";
+                    const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error updating booking status";
                     console.error("Error updating booking status:", errorMessage);
-                    set({ updateStatusError: errorMessage }); // Removed isUpdatingStatus: false
+                    set({ updateStatusError: errorMessage });
                     // Consider reverting optimistic update here if implemented
-                    return false; // Indicate failure
+                    return false;
                 }
             },
 
             updateRequestStatus: async (requestId, status) => {
-                const { withLoading } = useLoaderStore.getState();
-                // const updateLocalRequest = useBookingRequestStore.getState().updateBookingRequestLocally; // Removed unused variable
+                // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
                 const refreshBookingRequests = useBookingRequestStore.getState().fetchBookingRequests;
 
-                // Consider using a specific loading state or rely on global loader
                 try {
-                    await withLoading(
-                        fetch(`/api/requests/${requestId}`, { // Assuming PATCH endpoint exists
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status }),
-                        }).then(async response => {
-                            if (!response.ok) {
-                                const errorData = await response.json().catch(() => ({ error: 'Failed to update request status' }));
-                                throw new Error(errorData.error || 'Failed to update request status');
-                            }
-                            return response.json();
-                        }),
-                        'Updating request status...'
+                    // Use fetchWithLoading
+                    await fetchWithLoading(
+                        `/api/requests/${requestId}`,
+                        'PATCH',
+                        'Updating request status...',
+                        { status }
                     );
 
                     // Optimistic update or full refresh:
                     // Need to know what fields change on the request object
                     // updateLocalRequest(requestId, { status: status }); // Example if only status changes
                     await refreshBookingRequests(); // Safer to refresh the whole list
-                    return true; // Indicate success
+                    return true;
 
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : "Unknown error updating request status";
+                    const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error updating request status";
                     console.error("Error updating request status:", errorMessage);
                     // Set specific error state if needed
-                    return false; // Indicate failure
+                    // Consider adding toast notification for error
+                    return false;
                 }
             },
 
