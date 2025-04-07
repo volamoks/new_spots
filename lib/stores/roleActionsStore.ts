@@ -34,12 +34,21 @@ interface RoleActionsState {
 
 // Type for dependencies passed to the factory
 interface RoleActionsDependencies {
-  zonesStore: ZonesState; // Use the actual state type
-  bookingActionsStore: BookingActionsState; // Use the actual state type
+  // Zones Store Functions
+  getZonesState: () => ZonesState;
+  setZonesState: (partial: Partial<ZonesState> | ((state: ZonesState) => Partial<ZonesState>)) => void;
+  setFilterCriteria: ZonesState['setFilterCriteria'];
+  clearSpecificFilters: ZonesState['clearSpecificFilters'];
+  fetchZones: ZonesState['fetchZones'];
+  updateZoneLocally: ZonesState['updateZoneLocally'];
+  clearSelection: ZonesState['clearSelection'];
+  removeZonesLocally: ZonesState['removeZonesLocally'];
+  // Booking Actions Store Functions
+  getBookingActionsState: () => BookingActionsState;
+  createBookingRequestAction: BookingActionsState['createBookingRequest']; // Renamed to avoid conflict
+  // Other Dependencies
   toast: UseToastReturn;
-  // Remove withLoading dependency
-  // withLoading: <T>(promise: Promise<T>, message: string, key?: string) => Promise<T>;
-  user?: { id: string; role: string; category?: string | null; inn?: string | null }; // Allow null for category/inn
+  user?: { id: string; role: string; category?: string | null; inn?: string | null };
 }
 
 // Factory function to create the role-specific store instance
@@ -48,7 +57,16 @@ export const createRoleActionsStore = (
   dependencies: RoleActionsDependencies
 ) => create<RoleActionsState>(() => { // Removed unused set/get
   // Remove withLoading from dependencies
-  const { zonesStore, bookingActionsStore, toast, user } = dependencies;
+  // Destructure the passed functions and other dependencies
+  const {
+    // Zones Store Functions
+    getZonesState, setZonesState, setFilterCriteria, clearSpecificFilters, fetchZones,
+    updateZoneLocally, clearSelection, removeZonesLocally,
+    // Booking Actions Store Functions
+    getBookingActionsState, createBookingRequestAction,
+    // Other Dependencies
+    toast, user
+  } = dependencies;
   const showSuccessToast = createSuccessToast(toast);
   const showErrorToast = createErrorToast(toast);
 
@@ -60,14 +78,14 @@ export const createRoleActionsStore = (
         // Set role-specific filters before fetching
         if (role === 'supplier' && user?.inn) {
           // Ensure AVAILABLE is a valid ZoneStatus enum member if used
-          zonesStore.setFilterCriteria({ supplier: [user.inn] /*, status: ZoneStatus.AVAILABLE */ }); // Assuming supplier filter takes array now
+          setFilterCriteria({ supplier: [user.inn] /*, status: ZoneStatus.AVAILABLE */ }); // Use passed function
         } else if (role === 'categoryManager' && user?.category) {
-          zonesStore.setFilterCriteria({ category: user.category });
+          setFilterCriteria({ category: user.category }); // Use passed function
         } else if (role === 'dmp') {
-          zonesStore.clearSpecificFilters(['supplier', 'category']); // Example
+          clearSpecificFilters(['supplier', 'category']); // Use passed function
         }
         // Call fetchZones directly - it now uses fetchWithLoading internally
-        await zonesStore.fetchZones();
+        await fetchZones(); // Use passed function
         // Success toast can be shown here, or potentially within fetchZones itself if desired
         showSuccessToast('Зоны обновлены', 'Список зон успешно обновлён');
       } catch (error) {
@@ -83,59 +101,100 @@ export const createRoleActionsStore = (
   const dmpActions: Partial<RoleActionsState> = role === 'dmp' ? {
     changeZoneStatus: async (zoneId, newStatus) => {
       // const key = `changeZoneStatus-${zoneId}`; // Key might not be needed
-      const zonesState = zonesStore.getState(); // Get current state once
+      const zonesState = getZonesState(); // Use passed function
       const originalZone = zonesState.zones.find((z: Zone) => z.id === zoneId);
       if (!originalZone) {
         showErrorToast('Ошибка', 'Зона не найдена локально.');
         return false;
       }
       const originalStatus = originalZone.status;
-      zonesState.updateZoneLocally(zoneId, { status: newStatus }); // Optimistic update
+
+      // Optimistic update: Include clearing fields if status is AVAILABLE
+      const optimisticUpdates: Partial<Zone> = { status: newStatus };
+      if (newStatus === ZoneStatus.AVAILABLE) {
+        optimisticUpdates.supplier = null;
+        optimisticUpdates.brand = null;
+      }
+      updateZoneLocally(zoneId, optimisticUpdates); // Use passed function
+
       try {
         // Use fetchWithLoading directly
+        // Prepare payload: Include null fields if status is AVAILABLE
+        const payload: { status: ZoneStatus; supplier?: null; brand?: null } = { status: newStatus };
+        if (newStatus === ZoneStatus.AVAILABLE) {
+          payload.supplier = null;
+          payload.brand = null;
+        }
+        // Assuming the status endpoint or main zone endpoint can handle these fields
         await fetchWithLoading(
-          `/api/zones/${zoneId}/status`,
+          `/api/zones/${zoneId}`, // Using main endpoint assuming it handles PATCH for multiple fields
           'PATCH',
           'Обновление статуса зоны...',
-          { status: newStatus }
+          payload // Send status and potentially null fields
         );
         showSuccessToast('Статус обновлён', `Статус зоны ${originalZone.uniqueIdentifier} изменён на ${newStatus}`);
         return true;
       } catch (error) {
         console.error("Error changing zone status:", error);
-        zonesState.updateZoneLocally(zoneId, { status: originalStatus }); // Rollback
+        // Rollback: Restore original status and potentially original supplier/brand if they were cleared optimistically
+        const rollbackUpdates: Partial<Zone> = { status: originalStatus };
+        if (newStatus === ZoneStatus.AVAILABLE && originalZone) { // Check if originalZone exists
+          rollbackUpdates.supplier = originalZone.supplier;
+          rollbackUpdates.brand = originalZone.brand;
+        }
+        updateZoneLocally(zoneId, rollbackUpdates); // Use passed function (Rollback)
         showErrorToast('Ошибка обновления статуса', error instanceof Error ? error.message : 'Не удалось изменить статус зоны');
         return false;
       }
     },
     bulkUpdateZoneStatus: async (zoneIds, newStatus) => {
       // const key = `bulkUpdateStatus-${newStatus}-${zoneIds.length}`; // Key might not be needed
-      const zonesState = zonesStore.getState();
-      const originalZones = zonesState.zones.filter((z: Zone) => zoneIds.includes(z.id));
-      const originalStatuses = new Map(originalZones.map((z: Zone) => [z.id, z.status]));
+      const zonesState = getZonesState(); // Use passed function
+      const originalZones = zonesState.zones.filter((z: Zone) => zoneIds.includes(z.id)); // Keep original zone data for rollback
+      // Removed unused originalStatuses variable
       if (originalZones.length !== zoneIds.length) {
         showErrorToast('Ошибка', 'Некоторые зоны для массового обновления не найдены.');
         return false;
       }
-      zoneIds.forEach(id => zonesState.updateZoneLocally(id, { status: newStatus })); // Optimistic update
+
+      // Optimistic update: Include clearing fields if status is AVAILABLE
+      const optimisticBulkUpdates: Partial<Zone> = { status: newStatus };
+      if (newStatus === ZoneStatus.AVAILABLE) {
+        optimisticBulkUpdates.supplier = null;
+        optimisticBulkUpdates.brand = null;
+      }
+      zoneIds.forEach(id => updateZoneLocally(id, optimisticBulkUpdates)); // Use passed function
+
       try {
         // Use fetchWithLoading directly
+        // Prepare payload: Include null fields if status is AVAILABLE
+        const bulkPayload: { zoneIds: string[]; status: ZoneStatus; supplier?: null; brand?: null } = { zoneIds, status: newStatus };
+        if (newStatus === ZoneStatus.AVAILABLE) {
+          bulkPayload.supplier = null;
+          bulkPayload.brand = null;
+        }
         await fetchWithLoading(
-          `/api/zones/bulk-update`, // Assuming this is the correct endpoint now
-          'PATCH', // Or POST depending on API design
+          `/api/zones/bulk-update`,
+          'POST', // Correct HTTP method
           `Обновление статуса ${zoneIds.length} зон...`,
-          { zoneIds, status: newStatus }
+          bulkPayload // Send IDs, status, and potentially null fields
         );
         showSuccessToast('Статусы обновлены', `Статус ${zoneIds.length} зон изменён на ${newStatus}`);
         // Clear selection after successful bulk update
-        zonesState.clearSelection();
+        clearSelection(); // Use passed function
         return true;
       } catch (error) {
         console.error("Error bulk updating zone status:", error);
-        zoneIds.forEach(id => { // Rollback
-          const originalStatus = originalStatuses.get(id);
-          if (originalStatus) {
-            zonesState.updateZoneLocally(id, { status: originalStatus });
+        // Rollback: Restore original status and potentially original supplier/brand
+        zoneIds.forEach(id => {
+          const originalZone = originalZones.find(z => z.id === id); // Find the original zone data
+          if (originalZone) {
+            const rollbackBulkUpdates: Partial<Zone> = { status: originalZone.status };
+            if (newStatus === ZoneStatus.AVAILABLE) { // If we were trying to set to AVAILABLE
+              rollbackBulkUpdates.supplier = originalZone.supplier; // Restore original supplier
+              rollbackBulkUpdates.brand = originalZone.brand; // Restore original brand
+            }
+            updateZoneLocally(id, rollbackBulkUpdates); // Use passed function
           }
         });
         showErrorToast('Ошибка массового обновления', error instanceof Error ? error.message : 'Не удалось изменить статус зон');
@@ -144,11 +203,11 @@ export const createRoleActionsStore = (
     },
     bulkDeleteZones: async (zoneIds) => {
       // const key = `bulkDeleteZones-${zoneIds.length}`; // Key might not be needed
-      const zonesState = zonesStore.getState();
+      const zonesState = getZonesState(); // Use passed function
       const zonesToRemove = zonesState.zones.filter((z: Zone) => zoneIds.includes(z.id));
       const originalTotalCount = zonesState.totalCount;
 
-      zonesState.removeZonesLocally(zoneIds); // Optimistic remove
+      removeZonesLocally(zoneIds); // Use passed function (Optimistic remove)
 
       try {
         // Use fetchWithLoading directly
@@ -161,13 +220,14 @@ export const createRoleActionsStore = (
         showSuccessToast('Зоны удалены', `${zoneIds.length} зон успешно удалены`);
         // No need to manually restore on success, removeZonesLocally was optimistic
         // Clear selection after successful bulk delete
-        zonesState.clearSelection();
+        clearSelection(); // Use passed function
         return true;
       } catch (error) {
         console.error("Error bulk deleting zones:", error);
         showErrorToast('Ошибка удаления', error instanceof Error ? error.message : 'Не удалось удалить зоны. Список может быть неактуален.');
         // Simple restore attempt on error
-        zonesStore.setState({ zones: [...zonesState.zones, ...zonesToRemove], totalCount: originalTotalCount });
+        // Use passed setState function for restore attempt
+        setZonesState({ zones: [...zonesState.zones, ...zonesToRemove], totalCount: originalTotalCount });
         // Consider forcing a full refresh on error for deletions?
         // await baseActions.refreshZones(); // Call the base action
         return false;
@@ -175,7 +235,7 @@ export const createRoleActionsStore = (
     },
     updateZoneField: async (zoneId, field, value) => {
       // const key = `updateZoneField-${zoneId}-${field}`; // Key might not be needed
-      const zonesState = zonesStore.getState();
+      const zonesState = getZonesState(); // Use passed function
       const originalZone = zonesState.zones.find((z: Zone) => z.id === zoneId);
       if (!originalZone) {
         showErrorToast('Ошибка', 'Зона не найдена локально.');
@@ -185,7 +245,7 @@ export const createRoleActionsStore = (
       // Optimistic update - also update status if logic requires (e.g., becomes unavailable)
       const updates: Partial<Zone> = { [field]: value };
       // Example: if (field === 'supplier' || field === 'brand') { updates.status = ZoneStatus.UNAVAILABLE; }
-      zonesState.updateZoneLocally(zoneId, updates);
+      updateZoneLocally(zoneId, updates); // Use passed function
 
       try {
         // Use fetchWithLoading directly
@@ -203,7 +263,7 @@ export const createRoleActionsStore = (
         // Rollback both field and status if status was changed optimistically
         const rollbackUpdates: Partial<Zone> = { [field]: originalValue };
         // Example: if (field === 'supplier' || field === 'brand') { rollbackUpdates.status = originalZone.status; }
-        zonesState.updateZoneLocally(zoneId, rollbackUpdates);
+        updateZoneLocally(zoneId, rollbackUpdates); // Use passed function (Rollback)
         showErrorToast('Ошибка обновления поля', error instanceof Error ? error.message : `Не удалось обновить поле '${field}'`);
         return false;
       }
@@ -215,9 +275,10 @@ export const createRoleActionsStore = (
     createBookingRequest: async (creatingUser) => {
       // This action delegates to bookingActionsStore, which now uses fetchWithLoading.
       // So, we just need to call it and handle the success/failure locally for toasts/updates.
-      const bookingState = bookingActionsStore.getState();
+      const bookingState = getBookingActionsState(); // Use passed function to get state if needed for error message etc.
       try {
-        const success = await bookingState.createBookingRequest(creatingUser);
+        // Use the passed action directly
+        const success = await createBookingRequestAction(creatingUser);
 
         if (success) {
           // Get the IDs from the Set (which should be cleared by the successful action)
@@ -275,15 +336,24 @@ export const useRoleData = (role: 'dmp' | 'supplier' | 'categoryManager') => {
       : undefined
   ), [session?.user]);
 
-  // Ensure the types passed match RoleActionsDependencies (without withLoading)
+  // Prepare dependencies with specific functions from both stores
   const dependencies: RoleActionsDependencies = React.useMemo(() => ({
-    zonesStore: zonesStoreSelectors,
-    bookingActionsStore: bookingActionsSelectors,
+    // Zones Store Functions
+    getZonesState: useZonesStore.getState,
+    setZonesState: useZonesStore.setState,
+    setFilterCriteria: zonesStoreSelectors.setFilterCriteria,
+    clearSpecificFilters: zonesStoreSelectors.clearSpecificFilters,
+    fetchZones: zonesStoreSelectors.fetchZones,
+    updateZoneLocally: zonesStoreSelectors.updateZoneLocally,
+    clearSelection: zonesStoreSelectors.clearSelection,
+    removeZonesLocally: zonesStoreSelectors.removeZonesLocally,
+    // Booking Actions Store Functions
+    getBookingActionsState: useBookingActionsStore.getState,
+    createBookingRequestAction: bookingActionsSelectors.createBookingRequest, // Pass the action
+    // Other Dependencies
     toast,
-    // Remove withLoading
-    // withLoading,
     user,
-  }), [zonesStoreSelectors, bookingActionsSelectors, toast, user]); // Remove withLoading from dependency array
+  }), [zonesStoreSelectors, bookingActionsSelectors, toast, user]); // Dependencies updated
 
   // --- Create Role Actions Store Hook Instance ---
   // Memoize the hook creation itself

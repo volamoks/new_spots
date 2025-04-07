@@ -51,7 +51,9 @@ export function EditableSupplierCell({
     // Sync local state with external currentValue changes and supplier list
     useEffect(() => {
         // Find the supplier object matching the currentValue (which might be INN or Name)
-        const currentSupplier = suppliers.find(s => s.inn === currentValue || s.name === currentValue);
+        const currentSupplier = suppliers.find(
+            s => s.inn === currentValue || s.name === currentValue,
+        );
 
         if (currentSupplier) {
             // Found in list - use INN as selectedValue, store name
@@ -87,36 +89,39 @@ export function EditableSupplierCell({
 
     const handleSave = async () => {
         setIsSaving(true);
-        let valueToSave: string | null = null;
+        let nameToSave: string | null = null; // Variable to hold the name to be saved
 
         if (selectedValue === OTHER_SUPPLIER_VALUE) {
             // If 'Other', save the trimmed input value (custom name)
-            valueToSave = inputValue.trim() || null;
+            nameToSave = inputValue.trim() || null;
         } else if (selectedValue === NONE_SUPPLIER_VALUE) {
             // If 'None', save null
-            valueToSave = null;
+            nameToSave = null;
+        } else if (selectedValue) {
+            // Find the supplier object by INN (selectedValue holds the INN)
+            const selectedSupplier = suppliers.find(s => s.inn === selectedValue);
+            nameToSave = selectedSupplier ? selectedSupplier.name : null; // Get the name
         } else {
-            // Otherwise, save the selected INN
-            valueToSave = selectedValue;
+            nameToSave = null; // No selection
         }
 
-        // Normalize null/empty string for comparison (currentValue might be name or INN)
+        // Normalize null/empty string for comparison.
+        // currentValue should ideally be the name passed from the parent.
         const normalizedCurrentValue = currentValue || null;
-        const normalizedValueToSave = valueToSave || null;
+        const normalizedNameToSave = nameToSave || null;
 
-        // Find current supplier object again for accurate comparison
-        const currentSupplierObject = suppliers.find(s => s.inn === normalizedCurrentValue || s.name === normalizedCurrentValue);
-        const currentIdentifier = currentSupplierObject ? currentSupplierObject.inn : normalizedCurrentValue; // Prefer INN if found
-
-        // Only save if the value actually changed
-        if (normalizedValueToSave === currentIdentifier) {
+        // Only save if the name actually changed
+        // This comparison assumes currentValue is the name. If it might be INN, this needs adjustment.
+        if (normalizedNameToSave === normalizedCurrentValue) {
             setIsEditing(false);
             setIsSaving(false);
+            console.log('Supplier name unchanged, skipping save.');
             return;
         }
 
         try {
-            await onSave(valueToSave); // Send INN, custom name, or null
+            console.log(`Saving supplier name: ${nameToSave} for zone ${zoneId}`);
+            await onSave(nameToSave); // Send NAME or null
             setIsEditing(false);
         } catch (error) {
             console.error(`Failed to save supplier for zone ${zoneId}:`, error);
@@ -148,7 +153,13 @@ export function EditableSupplierCell({
             <div className="flex items-center justify-between group min-h-[32px]">
                 {' '}
                 {/* Ensure min height */}
-                <span title={displayValue} className="truncate">{displayValue}</span> {/* Add title for overflow */}
+                <span
+                    title={displayValue}
+                    className="truncate"
+                >
+                    {displayValue}
+                </span>{' '}
+                {/* Add title for overflow */}
                 <Button
                     variant="ghost"
                     size="sm"

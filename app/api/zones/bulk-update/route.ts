@@ -16,16 +16,25 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid status provided' }, { status: 400 });
         }
 
-        // Обновляем статус зон
+        // Prepare data for update
+        const updateData: { status: ZoneStatus; supplier?: null; brand?: null } = {
+            status: status as ZoneStatus,
+        };
+
+        // If status is AVAILABLE, also clear supplier and brand
+        if (status === ZoneStatus.AVAILABLE) {
+            updateData.supplier = null;
+            updateData.brand = null;
+        }
+
+        // Обновляем зоны
         const result = await prisma.zone.updateMany({
             where: {
                 id: {
                     in: zoneIds,
                 },
             },
-            data: {
-                status: status as ZoneStatus,
-            },
+            data: updateData, // Use the prepared data object
         });
 
         console.log(`Bulk updated status for ${result.count} zones to ${status}`);
