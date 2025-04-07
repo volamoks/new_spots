@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth'; // Assuming authOptions are defined here
 import { prisma } from '@/lib/prisma'; // Assuming prisma client is here (named export)
-import { Role, Prisma } from '@prisma/client'; // Import Role enum and Prisma namespace
+import { Prisma } from '@prisma/client'; // Import Prisma namespace (Role removed)
 import { type NextRequest } from 'next/server'; // Import NextRequest
 import redis from '@/lib/redis'; // Import Redis client
 export async function GET(request: NextRequest) { // Add request parameter
@@ -17,29 +17,12 @@ export async function GET(request: NextRequest) { // Add request parameter
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
 
-    const user = session.user;
+    // const user = session.user; // Removed as it's no longer used
     // Start with base where clause (will be combined with AND)
     const baseWhereClauses: Prisma.BrandWhereInput[] = [];
 
-    // Supplier specific filtering
-    // Supplier specific filtering - ADDED CHECKS for role and inn
-    if (user.role === Role.SUPPLIER) {
-      if (!user.id || !user.inn) {
-        // If essential supplier info is missing in session, return an error
-        console.error(`Supplier user (ID: ${user.id || 'unknown'}) missing INN in session data.`);
-        return NextResponse.json({ message: 'Forbidden: Incomplete supplier information in session' }, { status: 403 });
-      }
-      // Filter brands associated with the current supplier user
-      baseWhereClauses.push({
-        suppliers: {
-          some: {
-            id: user.id, // user.id is guaranteed by the check above and the initial session check
-          },
-        },
-      });
-    }
+    // Supplier specific filtering removed to show all brands for suppliers
     // Add other role-based filters here if needed in the future
-
     // Add search term filtering
     if (search) {
       baseWhereClauses.push({
@@ -54,7 +37,8 @@ export async function GET(request: NextRequest) { // Add request parameter
     const whereClause = baseWhereClauses.length > 0 ? { AND: baseWhereClauses } : {};
 
     // --- Redis Caching Logic ---
-    const cacheKey = `brands:${user.role}:${user.role === Role.SUPPLIER ? user.id : 'all'}:${search || 'all'}`;
+    // Cache key simplified further
+    const cacheKey = `brands:${search || 'all'}`;
     const cacheTTL = 86400; // Cache for 24 hours
 
     try {

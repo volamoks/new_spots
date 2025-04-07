@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     // Read all potential filter arrays
     const city = searchParams.getAll("city");
     const market = searchParams.getAll("market");
-    let macrozone = searchParams.getAll("macrozone"); // Keep let for category logic
+    // Removed unused 'macrozone' variable declaration
     const equipment = searchParams.getAll("equipment");
     const supplier = searchParams.getAll("supplier");
     // Read single value filters
@@ -33,21 +33,31 @@ export async function GET(request: Request) {
     const validPageSize = !isNaN(pageSize) && pageSize > 0 ? pageSize : 20;
 
 
-    // If category is provided, get corresponding macrozones
+    // Determine the final macrozones to use based on category and explicit filters
+    let macrozonesToUse: string[] | undefined = undefined;
+    const explicitMacrozones = searchParams.getAll("macrozone"); // Get explicitly selected macrozones
+
     if (category) {
       const categoryMacrozones = getCorrespondingMacrozones(category);
-      if (categoryMacrozones.length > 0) {
-        // Combine with any explicitly requested macrozones and remove duplicates
-        const combinedMacrozones = [...macrozone, ...categoryMacrozones];
-        // Remove duplicates
-        macrozone = combinedMacrozones.filter((value, index, self) =>
-          self.indexOf(value) === index
-        );
+      if (explicitMacrozones.length > 0) {
+        // Both category and explicit filters: Use intersection
+        const explicitSet = new Set(explicitMacrozones);
+        macrozonesToUse = categoryMacrozones.filter(mz => explicitSet.has(mz));
+      } else {
+        // Only category filter: Use category's macrozones
+        macrozonesToUse = categoryMacrozones;
       }
+    } else if (explicitMacrozones.length > 0) {
+      // Only explicit filter: Use explicit macrozones
+      macrozonesToUse = explicitMacrozones;
     }
+    // If neither is present, macrozonesToUse remains undefined
+
+    // Replace the original 'macrozone' variable with 'macrozonesToUse' for clarity later
+    // Note: The original 'macrozone' variable is no longer needed after this block.
 
     console.log("API zones: Получен запрос с параметрами:", {
-      macrozone: macrozone.length > 0 ? macrozone : "не указано",
+      macrozone: macrozonesToUse && macrozonesToUse.length > 0 ? macrozonesToUse : "не указано",
       category: category || "не указано",
       status: status || "не указано"
     });
@@ -76,7 +86,7 @@ export async function GET(request: Request) {
     console.log(`API zones: Роль пользователя: ${session.user.role}, статус для фильтрации: ${statusToUse || 'все'}`);
 
     console.log("API zones: Используемые параметры фильтрации:", {
-      macrozone: macrozone.length > 0 ? macrozone : "не указано",
+      macrozone: macrozonesToUse && macrozonesToUse.length > 0 ? macrozonesToUse : "не указано",
       status: statusToUse || "не указано"
     });
 
@@ -84,7 +94,7 @@ export async function GET(request: Request) {
     const fetchParams = {
       city: city.length > 0 ? city : undefined,
       market: market.length > 0 ? market : undefined,
-      macrozone: macrozone.length > 0 ? macrozone : undefined,
+      macrozone: macrozonesToUse, // Pass the calculated macrozonesToUse
       equipment: equipment.length > 0 ? equipment : undefined,
       supplier: supplier.length > 0 ? supplier : undefined,
       // Pass category only if it was originally provided in the request

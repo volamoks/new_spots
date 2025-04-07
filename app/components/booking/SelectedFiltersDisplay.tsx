@@ -1,6 +1,6 @@
 import React from 'react';
 import { ZoneSelectedFilters } from '@/app/components/zones/ZoneSelectedFilters';
-import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
+import type { FilterCriteria } from '@/lib/stores/zonesStore'; // Import FilterCriteria from zonesStore
 
 // Define the structure for the filters object expected by this component
 // (Matches the structure passed to ZoneSelectedFilters)
@@ -10,21 +10,22 @@ type DisplayFilters = Partial<Record<string, string[]>>;
 type DisplayLabels = Partial<Record<string, string>>;
 
 // Helper to get the correct filter key in the store based on the type from ZoneSelectedFilters
+// Update helper to use FilterCriteria keys
 type FilterDropdownKey = Exclude<
-    keyof BookingRequestFilters,
-    'dateFrom' | 'dateTo' | 'searchTerm' | 'supplierName' | 'supplierInn'
+    keyof FilterCriteria,
+    'searchTerm' | 'activeTab' | 'category' // Exclude non-array filters
 >;
 const getFilterKeyForRemoval = (type: string): FilterDropdownKey | null => {
-    if (type === 'supplier') return 'supplierIds'; // Map 'supplier' back to 'supplierIds'
-    if (['status', 'city', 'market', 'macrozone', 'equipment'].includes(type)) {
+    // Map display type directly to FilterCriteria key
+    if (['city', 'market', 'macrozone', 'equipment', 'supplier'].includes(type)) {
         return type as FilterDropdownKey;
     }
     return null;
 };
 
 interface SelectedFiltersDisplayProps {
-    filterCriteria: BookingRequestFilters; // Pass the full criteria object
-    setFilterCriteria: (criteria: Partial<BookingRequestFilters>) => void; // Pass the update function
+    filterCriteria: FilterCriteria; // Use FilterCriteria type
+    setFilterCriteria: (criteria: Partial<FilterCriteria>) => void; // Expect FilterCriteria update function
 }
 
 export const SelectedFiltersDisplay: React.FC<SelectedFiltersDisplayProps> = ({
@@ -33,8 +34,8 @@ export const SelectedFiltersDisplay: React.FC<SelectedFiltersDisplayProps> = ({
 }) => {
     // Determine if any filters are selected
     const hasSelectedFilters =
-        (filterCriteria.status?.length ?? 0) > 0 ||
-        (filterCriteria.supplierIds?.length ?? 0) > 0 ||
+        // Check based on FilterCriteria properties (excluding activeTab and searchTerm)
+        (filterCriteria.supplier?.length ?? 0) > 0 ||
         (filterCriteria.city?.length ?? 0) > 0 ||
         (filterCriteria.market?.length ?? 0) > 0 ||
         (filterCriteria.macrozone?.length ?? 0) > 0 ||
@@ -45,18 +46,20 @@ export const SelectedFiltersDisplay: React.FC<SelectedFiltersDisplayProps> = ({
     }
 
     // Prepare filters and labels for ZoneSelectedFilters
+    // Prepare filters using FilterCriteria properties
     const displayFilters: DisplayFilters = {
-        status: filterCriteria.status,
-        supplier: filterCriteria.supplierIds || [], // Map supplierIds to 'supplier' key
+        // status: filterCriteria.status, // Remove status, activeTab is not displayed here
+        supplier: filterCriteria.supplier || [], // Use 'supplier' key directly
         city: filterCriteria.city || [],
         market: filterCriteria.market || [],
         macrozone: filterCriteria.macrozone || [],
         equipment: filterCriteria.equipment || [],
     };
 
+    // Update labels (remove status, adjust supplier if needed)
     const displayLabels: DisplayLabels = {
-        status: 'Статус',
-        supplier: 'Поставщик (ИНН)',
+        // status: 'Статус', // Remove status label
+        supplier: 'Поставщик', // Use 'Поставщик' as label (supplier filter in zonesStore might be name/ID, not INN)
         city: 'Город',
         market: 'Маркет',
         macrozone: 'Макрозона',
@@ -67,6 +70,7 @@ export const SelectedFiltersDisplay: React.FC<SelectedFiltersDisplayProps> = ({
     const handleRemove = (type: string, value: string) => {
         const filterKey = getFilterKeyForRemoval(type);
         if (filterKey) {
+            // Type assertion ensures compatibility with FilterCriteria structure
             const currentValues = filterCriteria[filterKey] as string[] | undefined;
             const newValues = currentValues?.filter(v => v !== value) || [];
             setFilterCriteria({ [filterKey]: newValues });

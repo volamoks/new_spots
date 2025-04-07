@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react'; // Removed unused useState
 import {
-    useBookingRequestStore, // Changed from useZonesStore
-    type BookingRequestFilters, // Use BookingRequestFilters
+    useZonesStore, // Use zonesStore
+    type FilterCriteria, // Use FilterCriteria type from zonesStore
     // Removed unused SupplierOption import
-} from '@/lib/stores/bookingRequestStore'; // Import bookingRequestStore
-// Removed useLoaderStore import as isLoadingOptions is now used
+} from '@/lib/stores/zonesStore'; // Import zonesStore
+// Removed unused useLoaderStore import
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,13 @@ const BookingFilters = () => {
     // Removed unused user from useAuth()
     useAuth(); // Call hook if it has side effects, otherwise remove entirely if not needed
     const {
-        filterCriteria, // Use filterCriteria from bookingRequestStore
-        setFilterCriteria, // Use setFilterCriteria from bookingRequestStore
-        resetFilters, // Use resetFilters from bookingRequestStore
-        filterOptions, // Use filterOptions from bookingRequestStore
-        isLoadingOptions, // Use loading state for options
-        fetchFilterOptions, // Use fetchFilterOptions from bookingRequestStore
-    } = useBookingRequestStore(); // Use bookingRequestStore hook
+        filterCriteria, // Use filterCriteria from zonesStore
+        setFilterCriteria, // Use setFilterCriteria from zonesStore
+        resetFilters, // Re-add resetFilters
+        uniqueFilterValues, // Use uniqueFilterValues from zonesStore
+        isLoadingFilters, // Use loading state for filters from zonesStore
+        fetchFilterOptions, // Use fetchFilterOptions from zonesStore
+    } = useZonesStore(); // Use zonesStore hook
 
     // Use isLoadingOptions from the store instead of global loader
     // Removed unused isLoading variable assignment
@@ -39,30 +39,36 @@ const BookingFilters = () => {
     // Removed useEffect for localSearchTerm
 
     // Extract unique values for zone filters from zonesStore
-    // Extract options from filterOptions (bookingRequestStore)
-    const {
-        cities: uniqueCities,
-        markets: uniqueMarkets,
-        macrozones: uniqueMacrozones,
-        equipments: uniqueEquipments,
-        // suppliers are also available in filterOptions if needed later
-    } = filterOptions;
+    // Extract options from uniqueFilterValues (zonesStore)
+    // Access directly from uniqueFilterValues to preserve types
+    // const {
+    //     cities: uniqueCities,
+    //     markets: uniqueMarkets,
+    //     macrozones: uniqueMacrozones,
+    //     equipments: uniqueEquipments,
+    // } = uniqueFilterValues; // Keep commented or remove if direct access is used below
 
     // Fetch filter options specifically for 'create' context on mount
     useEffect(() => {
-        fetchFilterOptions('create');
+        // fetchFilterOptions might not need 'create' context when using zonesStore
+        // Check zonesStore implementation if context is needed
+        fetchFilterOptions();
     }, [fetchFilterOptions]);
 
     // Removed statusOptions
 
     // Options for zone filters
-    const cityOptions = uniqueCities.map(city => ({ value: city, label: city }));
-    const marketOptions = uniqueMarkets.map(market => ({ value: market, label: market }));
-    const macrozoneOptions = uniqueMacrozones.map(macrozone => ({
+    // Use uniqueFilterValues directly to map options
+    const cityOptions = uniqueFilterValues.cities.map(city => ({ value: city, label: city }));
+    const marketOptions = uniqueFilterValues.markets.map(market => ({
+        value: market,
+        label: market,
+    }));
+    const macrozoneOptions = uniqueFilterValues.macrozones.map(macrozone => ({
         value: macrozone,
         label: macrozone,
     }));
-    const equipmentOptions = uniqueEquipments.map(equipment => ({
+    const equipmentOptions = uniqueFilterValues.equipments.map(equipment => ({
         value: equipment,
         label: equipment,
     }));
@@ -77,25 +83,25 @@ const BookingFilters = () => {
             title: 'Город',
             options: cityOptions,
             selected: filterCriteria.city, // Use 'city' key
-            filterKey: 'city' as keyof BookingRequestFilters & string, // Use BookingRequestFilters keys
+            filterKey: 'city' as keyof FilterCriteria & string, // Use FilterCriteria keys
         },
         {
             title: 'Маркет',
             options: marketOptions,
             selected: filterCriteria.market, // Use 'market' key
-            filterKey: 'market' as keyof BookingRequestFilters & string, // Use BookingRequestFilters keys
+            filterKey: 'market' as keyof FilterCriteria & string, // Use FilterCriteria keys
         },
         {
             title: 'Макрозона',
             options: macrozoneOptions,
             selected: filterCriteria.macrozone, // Use 'macrozone' key
-            filterKey: 'macrozone' as keyof BookingRequestFilters & string, // Use BookingRequestFilters keys
+            filterKey: 'macrozone' as keyof FilterCriteria & string, // Use FilterCriteria keys
         },
         {
             title: 'Оборудование',
             options: equipmentOptions,
             selected: filterCriteria.equipment, // Use 'equipment' key
-            filterKey: 'equipment' as keyof BookingRequestFilters & string, // Use BookingRequestFilters keys
+            filterKey: 'equipment' as keyof FilterCriteria & string, // Use FilterCriteria keys
         },
         // Removed supplier dropdown from here
     ];
@@ -111,21 +117,23 @@ const BookingFilters = () => {
                     dropdowns={zoneDropdowns}
                     setFilterCriteria={setFilterCriteria} // Pass store action directly
                     // Use isLoadingOptions from the store
-                    isLoading={isLoadingOptions}
+                    isLoading={isLoadingFilters} // Use isLoadingFilters
                 />
                 {/* Selected Filters Display */}
                 <SelectedFiltersDisplay
-                    // Pass filterCriteria directly from useBookingRequestStore
+                    // Pass filterCriteria (type FilterCriteria) from useZonesStore
                     filterCriteria={filterCriteria}
-                    // Pass setFilterCriteria directly from useBookingRequestStore
+                    // Pass setFilterCriteria from useZonesStore
                     setFilterCriteria={setFilterCriteria}
+                    // Note: SelectedFiltersDisplay might need internal adjustments
+                    // if it strictly expects BookingRequestFilters type.
                 />
                 {/* Reset Button */}
                 <div className="flex justify-end pt-4">
                     <Button
                         variant="outline"
-                        onClick={resetFilters}
-                        disabled={isLoadingOptions} // Disable based on options loading state
+                        onClick={resetFilters} // Re-enable the onClick handler
+                        disabled={isLoadingFilters} // Disable based on filters loading state
                         className="whitespace-nowrap"
                     >
                         {/* Changed button text slightly */}

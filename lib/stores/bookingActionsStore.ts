@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware'; // Remove persist imports
 import { BookingStatus, Role } from '@prisma/client'; // Remove Role import
 import BookingRole from '@/lib/enums/BookingRole'; // Import the custom enum
 // Remove useLoaderStore import
@@ -47,7 +47,7 @@ export interface BookingActionsState { // Export the interface
 // --- Store Definition ---
 
 export const useBookingActionsStore = create<BookingActionsState>()(
-    devtools(
+    devtools( // Remove persist wrapper
         (set, get) => ({
             // Initial State
             selectedZonesForCreation: new Set(),
@@ -199,6 +199,6 @@ export const useBookingActionsStore = create<BookingActionsState>()(
             },
 
         }),
-        { name: 'bookingActionsStore' }
-    )
-);
+        { name: 'bookingActionsStore' } // Revert name if changed
+    ) // Close devtools
+); // Close create

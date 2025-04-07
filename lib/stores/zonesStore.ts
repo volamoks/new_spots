@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Zone, ZoneKeys } from "@/types/zone"; // Removed ZoneStatus as it's not used here directly
-import { devtools } from 'zustand/middleware';
+import { Zone, ZoneKeys } from "@/types/zone";
+import { devtools, persist, createJSONStorage } from 'zustand/middleware'; // Import persist and createJSONStorage
 import { ZoneStatus as PrismaZoneStatus } from "@prisma/client"; // Import Prisma status for filter options type
 // Remove useLoaderStore import
 // import { useLoaderStore } from './loaderStore';
@@ -110,243 +110,274 @@ const initialUniqueFilterValues: UniqueFilterValues = {
 // --- Store Definition ---
 
 export const useZonesStore = create<ZonesState>()(
-    devtools(
-        (set, get) => ({
-            // Core State
-            zones: [],
-            totalCount: 0,
-            selectedZoneIds: new Set(),
-            isLoading: false, // Initialize internal state
-            isLoadingFilters: false,
-            error: null,
-            filtersError: null,
+    devtools( // Wrap devtools around persist
+        persist( // Add persist middleware
+            (set, get) => ({
+                // Core State
+                zones: [],
+                totalCount: 0,
+                selectedZoneIds: new Set(),
+                isLoading: false, // Initialize internal state
+                isLoadingFilters: false,
+                error: null,
+                filtersError: null,
 
-            // Criteria State
-            filterCriteria: initialFilterCriteria,
-            sortCriteria: initialSortCriteria,
-            paginationCriteria: initialPaginationCriteria,
+                // Criteria State
+                filterCriteria: initialFilterCriteria,
+                sortCriteria: initialSortCriteria,
+                paginationCriteria: initialPaginationCriteria,
 
-            // Filter Options State
-            uniqueFilterValues: initialUniqueFilterValues,
+                // Filter Options State
+                uniqueFilterValues: initialUniqueFilterValues,
 
-            // --- Actions ---
-            fetchZones: async () => {
-                const { filterCriteria, sortCriteria, paginationCriteria } = get();
-                // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
+                // --- Actions ---
+                fetchZones: async () => {
+                    const { filterCriteria, sortCriteria, paginationCriteria } = get();
+                    // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
 
-                // Set local loading state (optional)
-                set({ isLoading: true, error: null });
+                    // Set local loading state (optional)
+                    set({ isLoading: true, error: null });
 
-                try {
-                    const params = new URLSearchParams();
+                    try {
+                        const params = new URLSearchParams();
 
-                    // --- Append Filters ---
-                    if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
-                        params.append('status', filterCriteria.activeTab);
-                    }
-                    filterCriteria.macrozone.forEach(mz => params.append('macrozone', mz));
-                    filterCriteria.city.forEach(city => params.append('city', city));
-                    filterCriteria.market.forEach(market => params.append('market', market));
-                    filterCriteria.equipment.forEach(eq => params.append('equipment', eq));
-                    filterCriteria.supplier.forEach(sup => params.append('supplier', sup));
-                    if (filterCriteria.category) {
-                        params.append('category', filterCriteria.category);
-                    }
-                    if (filterCriteria.searchTerm) {
-                        params.append('searchTerm', filterCriteria.searchTerm);
-                    }
-
-                    // --- Append Sorting ---
-                    if (sortCriteria.field && sortCriteria.direction) {
-                        params.append('sortField', sortCriteria.field);
-                        params.append('sortDirection', sortCriteria.direction);
-                    }
-
-                    // --- Append Pagination ---
-                    params.append('page', paginationCriteria.currentPage.toString());
-                    params.append('pageSize', paginationCriteria.itemsPerPage.toString());
-
-                    const url = `/api/zones?${params.toString()}`;
-                    console.log("--- DEBUG: Fetching zones URL ---");
-                    console.log("URL:", url);
-                    console.log("Current Filter Criteria:", filterCriteria);
-                    console.log("--- END DEBUG ---");
-
-                    // Use fetchWithLoading
-                    const { zones: fetchedZones, totalCount: fetchedTotalCount } = await fetchWithLoading<{ zones: Zone[], totalCount: number }>(
-                        url,
-                        'GET',
-                        'Загрузка зон...'
-                    );
-
-                    if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
-                        console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
-                        throw new Error("Invalid response structure from API");
-                    }
-
-                    set({
-                        zones: fetchedZones,
-                        totalCount: fetchedTotalCount,
-                        isLoading: false, // Reset local loading
-                        error: null,
-                    });
-
-                } catch (error) {
-                    const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error fetching zones";
-                    console.error("Error fetching zones:", errorMessage);
-                    set({ error: errorMessage, isLoading: false, zones: [], totalCount: 0 }); // Set error, clear data, reset loading
-                    // Add error toast
-                    toast({
-                        title: 'Ошибка загрузки зон',
-                        description: errorMessage,
-                        variant: 'destructive',
-                    });
-                }
-            },
-
-            // New action to fetch filter options
-            fetchFilterOptions: async () => {
-                set({ isLoadingFilters: true, filtersError: null });
-                try {
-                    // Use fetchWithLoading - Note: This will trigger the *global* loader.
-                    // If a separate indicator is truly needed, consider not using fetchWithLoading here
-                    // or adding a key to withLoading if that feature exists.
-                    // For now, we use fetchWithLoading for consistency.
-                    const options = await fetchWithLoading<UniqueFilterValues>(
-                        '/api/zones/filters',
-                        'GET',
-                        'Загрузка опций фильтров...'
-                    );
-
-                    // Validate fetched options structure if necessary
-                    if (!options || typeof options !== 'object' || !Array.isArray(options.cities)) {
-                        console.error("Invalid filter options structure:", options);
-                        throw new Error("Invalid filter options structure from API");
-                    }
-
-                    set({
-                        uniqueFilterValues: options,
-                        isLoadingFilters: false, // Reset local loading
-                        filtersError: null,
-                    });
-                } catch (error) {
-                    const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error fetching filter options";
-                    console.error("Error fetching filter options:", errorMessage);
-                    set({ filtersError: errorMessage, isLoadingFilters: false }); // Set error, reset loading
-                    // Add error toast
-                    toast({
-                        title: 'Ошибка загрузки опций фильтров',
-                        description: errorMessage,
-                        variant: 'destructive',
-                    });
-                }
-            },
-
-            setFilterCriteria: (criteriaUpdate) => {
-                const currentPage = 1;
-                set((state) => ({
-                    filterCriteria: { ...state.filterCriteria, ...criteriaUpdate },
-                    paginationCriteria: { ...state.paginationCriteria, currentPage }
-                }));
-                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
-            },
-
-            setSortCriteria: (newSortCriteria) => {
-                const currentPage = 1;
-                set((state) => ({
-                    sortCriteria: newSortCriteria,
-                    paginationCriteria: { ...state.paginationCriteria, currentPage }
-                }));
-                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
-            },
-
-            setPaginationCriteria: (criteriaUpdate) => {
-                set((state) => ({
-                    paginationCriteria: { ...state.paginationCriteria, ...criteriaUpdate }
-                }));
-                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
-            },
-
-            toggleZoneSelection: (zoneId) => {
-                set((state) => {
-                    const newSelection = new Set(state.selectedZoneIds);
-                    if (newSelection.has(zoneId)) {
-                        newSelection.delete(zoneId);
-                    } else {
-                        newSelection.add(zoneId);
-                    }
-                    return { selectedZoneIds: newSelection };
-                });
-            },
-
-            toggleSelectAll: (select) => {
-                set((state) => {
-                    const newSelection = new Set(state.selectedZoneIds);
-                    const zoneIdsOnPage = state.zones.map(z => z.id);
-                    if (select) {
-                        zoneIdsOnPage.forEach(id => newSelection.add(id));
-                    } else {
-                        zoneIdsOnPage.forEach(id => newSelection.delete(id));
-                    }
-                    return { selectedZoneIds: newSelection };
-                });
-            },
-
-            clearSelection: () => {
-                set({ selectedZoneIds: new Set() });
-            },
-
-            updateZoneLocally: (zoneId, updates) => {
-                set((state) => ({
-                    zones: state.zones.map(zone =>
-                        zone.id === zoneId ? { ...zone, ...updates } : zone
-                    )
-                }));
-                // Optionally refetch if update affects filtering/sorting
-                // get().fetchZones();
-            },
-
-            removeZonesLocally: (zoneIds) => {
-                set((state) => {
-                    const newZones = state.zones.filter(zone => !zoneIds.includes(zone.id));
-                    const removedCount = state.zones.length - newZones.length;
-                    return {
-                        zones: newZones,
-                        totalCount: Math.max(0, state.totalCount - removedCount), // Adjust total count
-                        selectedZoneIds: new Set(Array.from(state.selectedZoneIds).filter(id => !zoneIds.includes(id))) // Remove from selection too
-                    };
-                });
-                // Note: This is optimistic. If the API call in roleActionsStore fails,
-                // zones might need to be restored or a full refresh triggered.
-            },
-
-            clearSpecificFilters: (filterKeys) => {
-                set((state) => {
-                    const newFilterCriteria = { ...state.filterCriteria };
-                    filterKeys.forEach((key: keyof FilterCriteria) => { // Explicitly type key
-                        if (key in initialFilterCriteria) {
-                            // Reset the specific key to its initial value using indexed access
-                            (newFilterCriteria as FilterCriteria)[key] = initialFilterCriteria[key]; // Use more specific type assertion
+                        // --- Append Filters ---
+                        if (filterCriteria.activeTab && filterCriteria.activeTab !== 'all') {
+                            params.append('status', filterCriteria.activeTab);
                         }
-                    });
-                    return {
-                        filterCriteria: newFilterCriteria,
-                        paginationCriteria: { ...state.paginationCriteria, currentPage: 1 } // Reset page
-                    };
-                });
-                get().fetchZones(); // Refetch after clearing filters
-            },
+                        filterCriteria.macrozone.forEach(mz => params.append('macrozone', mz));
+                        filterCriteria.city.forEach(city => params.append('city', city));
+                        filterCriteria.market.forEach(market => params.append('market', market));
+                        filterCriteria.equipment.forEach(eq => params.append('equipment', eq));
+                        filterCriteria.supplier.forEach(sup => params.append('supplier', sup));
+                        if (filterCriteria.category) {
+                            params.append('category', filterCriteria.category);
+                        }
+                        if (filterCriteria.searchTerm) {
+                            params.append('searchTerm', filterCriteria.searchTerm);
+                        }
 
-            resetFilters: () => {
-                set({
-                    filterCriteria: initialFilterCriteria,
-                    sortCriteria: initialSortCriteria,
-                    paginationCriteria: { ...get().paginationCriteria, currentPage: 1 },
-                    selectedZoneIds: new Set(),
-                });
-                get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
-            },
-        }),
-        { name: 'zonesStore' }
-    )
-);
+                        // --- Append Sorting ---
+                        if (sortCriteria.field && sortCriteria.direction) {
+                            params.append('sortField', sortCriteria.field);
+                            params.append('sortDirection', sortCriteria.direction);
+                        }
+
+                        // --- Append Pagination ---
+                        params.append('page', paginationCriteria.currentPage.toString());
+                        params.append('pageSize', paginationCriteria.itemsPerPage.toString());
+
+                        const url = `/api/zones?${params.toString()}`;
+                        console.log("--- DEBUG: Fetching zones URL ---");
+                        console.log("URL:", url);
+                        console.log("Current Filter Criteria:", filterCriteria);
+                        console.log("--- END DEBUG ---");
+
+                        // Use fetchWithLoading
+                        const { zones: fetchedZones, totalCount: fetchedTotalCount } = await fetchWithLoading<{ zones: Zone[], totalCount: number }>(
+                            url,
+                            'GET',
+                            'Загрузка зон...'
+                        );
+
+                        if (!Array.isArray(fetchedZones) || typeof fetchedTotalCount !== 'number') {
+                            console.error("Invalid API response structure:", { fetchedZones, fetchedTotalCount });
+                            throw new Error("Invalid response structure from API");
+                        }
+
+                        set({
+                            zones: fetchedZones,
+                            totalCount: fetchedTotalCount,
+                            isLoading: false, // Reset local loading
+                            error: null,
+                        });
+
+                    } catch (error) {
+                        const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error fetching zones";
+                        console.error("Error fetching zones:", errorMessage);
+                        set({ error: errorMessage, isLoading: false, zones: [], totalCount: 0 }); // Set error, clear data, reset loading
+                        // Add error toast
+                        toast({
+                            title: 'Ошибка загрузки зон',
+                            description: errorMessage,
+                            variant: 'destructive',
+                        });
+                    }
+                },
+
+                // New action to fetch filter options
+                fetchFilterOptions: async () => {
+                    set({ isLoadingFilters: true, filtersError: null });
+                    try {
+                        // Use fetchWithLoading - Note: This will trigger the *global* loader.
+                        // If a separate indicator is truly needed, consider not using fetchWithLoading here
+                        // or adding a key to withLoading if that feature exists.
+                        // For now, we use fetchWithLoading for consistency.
+                        const options = await fetchWithLoading<UniqueFilterValues>(
+                            '/api/zones/filters',
+                            'GET',
+                            'Загрузка опций фильтров...'
+                        );
+
+                        // Validate fetched options structure if necessary
+                        if (!options || typeof options !== 'object' || !Array.isArray(options.cities)) {
+                            console.error("Invalid filter options structure:", options);
+                            throw new Error("Invalid filter options structure from API");
+                        }
+
+                        set({
+                            uniqueFilterValues: options,
+                            isLoadingFilters: false, // Reset local loading
+                            filtersError: null,
+                        });
+                    } catch (error) {
+                        const errorMessage = error instanceof ApiError || error instanceof Error ? error.message : "Unknown error fetching filter options";
+                        console.error("Error fetching filter options:", errorMessage);
+                        set({ filtersError: errorMessage, isLoadingFilters: false }); // Set error, reset loading
+                        // Add error toast
+                        toast({
+                            title: 'Ошибка загрузки опций фильтров',
+                            description: errorMessage,
+                            variant: 'destructive',
+                        });
+                    }
+                },
+
+                setFilterCriteria: (criteriaUpdate) => {
+                    const currentPage = 1;
+                    set((state) => ({
+                        filterCriteria: { ...state.filterCriteria, ...criteriaUpdate },
+                        paginationCriteria: { ...state.paginationCriteria, currentPage }
+                    }));
+                    get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
+                },
+
+                setSortCriteria: (newSortCriteria) => {
+                    const currentPage = 1;
+                    set((state) => ({
+                        sortCriteria: newSortCriteria,
+                        paginationCriteria: { ...state.paginationCriteria, currentPage }
+                    }));
+                    get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
+                },
+
+                setPaginationCriteria: (criteriaUpdate) => {
+                    set((state) => ({
+                        paginationCriteria: { ...state.paginationCriteria, ...criteriaUpdate }
+                    }));
+                    get().fetchZones(); // This will now trigger the global loader via fetchWithLoading
+                },
+
+                toggleZoneSelection: (zoneId) => {
+                    set((state) => {
+                        const newSelection = new Set(state.selectedZoneIds);
+                        if (newSelection.has(zoneId)) {
+                            newSelection.delete(zoneId);
+                        } else {
+                            newSelection.add(zoneId);
+                        }
+                        return { selectedZoneIds: newSelection };
+                    });
+                },
+
+                toggleSelectAll: (select) => {
+                    set((state) => {
+                        const newSelection = new Set(state.selectedZoneIds);
+                        const zoneIdsOnPage = state.zones.map(z => z.id);
+                        if (select) {
+                            zoneIdsOnPage.forEach(id => newSelection.add(id));
+                        } else {
+                            zoneIdsOnPage.forEach(id => newSelection.delete(id));
+                        }
+                        return { selectedZoneIds: newSelection };
+                    });
+                },
+
+                clearSelection: () => {
+                    set({ selectedZoneIds: new Set() });
+                },
+
+                updateZoneLocally: (zoneId, updates) => {
+                    set((state) => ({
+                        zones: state.zones.map(zone =>
+                            zone.id === zoneId ? { ...zone, ...updates } : zone
+                        )
+                    }));
+                    // Optionally refetch if update affects filtering/sorting
+                    // get().fetchZones();
+                },
+
+                removeZonesLocally: (zoneIds) => {
+                    set((state) => {
+                        const newZones = state.zones.filter(zone => !zoneIds.includes(zone.id));
+                        const removedCount = state.zones.length - newZones.length;
+                        return {
+                            zones: newZones,
+                            totalCount: Math.max(0, state.totalCount - removedCount), // Adjust total count
+                            selectedZoneIds: new Set(Array.from(state.selectedZoneIds).filter(id => !zoneIds.includes(id))) // Remove from selection too
+                        };
+                    });
+                    // Note: This is optimistic. If the API call in roleActionsStore fails,
+                    // zones might need to be restored or a full refresh triggered.
+                },
+
+                clearSpecificFilters: (filterKeys) => {
+                    set((state) => {
+                        const newFilterCriteria = { ...state.filterCriteria };
+                        filterKeys.forEach((key: keyof FilterCriteria) => { // Explicitly type key
+                            if (key in initialFilterCriteria) {
+                                // Reset the specific key to its initial value using indexed access
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                newFilterCriteria[key] = initialFilterCriteria[key] as any; // Use 'as any' and disable eslint rule for this line
+                            }
+                        });
+                        return {
+                            filterCriteria: newFilterCriteria,
+                            paginationCriteria: { ...state.paginationCriteria, currentPage: 1 } // Reset page
+                        };
+                    });
+                    get().fetchZones(); // Refetch after clearing filters
+                },
+
+                resetFilters: () => {
+                    const currentCategory = get().filterCriteria.category; // Get current category
+                    set((state) => ({ // Use functional set to access current state
+                        filterCriteria: {
+                            ...initialFilterCriteria, // Reset all filters to initial
+                            category: currentCategory, // Keep the current category
+                        },
+                        // Keep sortCriteria as is, or reset if desired:
+                        // sortCriteria: initialSortCriteria,
+                        paginationCriteria: { ...state.paginationCriteria, currentPage: 1 }, // Reset page
+                        selectedZoneIds: new Set(), // Clear selection
+                    }));
+                    get().fetchZones();
+                },
+            }),
+            { name: 'zonesStoreDevtools' } // Optional: Rename devtools instance if needed
+        ),
+        {
+            name: 'zones-storage', // Name for localStorage key
+            partialize: (state: ZonesState) => ({
+                filterCriteria: { category: state.filterCriteria.category } // Only persist category
+            }),
+            storage: createJSONStorage(() => localStorage, { // Custom storage to handle Set
+                reviver: (key, value) => {
+                    // Ensure selectedZoneIds is rehydrated as a Set
+                    if (key === 'selectedZoneIds' && typeof value === 'object' && value !== null && !(value instanceof Set)) {
+                        if (Array.isArray(value)) {
+                            return new Set(value); // Convert array back to Set
+                        }
+                    }
+                    return value;
+                },
+                // replacer: (key, value) => { // Not strictly needed as we don't persist the Set
+                //     if (value instanceof Set) {
+                //         return Array.from(value);
+                //     }
+                //     return value;
+                // }
+            }),
+        }
+    ) // Close persist
+); // Close create
