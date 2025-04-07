@@ -5,19 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ZoneFilterTabs } from './ZoneFilterTabs';
 import { RefreshCw } from 'lucide-react';
-import { useZonesStore } from '@/lib/stores/zonesStore';
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Use role data hook
 import { InteractiveZoneFilters } from './InteractiveZoneFilters'; // IMPORT NEW COMPONENT
 import { SearchFilters } from '@/app/components/booking/SearchFilters'; // Keep SearchFilters
 
 // Keep selectedCategory prop if it's passed from parent and needed by InteractiveZoneFilters
 export function ZonesFilters({ selectedCategory = null }) {
+    // Use useRoleData hook for consistency with page and table
     const {
         isLoading,
-        setFilterCriteria, // Keep for Search and Tabs
+        setFilterCriteria,
         resetFilters,
         fetchZones,
-        filterCriteria: { activeTab, searchTerm }, // Keep needed parts of criteria
-    } = useZonesStore();
+        filterCriteria: { activeTab, searchTerm },
+    } = useRoleData('dmp');
 
     // --- Handlers for components remaining in ZonesFilters ---
     const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {

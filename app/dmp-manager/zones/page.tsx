@@ -8,6 +8,7 @@ import { ZonesSummaryCard } from '@/app/components/zones/ZonesSummaryCard';
 
 import { ZonesTable } from '@/app/components/zones/ZonesTable';
 import { Button } from '@/components/ui/button'; // Добавлено
+import { ZonesFilters } from '@/app/components/zones/ZonesFilters'; // Import ZonesFilters
 import { Check, X, Trash2, Ban } from 'lucide-react'; // Добавлены иконки
 
 export default function DmpManagerZonesPage() {
@@ -47,7 +48,7 @@ export default function DmpManagerZonesPage() {
             `Вы уверены, что хотите изменить статус ${selectedZoneIds.size} зон на "${statusText}"?`, // Use .size for Set
         );
 
-        if (confirmed) {
+        if (confirmed && bulkUpdateZoneStatus) {
             await bulkUpdateZoneStatus(Array.from(selectedZoneIds), newStatus); // Convert Set to Array
             // Очистка выбора не нужна, т.к. стор сам это сделает при Успешное
         }
@@ -61,7 +62,7 @@ export default function DmpManagerZonesPage() {
             `Вы уверены, что хотите удалить ${selectedZoneIds.size} зон? Это действие необратимо.`, // Use .size for Set
         );
 
-        if (confirmed) {
+        if (confirmed && bulkDeleteZones) {
             await bulkDeleteZones(Array.from(selectedZoneIds)); // Convert Set to Array
         }
     };
@@ -74,7 +75,7 @@ export default function DmpManagerZonesPage() {
                     {' '}
                     Обертка для заголовка фильтров
                     <h3 className="text-xl font-semibold mb-4">Выбор фильтров зон</h3>
-                    {/* <ZonesFilters /> */}
+                    <ZonesFilters />
                 </div>
                 {selectedZoneIds.size > 0 && ( // Use .size for Set
                     <div className="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200 shadow-sm">

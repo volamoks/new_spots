@@ -3,9 +3,10 @@
 
 import React, { useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useZonesStore } from '@/lib/stores/zonesStore';
-import type { FilterCriteria as ZonesFilterCriteria } from '@/lib/stores/zonesStore';
-import type { BookingRequestFilters } from '@/lib/stores/bookingRequestStore';
+import { useRoleData } from '@/lib/stores/roleActionsStore'; // Use role data hook
+// Removed unused BookingRequestFilters import
+import type { FilterCriteria as ZonesFilterCriteria } from '@/lib/stores/zonesStore'; // Keep type import
+// Removed unused BookingRequestFilters import on line below
 import { getCorrespondingMacrozones } from '@/lib/filterData';
 import { DropdownFilterGroup } from '@/app/components/booking/DropdownFilterGroup';
 import { SelectedFiltersDisplay } from '@/app/components/booking/SelectedFiltersDisplay';
@@ -19,15 +20,17 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
     const { data: session } = useSession();
     const role = session?.user?.role;
 
-    const { filterCriteria, uniqueFilterValues, isLoading, setFilterCriteria } = useZonesStore();
+    // Use useRoleData hook for consistency
+    const { filterCriteria, uniqueFilterValues, isLoading, setFilterCriteria } = useRoleData('dmp');
 
+    // Destructure using the correct keys from FilterCriteria interface
     const {
         searchTerm,
-        cityFilters,
-        marketFilters,
-        macrozoneFilters,
-        equipmentFilters,
-        supplierFilters,
+        city, // Correct key
+        market, // Correct key
+        macrozone, // Correct key
+        equipment, // Correct key
+        supplier, // Correct key
     } = filterCriteria;
 
     const {
@@ -61,23 +64,23 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
         : [];
 
     const dropdownConfigs = [
-        { title: 'Город', options: cityOptions, selected: cityFilters, filterKey: 'city' as const },
+        { title: 'Город', options: cityOptions, selected: city, filterKey: 'city' as const }, // Use correct key
         {
             title: 'Маркет',
             options: marketOptions,
-            selected: marketFilters,
+            selected: market, // Use correct key
             filterKey: 'market' as const,
         },
         {
             title: 'Макрозона',
             options: macrozoneOptions,
-            selected: macrozoneFilters,
+            selected: macrozone, // Use correct key
             filterKey: 'macrozone' as const,
         },
         {
             title: 'Оборудование',
             options: equipmentOptions,
-            selected: equipmentFilters,
+            selected: equipment, // Use correct key
             filterKey: 'equipment' as const,
         },
         ...(role !== 'SUPPLIER'
@@ -85,53 +88,38 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
                   {
                       title: 'Поставщик',
                       options: supplierOptions,
-                      selected: supplierFilters,
-                      filterKey: 'supplierIds' as const,
+                      selected: supplier, // Use correct key
+                      filterKey: 'supplier' as const, // Use correct key
                   },
               ] // Map to supplierIds
             : []),
     ];
 
-    // --- Internal Handler for Setting Filters (Logic moved from ZonesFilters) ---
+    // --- Internal Handler for Setting Filters ---
+    // The DropdownFilterGroup likely calls this with an object like { [filterKey]: newValue }
+    // Since we now use the correct keys directly from the store, no complex mapping is needed.
     const handleSetFilter = useCallback(
-        (update: Partial<BookingRequestFilters>) => {
-            // Map keys from BookingRequestFilters back to ZonesFilterCriteria
-            const mappedUpdate: Partial<ZonesFilterCriteria> = {};
-            if ('city' in update && update.city !== undefined)
-                mappedUpdate.cityFilters = update.city;
-            if ('market' in update && update.market !== undefined)
-                mappedUpdate.marketFilters = update.market;
-            if ('macrozone' in update && update.macrozone !== undefined)
-                mappedUpdate.macrozoneFilters = update.macrozone;
-            if ('equipment' in update && update.equipment !== undefined)
-                mappedUpdate.equipmentFilters = update.equipment;
-            if ('supplierIds' in update && update.supplierIds !== undefined)
-                mappedUpdate.supplierFilters = update.supplierIds;
-            // Pass through other potential updates directly if keys match
-            if ('searchTerm' in update && typeof update.searchTerm === 'string')
-                mappedUpdate.searchTerm = update.searchTerm;
-            if ('activeTab' in update && typeof update.activeTab === 'string')
-                mappedUpdate.activeTab = update.activeTab;
-
-            if (Object.keys(mappedUpdate).length > 0) {
-                setFilterCriteria(mappedUpdate);
-            }
+        (update: Partial<ZonesFilterCriteria>) => {
+            // Directly pass the update to the store's setter
+            setFilterCriteria(update);
         },
         [setFilterCriteria],
     );
 
     // --- Prepare filterCriteria for SelectedFiltersDisplay (Logic moved from ZonesFilters) ---
-    const displayFilterCriteria: BookingRequestFilters = {
-        city: cityFilters,
-        market: marketFilters,
-        macrozone: macrozoneFilters,
-        equipment: equipmentFilters,
-        supplierIds: supplierFilters, // Map supplierFilters to supplierIds
-        status: [], // Dummy value
-        dateFrom: undefined, // Dummy value
-        dateTo: undefined, // Dummy value
+    // --- Prepare filterCriteria for SelectedFiltersDisplay ---
+    // Use the correct keys from the store's filterCriteria
+    const displayFilterCriteria: ZonesFilterCriteria = {
+        // Ensure type compatibility
+        city: city,
+        market: market,
+        macrozone: macrozone,
+        equipment: equipment,
+        supplier: supplier,
         searchTerm: searchTerm,
-        supplierName: '', // Dummy value
+        activeTab: filterCriteria.activeTab, // Add missing activeTab
+        // Add dummy/default values for other required fields if necessary
+        category: filterCriteria.category, // Pass category if needed by display component
     };
 
     return (
@@ -144,7 +132,7 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
             />
             <SelectedFiltersDisplay
                 filterCriteria={displayFilterCriteria} // Use prepared criteria
-                // Pass the main store setter - SelectedFiltersDisplay handles mapping internally via getFilterKeyForRemoval
+                // Pass the main store setter. Ensure SelectedFiltersDisplay uses correct keys for removal.
                 setFilterCriteria={setFilterCriteria}
             />
         </div>
