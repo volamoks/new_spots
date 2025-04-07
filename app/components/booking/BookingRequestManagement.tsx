@@ -159,19 +159,6 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
 
     const getPageDescription = 'Просмотр и управление бронированиями';
 
-    // const getRoleForTable = () => {
-    //     switch (role) {
-    //         case 'CATEGORY_MANAGER':
-    //             return 'КМ';
-    //         case 'DMP_MANAGER':
-    //             return 'ДМП';
-    //         case 'SUPPLIER':
-    //             return 'Поставщик';
-    //         default:
-    //             return 'Поставщик';
-    //     }
-    // };
-
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <main className="flex-grow container mx-auto px-4 py-8">

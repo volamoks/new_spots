@@ -4,8 +4,8 @@ import { authOptions } from "@/lib/auth";
 // Assume getAllBookings will be updated to handle filters and pagination
 import { createBookingRequest, getAllBookings } from "@/lib/services/bookingService";
 import { handleApiError } from "@/lib/utils/api";
-import { BookingStatus, Prisma } from "@prisma/client"; // Import BookingStatus and Prisma namespace
-import type { UserRole } from "@/lib/enums/BookingRole"; // Assuming UserRole might be defined here or similar path based on project structure
+import { BookingStatus, Role } from "@prisma/client"; // Import BookingStatus and Role enum
+// Remove the incorrect UserRole type import
 
 // Create a new booking request with multiple bookings
 export async function POST(req: Request) {
@@ -30,9 +30,9 @@ export async function POST(req: Request) {
     }
 
     // Ensure session.user.role is treated as UserRole enum
-    const userRole = session.user.role as Prisma.UserRole; // Use Prisma.UserRole
+    const userRole = session.user.role as Role; // Use imported Role enum
 
-    if (userRole === UserRole.CATEGORY_MANAGER && !supplierId) {
+    if (userRole === Role.CATEGORY_MANAGER && !supplierId) { // Compare with imported Role enum
       return NextResponse.json(
         { error: "Supplier ID is required for Category Manager bookings" },
         { status: 400 },
@@ -107,7 +107,7 @@ export async function GET(req: Request) {
     // Prepare user object for the service function
     const serviceUser = {
       id: session.user.id,
-      role: session.user.role as Prisma.UserRole, // Use Prisma.UserRole
+      role: session.user.role as Role, // Use imported Role enum
       inn: session.user.inn, // Pass INN if available
     };
 

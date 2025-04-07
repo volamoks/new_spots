@@ -18,10 +18,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     return NextResponse.json({ message: "Category Manager approved successfully" })
   } catch (error) {
-    let message = "An unknown error occurred";
+    // Log the full error for better debugging on the server side
+    console.error(`[API ERROR] Failed to approve KM (ID: ${params.id}):`, error);
+
+    let message = "Failed to approve Category Manager due to an internal error.";
+    // Provide a slightly more specific message if it's a known error type
     if (error instanceof Error) {
-      message = error.message;
+      // You could add checks here for specific Prisma errors if needed
+      // e.g., if (error.code === 'P2025') { message = "User not found."; }
+      message = `Failed to approve Category Manager: ${error.message}`;
     }
+    // Return the error response
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
