@@ -1,5 +1,5 @@
 // Define the type for the returned debounced function, including the cancel method
-interface DebouncedFunction<T extends (...args: unknown[]) => unknown> {
+export interface DebouncedFunction<T extends (...args: unknown[]) => unknown> { // Add export
     (...args: Parameters<T>): void;
     cancel(): void;
 }

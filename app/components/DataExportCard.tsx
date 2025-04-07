@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLoaderStore } from '@/lib/stores/loaderStore'; // Correct import
 import { useToast } from '@/components/ui/use-toast';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
+// Removed unused RadioGroup, RadioGroupItem, Label imports
 import { Calendar } from 'lucide-react';
 
 export function DataExportCard() {
-    const [exportType, setExportType] = useState<string>('all');
+    // Export type is fixed to 'bookings', variable removed as it's directly used in URL
+    // const exportType = 'bookings'; // Removed unused variable
     const [filename, setFilename] = useState<string>(
-        `export-${new Date().toISOString().slice(0, 10)}`,
+        `export-bookings-${new Date().toISOString().slice(0, 10)}`, // Default filename for bookings
     );
     // Removed incorrect useLoader hook
     const { toast } = useToast();
@@ -22,11 +22,12 @@ export function DataExportCard() {
         try {
             useLoaderStore.setState({
                 isLoading: true,
-                message: `Экспорт данных (${getExportTypeLabel(exportType)})...`,
+                message: `Экспорт бронирований...`, // Fixed message
             });
 
             // Конструируем URL для экспорта
-            const url = `/api/db/export?type=${exportType}`; // Filename handled by Content-Disposition header now
+            // Type is fixed, filename is handled by Content-Disposition header
+            const url = `/api/db/export?type=bookings`;
 
             const response = await fetch(url);
 
@@ -81,30 +82,7 @@ export function DataExportCard() {
         }
     };
 
-    // Получение понятной метки для типа экспорта
-    const getExportTypeLabel = (type: string): string => {
-        switch (type) {
-            case 'zones':
-                return 'Зоны';
-            case 'bookings':
-                return 'Бронирования';
-            case 'all':
-            default:
-                return 'Все данные';
-        }
-    };
-
-    // Генерация дефолтного имени файла на основе типа экспорта
-    const generateDefaultFilename = (type: string): string => {
-        const dateStr = new Date().toISOString().slice(0, 10);
-        return `export-${type}-${dateStr}`;
-    };
-
-    // Обработчик изменения типа экспорта
-    const handleExportTypeChange = (value: string) => {
-        setExportType(value);
-        setFilename(generateDefaultFilename(value));
-    };
+    // Removed getExportTypeLabel, generateDefaultFilename, handleExportTypeChange as type is fixed
 
     return (
         <Card>
@@ -116,35 +94,12 @@ export function DataExportCard() {
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
+                    {/* Removed RadioGroup for export type selection */}
                     <div>
                         <h3 className="mb-2 font-medium">Тип экспорта:</h3>
-                        <RadioGroup
-                            value={exportType}
-                            onValueChange={handleExportTypeChange}
-                            className="flex flex-col space-y-2"
-                        >
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem
-                                    value="all"
-                                    id="all"
-                                />
-                                <Label htmlFor="all">Все данные</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem
-                                    value="zones"
-                                    id="zones"
-                                />
-                                <Label htmlFor="zones">Только зоны</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem
-                                    value="bookings"
-                                    id="bookings"
-                                />
-                                <Label htmlFor="bookings">Только бронирования</Label>
-                            </div>
-                        </RadioGroup>
+                        <p className="text-sm text-gray-700">
+                            Бронирования (единственный доступный тип)
+                        </p>
                     </div>
 
                     <div>
@@ -164,7 +119,7 @@ export function DataExportCard() {
                         onClick={handleExport}
                         className="w-full"
                     >
-                        Экспортировать данные
+                        Экспортировать бронирования
                     </Button>
                 </div>
             </CardContent>

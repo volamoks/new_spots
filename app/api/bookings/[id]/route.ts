@@ -61,6 +61,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       where: { id },
       data: { status: status as BookingStatus },
     });
+    // If booking is rejected, set the zone back to AVAILABLE
+    if (
+      updatedBooking.status === BookingStatus.KM_REJECTED ||
+      updatedBooking.status === BookingStatus.DMP_REJECTED
+    ) {
+      await prisma.zone.update({
+        where: { id: updatedBooking.zoneId },
+        data: { status: "AVAILABLE", supplier: null, brand: null }, // Reset supplier and brand too
+      });
+    }
+
 
     // Check if all bookings in the request have been reviewed
     const bookingRequest = await prisma.bookingRequest.findUnique({

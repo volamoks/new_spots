@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import ExcelJS from 'exceljs';
 import {
-  exportZonesToExcel,
-  exportBookingsToExcel,
-  exportDatabaseToExcel
+  exportBookingsToExcel, // Removed exportZonesToExcel, exportDatabaseToExcel
 } from "@/lib/utils/excel-export";
 
 export const dynamic = 'force-dynamic'; // Force dynamic rendering
@@ -28,25 +26,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Получение параметра type из URL
+    // Type is now fixed to 'bookings', filename generation remains for potential future use or override
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type") || "all";
-    const filename = searchParams.get("filename") || `export-${type}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    // const type = "bookings"; // Removed unused variable
+    const filename = searchParams.get("filename") || `export-bookings-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
-    // Выбор функции экспорта в зависимости от типа
-    let buffer: ExcelJS.Buffer;
-
-    switch (type) {
-      case "zones":
-        buffer = await exportZonesToExcel();
-        break;
-      case "bookings":
-        buffer = await exportBookingsToExcel();
-        break;
-      case "all":
-      default:
-        buffer = await exportDatabaseToExcel();
-        break;
-    }
+    // Only export bookings is supported now
+    const buffer: ExcelJS.Buffer = await exportBookingsToExcel();
 
     // Создание и возврат ответа с Excel-файлом
     const response = new NextResponse(buffer);
@@ -63,9 +49,9 @@ export async function GET(req: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Error exporting database:", error);
+    console.error("Error exporting bookings:", error); // Updated error message context
     return NextResponse.json(
-      { error: "Failed to export database" },
+      { error: "Failed to export bookings" }, // Updated error message
       { status: 500 }
     );
   }
