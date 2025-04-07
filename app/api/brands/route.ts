@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'; // Assuming authOptions are defined he
 import { prisma } from '@/lib/prisma'; // Assuming prisma client is here (named export)
 import { Role, Prisma } from '@prisma/client'; // Import Role enum and Prisma namespace
 import { type NextRequest } from 'next/server'; // Import NextRequest
-
+import redis from '@/lib/redis'; // Import Redis client
 export async function GET(request: NextRequest) { // Add request parameter
   try {
     const session = await getServerSession(authOptions);
@@ -53,6 +53,24 @@ export async function GET(request: NextRequest) { // Add request parameter
     // Combine all where clauses with AND
     const whereClause = baseWhereClauses.length > 0 ? { AND: baseWhereClauses } : {};
 
+    // --- Redis Caching Logic ---
+    const cacheKey = `brands:${user.role}:${user.role === Role.SUPPLIER ? user.id : 'all'}:${search || 'all'}`;
+    const cacheTTL = 86400; // Cache for 24 hours
+
+    try {
+      const cachedBrands = await redis.get(cacheKey);
+      if (cachedBrands) {
+        console.log(`Cache hit for key: ${cacheKey}`);
+        return NextResponse.json(JSON.parse(cachedBrands), { status: 200 });
+      }
+      console.log(`Cache miss for key: ${cacheKey}`);
+    } catch (redisError) {
+      console.error(`Redis GET error for key ${cacheKey}:`, redisError);
+      // Proceed to fetch from DB if Redis fails
+    }
+    // --- End Redis Caching Logic ---
+
+
     const brands = await prisma.brand.findMany({
       where: whereClause,
       take: 20, // Limit results
@@ -60,6 +78,16 @@ export async function GET(request: NextRequest) { // Add request parameter
         name: 'asc',
       },
     });
+
+    // --- Store in Redis ---
+    try {
+      await redis.set(cacheKey, JSON.stringify(brands), 'EX', cacheTTL);
+      console.log(`Cached data for key: ${cacheKey}`);
+    } catch (redisError) {
+      console.error(`Redis SET error for key ${cacheKey}:`, redisError);
+      // Don't fail the request if caching fails
+    }
+    // --- End Store in Redis ---
 
     return NextResponse.json(brands, { status: 200 });
   } catch (error) {

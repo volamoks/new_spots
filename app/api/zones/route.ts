@@ -4,7 +4,7 @@ import { fetchZones } from "@/lib/zones";
 import { authOptions } from "@/lib/auth";
 import { ZoneStatus } from "@/types/zone";
 import { getCorrespondingMacrozones } from "@/lib/filterData";
-
+import redis from '@/lib/redis'; // Import Redis client
 export const dynamic = 'force-dynamic'; // Force dynamic rendering
 
 export async function GET(request: Request) {
@@ -99,15 +99,49 @@ export async function GET(request: Request) {
 
     console.log("API zones: Calling fetchZones with params:", fetchParams);
 
-    // Call fetchZones with the parameters object
-    const { zones, totalCount } = await fetchZones(fetchParams);
+    // --- Redis Caching Logic ---
+    const cacheTTL = 86400; // Cache for 24 hours
+    // Create a stable key: sort array params and stringify the relevant parts of fetchParams
+    const keyParams = { ...fetchParams };
+    for (const key in keyParams) {
+      if (Array.isArray(keyParams[key as keyof typeof keyParams])) {
+        (keyParams[key as keyof typeof keyParams] as string[]).sort();
+      }
+    }
+    const cacheKey = `zones:${JSON.stringify(keyParams)}`;
 
-    console.log(`API zones: Получено ${zones.length} зон (Всего: ${totalCount})`);
+    try {
+      const cachedData = await redis.get(cacheKey);
+      if (cachedData) {
+        console.log(`Cache hit for zones key: ${cacheKey.substring(0, 100)}...`); // Log truncated key
+        return NextResponse.json(JSON.parse(cachedData));
+      }
+      console.log(`Cache miss for zones key: ${cacheKey.substring(0, 100)}...`);
+    } catch (redisError) {
+      console.error(`Redis GET error for zones key ${cacheKey.substring(0, 100)}...:`, redisError);
+      // Proceed to fetch from DB if Redis fails
+    }
+    // --- End Redis Caching Logic ---
+
+    // Call fetchZones with the parameters object
+    const result = await fetchZones(fetchParams); // Contains { zones, totalCount }
+
+    console.log(`API zones: Получено ${result.zones.length} зон (Всего: ${result.totalCount})`);
     // Avoid logging potentially large data in production
-    // console.log('API zones: Data:', JSON.stringify(zones, null, 2));
+    // console.log('API zones: Data:', JSON.stringify(result, null, 2));
+
+    // --- Store in Redis ---
+    try {
+      await redis.set(cacheKey, JSON.stringify(result), 'EX', cacheTTL);
+      console.log(`Cached zones data for key: ${cacheKey.substring(0, 100)}...`);
+    } catch (redisError) {
+      console.error(`Redis SET error for zones key ${cacheKey.substring(0, 100)}...:`, redisError);
+      // Don't fail the request if caching fails
+    }
+    // --- End Store in Redis ---
 
     // Return the object containing zones and totalCount
-    return NextResponse.json({ zones, totalCount });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Error fetching zones:", error);
     return NextResponse.json(
