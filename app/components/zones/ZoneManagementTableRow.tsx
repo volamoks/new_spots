@@ -9,10 +9,7 @@ import { useLoaderStore } from '@/lib/stores/loaderStore';
 import { useToast } from '@/components/ui/use-toast';
 import { updateZoneStatus, deleteZone } from '@/lib/services/zoneService';
 import { ConfirmationModal } from '@/app/components/ui/ConfirmationModal'; // Import ConfirmationModal
-// Remove Zustand store import
-// import { useZonesManagementStore } from '@/lib/stores/zonesManagementStore';
 
-// Define props including onRefresh
 interface ZoneManagementTableRowProps {
     zone: Zone;
     onRefresh: () => void; // Add onRefresh prop
@@ -61,11 +58,8 @@ export function ZoneManagementTableRow({
         confirmText: 'Confirm',
         confirmVariant: 'default' as 'default' | 'destructive',
     });
-    // Remove Zustand store usage
-    // const onRefresh = useZonesManagementStore(state => state.onRefresh);
     const currentStatus = zone.status;
 
-    // Internal handler for changing zone status
     const handleStatusChange = async (newStatus: ZoneStatus) => {
         if (currentStatus === newStatus || isProcessing) {
             return;
@@ -143,8 +137,6 @@ export function ZoneManagementTableRow({
 
     return (
         <>
-            {' '}
-            {/* Wrap in Fragment to include Modal */}
             <TableRow key={zone.id}>
                 <TableCell className="font-medium">{zone.uniqueIdentifier}</TableCell>
                 <TableCell>{zone.city}</TableCell>

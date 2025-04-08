@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use, useState } from 'react';
+import React, { useState } from 'react';
 import {
     Table,
     TableBody,
@@ -12,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Zone } from '@/types/zone';
 import { ZoneStatus } from '@/types/zone';
-// import { useLoader } from './GlobalLoader';
+import { useLoaderStore } from '@/lib/stores/loaderStore';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/hooks/useAuth';
 
@@ -24,7 +24,7 @@ interface SimpleZonesTableProps {
 export function SimpleZonesTable({ zones, onRefresh }: SimpleZonesTableProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const { user } = useAuth();
-    const { withLoading } = useLoader();
+    const { withLoading } = useLoaderStore();
     const { toast } = useToast();
 
     // Обработчик изменения статуса зоны

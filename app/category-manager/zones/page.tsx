@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 // Removed useZonesStore and useBookingActionsStore imports
 import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import the new hook
 // Removed unused FilterCriteria import
-import { SimplifiedUser } from '@/lib/stores/bookingActionsStore'; // Keep SimplifiedUser type
+// import { SimplifiedUser } from '@/lib/stores/bookingActionsStore'; // Removed unused import
 import { ZonesSummaryCard } from '@/app/components/zones/ZonesSummaryCard';
 import { ZonesFilters } from '@/app/components/zones/ZonesFilters';
 import { ZonesTable } from '@/app/components/zones/ZonesTable';
@@ -17,7 +17,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { getCategories } from '@/lib/filterData';
-import { Role } from '@prisma/client'; // Import Role type if needed for SimplifiedUser
+// import { Role } from '@prisma/client'; // Removed unused import
 
 interface SupplierOption {
     id: string;
@@ -40,18 +40,18 @@ export default function CategoryManagerZonesPage() {
 
     // --- Get state and actions from the consolidated hook ---
     const {
-        zones,
-        totalCount,
+        // zones, // Removed unused state
+        // totalCount, // Removed unused state
         // isLoading, // Removed unused state
         // error,     // Removed unused state
         setFilterCriteria,
         fetchFilterOptions,
         refreshZones, // Get refreshZones for initial load
 
-        selectedZonesForCreation,
+        // selectedZonesForCreation, // Removed unused variable
         selectedSupplierInnForCreation,
         setSelectedSupplierInnForCreation,
-        createBookingRequest, // This now comes from useRoleData
+        // createBookingRequest, // Removed unused variable
 
         // Note: updateZoneField might also be available via useRoleData if needed
     } = useRoleData('categoryManager');
@@ -90,10 +90,6 @@ export default function CategoryManagerZonesPage() {
 
     // Refetch zones when the selected category filter changes manually
     useEffect(() => {
-        // Avoid running on initial mount if selectedCategory starts as null/undefined
-        // Only run when selectedCategory actually changes *after* initial load.
-        // We might need a flag or check if it's not the initial state.
-        // For simplicity, let's assume setFilterCriteria handles redundant calls gracefully.
         if (session) {
             // Ensure session exists before applying filters
             console.log('Manual category filter change, applying filter criteria...');
@@ -106,38 +102,7 @@ export default function CategoryManagerZonesPage() {
         }
     }, [selectedCategory, session, setFilterCriteria]); // Dependency on selectedCategory
 
-    // handleZoneSelection removed - ZonesTable/Row uses store action directly
-
-    // Booking creation handler
-    const handleCreateBooking = async () => {
-        // Use .size for Set and check session user
-        if (
-            selectedZonesForCreation.size === 0 ||
-            !selectedSupplierInnForCreation ||
-            !session?.user
-        )
-            return;
-
-        // Construct SimplifiedUser object from session
-        const currentUser: SimplifiedUser = {
-            id: session.user.id,
-            role: session.user.role as Role, // Cast role if necessary
-            // Add other fields if SimplifiedUser requires them
-        };
-
-        try {
-            // Pass the user object to createBookingRequest
-            await createBookingRequest(currentUser);
-            // Add success feedback?
-        } catch (error) {
-            console.error('Error creating booking:', error);
-            // Add error feedback?
-        }
-    };
-
-    // Handler for category selection change
     const handleCategoryChange = (categoryValue: string) => {
-        // Handle the "All Categories" case
         const categoryToSet = categoryValue === 'ALL_CATEGORIES' ? null : categoryValue;
         setSelectedCategory(categoryToSet);
     };
@@ -145,12 +110,8 @@ export default function CategoryManagerZonesPage() {
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <main className="flex-grow container mx-auto px-4 py-8">
-                <ZonesSummaryCard
-                    totalCount={totalCount}
-                    filteredCount={zones.length}
-                    title="Управление зонами"
-                    description="Выберите зоны для создания заявки на бронирование от имени поставщика"
-                />
+                {/* ZonesSummaryCard now takes no props */}
+                <ZonesSummaryCard />
 
                 {/* Supplier Selection */}
                 <div className="mb-4">
@@ -220,20 +181,10 @@ export default function CategoryManagerZonesPage() {
                 {/* Use selectedSupplierInnForCreation */}
                 {selectedSupplierInnForCreation && (
                     <>
-                        <ZonesFilters
-                            role="CATEGORY_MANAGER"
-                            className="mb-6"
-                        />
+                        <ZonesFilters />
 
-                        <ZonesTable
-                            onCreateBooking={handleCreateBooking}
-                            // onZoneSelect prop removed - handled internally by ZonesTable/Row via store
-                            // Pass selection state if ZonesTable needs it directly
-                            // selectedZones={selectedZonesForCreation}
-                            showActions={false}
-                            role="CATEGORY_MANAGER"
-                            selectedSupplier={selectedSupplierInnForCreation} // Pass selected supplier
-                        />
+                        {/* ZonesTable now takes no props */}
+                        <ZonesTable />
                     </>
                 )}
             </main>
