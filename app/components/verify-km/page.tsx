@@ -15,74 +15,83 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/hooks/useAuth';
 
-type PendingKM = {
+// Renamed type and added role
+type PendingUser = {
     id: string;
-    name: string;
-    email: string;
-    category: string;
-    createdAt: string; // Changed from registrationDate to match API response
+    name: string | null; // Allow null based on schema
+    email: string | null; // Allow null based on schema
+    category: string | null; // Allow null based on schema
+    role: string; // Added role
+    createdAt: string;
 };
 
-export default function VerifyKMPage() {
-    const [pendingKMs, setPendingKMs] = useState<PendingKM[]>([]);
+// Renamed component
+export default function AccountApprovalPage() {
+    const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]); // Renamed state
     // const router = useRouter()
     const { toast } = useToast();
     const { isAuthenticated, user } = useAuth(); // Remove argument
 
-    const fetchPendingKMs = useCallback(async () => {
+    // Renamed function
+    const fetchPendingUsers = useCallback(async () => {
         try {
             const response = await fetch('/api/dmp/pending-kms');
-            if (!response.ok) throw new Error('Failed to fetch pending KMs');
+            // Using the updated API endpoint which now returns all pending users
+            if (!response.ok) throw new Error('Failed to fetch pending users');
             const data = await response.json();
-            setPendingKMs(data);
+            setPendingUsers(data); // Update renamed state
         } catch (error: unknown) {
             // Log the error but don't show a toast, as per user request
             // The primary action's toast (approve/reject) is sufficient.
-            console.error('Failed to fetch pending KMs after action:', error);
+            console.error('Failed to fetch pending users after action:', error);
         }
-    }, [toast]);
+    }, [toast]); // Removed fetchPendingKMs from deps as it's defined here
 
     useEffect(() => {
         if (isAuthenticated && user?.role === 'DMP_MANAGER') {
-            fetchPendingKMs();
+            fetchPendingUsers(); // Call renamed function
         }
-    }, [isAuthenticated, user, fetchPendingKMs]);
+    }, [isAuthenticated, user, fetchPendingUsers]); // Use renamed function in deps
 
-    const handleApprove = async (kmId: string) => {
+    const handleApprove = async (userId: string) => {
+        // Renamed parameter
         try {
-            const response = await fetch(`/api/dmp/approve-km/${kmId}`, { method: 'POST' });
-            if (!response.ok) throw new Error('Failed to approve KM');
+            // Using the updated (or potentially renamed) API endpoint
+            const response = await fetch(`/api/dmp/approve-km/${userId}`, { method: 'POST' });
+            if (!response.ok) throw new Error('Failed to approve user');
             toast({
-                title: 'Успешно',
-                description: 'Категорийный менеджер успешно подтвержден',
+                title: 'Успешно', // Generic success message
+                description: 'Пользователь успешно подтвержден',
                 variant: 'success',
             });
-            fetchPendingKMs(); // Refresh the list
+            fetchPendingUsers(); // Refresh the list using renamed function
         } catch (error: unknown) {
-            console.error('Failed to approve KM:', error);
+            console.error('Failed to approve user:', error); // Generic error log
             toast({
-                title: 'Ошибка',
-                description: 'Не удалось подтвердить категорийного менеджера',
+                title: 'Ошибка', // Generic error message
+                description: 'Не удалось подтвердить пользователя',
                 variant: 'destructive',
             });
         }
     };
 
-    const handleReject = async (kmId: string) => {
+    const handleReject = async (userId: string) => {
+        // Renamed parameter
         try {
-            const response = await fetch(`/api/dmp/reject-km/${kmId}`, { method: 'POST' });
-            if (!response.ok) throw new Error('Failed to reject KM');
+            // Using the updated (or potentially renamed) API endpoint
+            const response = await fetch(`/api/dmp/reject-km/${userId}`, { method: 'POST' });
+            if (!response.ok) throw new Error('Failed to reject user');
             toast({
-                title: 'Успешно',
-                description: 'Категорийный менеджер успешно отклонен',
+                title: 'Успешно', // Generic success message
+                description: 'Пользователь успешно отклонен',
                 variant: 'success',
             });
-            fetchPendingKMs(); // Refresh the list
+            fetchPendingUsers(); // Refresh the list using renamed function
         } catch (error: unknown) {
-            console.error('Failed to reject KM:', error);
+            console.error('Failed to reject user:', error); // Generic error log
             toast({
-                title: 'Ошибка',
-                description: 'Не удалось отклонить категорийного менеджера',
+                title: 'Ошибка', // Generic error message
+                description: 'Не удалось отклонить пользователя',
                 variant: 'destructive',
             });
         }
@@ -98,7 +107,7 @@ export default function VerifyKMPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-2xl font-bold text-corporate">
-                            Подтверждение категорийных менеджеров
+                            Подтверждение регистрации аккаунтов
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -108,40 +117,52 @@ export default function VerifyKMPage() {
                                     <TableHead>Имя</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Категория</TableHead>
+                                    <TableHead>Роль</TableHead> {/* Added Role column */}
                                     <TableHead>Дата регистрации</TableHead>
                                     <TableHead>Действия</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {pendingKMs.map(km => (
-                                    <TableRow key={km.id}>
-                                        <TableCell>{km.name}</TableCell>
-                                        <TableCell>{km.email}</TableCell>
-                                        <TableCell>{km.category}</TableCell>
-                                        <TableCell>
-                                            {new Date(km.createdAt).toLocaleDateString()}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button
-                                                onClick={() => handleApprove(km.id)}
-                                                className="mr-2"
-                                            >
-                                                Подтвердить
-                                            </Button>
-                                            <Button
-                                                onClick={() => handleReject(km.id)}
-                                                variant="destructive"
-                                            >
-                                                Отклонить
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {pendingUsers.map(
+                                    (
+                                        user, // Renamed map variable
+                                    ) => (
+                                        <TableRow key={user.id}>
+                                            <TableCell>{user.name}</TableCell>
+                                            <TableCell>{user.email}</TableCell>
+                                            {/* Conditionally render category */}
+                                            <TableCell>
+                                                {user.role === 'CATEGORY_MANAGER'
+                                                    ? user.category
+                                                    : '-'}
+                                            </TableCell>
+                                            <TableCell>{user.role}</TableCell> {/* Display Role */}
+                                            <TableCell>
+                                                {new Date(user.createdAt).toLocaleDateString()}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    onClick={() => handleApprove(user.id)} // Use renamed parameter
+                                                    className="mr-2"
+                                                >
+                                                    Подтвердить
+                                                </Button>
+                                                <Button
+                                                    onClick={() => handleReject(user.id)} // Use renamed parameter
+                                                    variant="destructive"
+                                                >
+                                                    Отклонить
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ),
+                                )}
                             </TableBody>
                         </Table>
-                        {pendingKMs.length === 0 && (
+                        {pendingUsers.length === 0 && ( // Check renamed state
                             <p className="text-center py-4 text-muted-foreground">
-                                Нет ожидающих подтверждения категорийных менеджеров
+                                Нет аккаунтов, ожидающих подтверждения // Generic empty state
+                                message
                             </p>
                         )}
                     </CardContent>

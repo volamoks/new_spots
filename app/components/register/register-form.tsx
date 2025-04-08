@@ -90,14 +90,21 @@ export function RegisterForm({ className, ...props }: React.HTMLAttributes<HTMLD
 
             const data = await response.json();
 
-            if (data.user.role === 'CATEGORY_MANAGER' && data.user.status === 'PENDING') {
+            // Check for pending status for both Category Manager and DMP Manager
+            if (data.user.status === 'PENDING') {
+                let roleDescription = '';
+                if (data.user.role === 'CATEGORY_MANAGER') {
+                    roleDescription = 'категорийного менеджера';
+                } else if (data.user.role === 'DMP_MANAGER') {
+                    roleDescription = 'менеджера ДМП';
+                }
                 toast({
                     title: 'Регистрация ожидает подтверждения',
-                    description:
-                        'Ваша заявка на регистрацию в качестве категорийного менеджера ожидает подтверждения администратором.',
-                    variant: 'default', // Or any other variant you prefer
+                    description: `Ваша заявка на регистрацию в качестве ${roleDescription} ожидает подтверждения администратором.`,
+                    variant: 'default',
                 });
             } else {
+                // Standard success message for other roles (e.g., Supplier) or already active users
                 toast({
                     title: 'Успешная регистрация',
                     description: 'Теперь вы можете войти в систему',

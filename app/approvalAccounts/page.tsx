@@ -1,6 +1,8 @@
-import VerifyKMPage from '../components/verify-km/page';
+// Import the renamed component
+import AccountApprovalPageContent from '../components/verify-km/page';
 
-export const AccountApprovalPage = () => {
-    return <VerifyKMPage />;
+// Renamed the export to avoid naming conflict, kept original page structure
+export const ApprovalPageWrapper = () => {
+    return <AccountApprovalPageContent />;
 };
-export default AccountApprovalPage;
+export default ApprovalPageWrapper;

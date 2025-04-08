@@ -5,12 +5,12 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
 import { useZonesStore } from '@/lib/stores/zonesStore';
 import { ZonePagination } from '@/app/components/zones/ZonePagination';
-import CategorySelection from './booking/CategorySelection';
-import { BrandSelector } from './booking/BrandSelector'; // Import BrandSelector
-import BookingFilters from './booking/BookingFilters';
-import ZonesTable from './booking/ZonesTable';
+import CategorySelection from '../booking/CategorySelection';
+import { BrandSelector } from '../booking/BrandSelector'; // Import BrandSelector
+import BookingFilters from '../booking/BookingFilters';
+import ZonesTable from '../booking/ZonesTable';
 
-import SupplierSelection from './booking/SupplierSelection';
+import SupplierSelection from '../booking/SupplierSelection';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import router from 'next/router';
 
@@ -41,10 +41,18 @@ export default function CreateBookingPage() {
 
     useEffect(() => {
         if (isAuthenticated) {
-            fetchZones(); // Temporarily commented out for debugging
-            fetchFilterOptions(); // Temporarily commented out for debugging
+            // Fetch initial filter options once after authentication
+            fetchFilterOptions();
         }
-    }, [fetchFilterOptions, fetchZones, isAuthenticated]); // Removed fetchZones/fetchFilterOptions from deps
+    }, [fetchFilterOptions, isAuthenticated]); // Fetch options only when auth changes
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            // Fetch zones whenever filters or pagination change
+            fetchZones();
+        }
+        // Add filterCriteria and paginationCriteria to dependencies
+    }, [fetchZones, isAuthenticated, filterCriteria, paginationCriteria]);
 
     useEffect(() => {
         if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {

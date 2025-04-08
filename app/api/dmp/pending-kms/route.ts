@@ -11,21 +11,22 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const pendingKMs = await prisma.user.findMany({
+    // Fetch all users with PENDING status, regardless of role
+    const pendingUsers = await prisma.user.findMany({
       where: {
-        role: "CATEGORY_MANAGER",
         status: "PENDING",
       },
       select: {
         id: true,
         name: true,
         email: true,
-        category: true,
+        category: true, // Keep category for CMs
+        role: true,     // Add role to the selection
         createdAt: true,
       },
     })
 
-    return NextResponse.json(pendingKMs)
+    return NextResponse.json(pendingUsers)
   } catch (error) {
     let message = "An unknown error occurred";
     if (error instanceof Error) {

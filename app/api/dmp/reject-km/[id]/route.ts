@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       data: { status: "REJECTED" },
     })
 
-    return NextResponse.json({ message: "Category Manager rejected successfully" })
+    return NextResponse.json({ message: "User rejected successfully" })
   } catch (error) {
     let message = "An unknown error occurred";
     if (error instanceof Error) {

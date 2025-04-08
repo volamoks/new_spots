@@ -41,7 +41,7 @@ model User {
   password         String
   role             Role             @default(SUPPLIER)
   category         String?
-  inn              String?          @unique // Keep the original unique INN field
+  inn              String? // Removed @unique constraint to allow duplicate INNs
   supplierName     String?
   status           UserStatus       @default(ACTIVE)
   createdAt        DateTime         @default(now())

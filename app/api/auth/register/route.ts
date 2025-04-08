@@ -20,7 +20,10 @@ function mapStringToRole(roleString: string | undefined): Role {
 // Helper function to map Role enum to UserStatus enum
 // NOTE: Similar to Role, adjust if UserStatus isn't available as a value.
 function mapRoleToStatus(role: Role): UserStatus {
-  return role === Role.CATEGORY_MANAGER ? UserStatus.PENDING : UserStatus.ACTIVE;
+  // Set status to PENDING for both CATEGORY_MANAGER and DMP_MANAGER
+  return role === Role.CATEGORY_MANAGER || role === Role.DMP_MANAGER
+    ? UserStatus.PENDING
+    : UserStatus.ACTIVE;
 }
 
 
@@ -75,7 +78,7 @@ export async function POST(req: Request) {
         let field = 'Значение';
         const target = error.meta?.target as string[];
         if (target?.includes('email')) field = 'Email';
-        else if (target?.includes('inn')) field = 'ИНН';
+        // Removed INN check as it's no longer unique
         return NextResponse.json({ error: `${field} уже используется.` }, { status: 409 });
       }
       // Add other specific Prisma error checks if needed

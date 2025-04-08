@@ -37,21 +37,15 @@ export async function GET(request: Request) {
     let macrozonesToUse: string[] | undefined = undefined;
     const explicitMacrozones = searchParams.getAll("macrozone"); // Get explicitly selected macrozones
 
-    if (category) {
-      const categoryMacrozones = getCorrespondingMacrozones(category);
-      if (explicitMacrozones.length > 0) {
-        // Both category and explicit filters: Use intersection
-        const explicitSet = new Set(explicitMacrozones);
-        macrozonesToUse = categoryMacrozones.filter(mz => explicitSet.has(mz));
-      } else {
-        // Only category filter: Use category's macrozones
-        macrozonesToUse = categoryMacrozones;
-      }
-    } else if (explicitMacrozones.length > 0) {
-      // Only explicit filter: Use explicit macrozones
+    if (explicitMacrozones.length > 0) {
+      // If explicit macrozones are selected, use them directly, overriding category logic for filtering
       macrozonesToUse = explicitMacrozones;
+    } else if (category) {
+      // If no explicit macrozones are selected, but a category is, use the category's corresponding macrozones
+      macrozonesToUse = getCorrespondingMacrozones(category);
     }
-    // If neither is present, macrozonesToUse remains undefined
+    // If neither explicit macrozones nor a category with corresponding macrozones are provided,
+    // macrozonesToUse remains undefined, and no macrozone filter is applied.
 
     // Replace the original 'macrozone' variable with 'macrozonesToUse' for clarity later
     // Note: The original 'macrozone' variable is no longer needed after this block.
