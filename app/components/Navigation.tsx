@@ -35,16 +35,10 @@ export default function Navigation() {
             case 'SUPPLIER':
                 return (
                     <>
-                        {/* <Link href="/zones">
-                            <Button variant="ghost">Зоны продажи</Button>
-                        </Link> */}
-                        {/* <Link href="/supplier/zones-new">
-                            <Button variant="ghost">Новый интерфейс зон</Button>
-                        </Link> */}
-                        <Link href="/supplier/createBookings">
+                        <Link href="/createBookings">
                             <Button variant="ghost">Создать Бронирование</Button>
                         </Link>
-                        <Link href="/supplier/manageBookings">
+                        <Link href="/manageBookings">
                             <Button variant="ghost">Мои бронирования</Button>
                         </Link>
                     </>
@@ -52,10 +46,10 @@ export default function Navigation() {
             case 'CATEGORY_MANAGER':
                 return (
                     <>
-                        <Link href="/category-manager/createBookings">
+                        <Link href="/createBookings">
                             <Button variant="ghost">Создать бронирование</Button>
                         </Link>
-                        <Link href="/category-manager/manageBookings">
+                        <Link href="/manageBookings">
                             <Button variant="ghost">Управление Бронированиями</Button>
                         </Link>
                     </>
@@ -63,19 +57,16 @@ export default function Navigation() {
             case 'DMP_MANAGER':
                 return (
                     <>
-                        <Link href="/dmp-manager">
-                            <Button variant="ghost">Управление заявками</Button>
+                        <Link href="/manageBookings">
+                            <Button variant="ghost">Управление Бронированиями</Button>
                         </Link>
-                        <Link href="/dmp-manager/zones">
-                            <Button variant="ghost">Управление зонами</Button>
+                        <Link href="/manageZones">
+                            <Button variant="ghost">Управление Зонами</Button>
                         </Link>
-                        {/* <Link href="/dmp-manager/upload">
-                            <Button variant="ghost">Загрузка данных</Button>
-                        </Link> */}
-                        <Link href="/dmp-manager/export">
-                            <Button variant="ghost">Экспорт/Импорт</Button>
+                        <Link href="/importExportData">
+                            <Button variant="ghost">Экспорт/Импорт Данных</Button>
                         </Link>
-                        <Link href="/dmp-manager/verify-km">
+                        <Link href="/approvalAccounts">
                             <Button variant="ghost">Подтверждение КМ</Button>
                         </Link>
                     </>

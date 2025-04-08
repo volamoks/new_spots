@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'; // Добавлено
 import { ZonesFilters } from '@/app/components/zones/ZonesFilters'; // Import ZonesFilters
 import { Check, X, Trash2, Ban } from 'lucide-react'; // Добавлены иконки
 import { ConfirmationModal } from '@/app/components/ui/ConfirmationModal'; // Import ConfirmationModal
+
 export default function DmpManagerZonesPage() {
     const { data: session } = useSession();
 

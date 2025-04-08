@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'; // Imp
 import { Label } from '@/components/ui/label'; // Import Label
 import { useToast } from '@/components/ui/use-toast';
 import { Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
-import { PreviewTable } from '../../dmp-manager/upload/preview-table';
+import { PreviewTable } from '../../../../to delete/dmp-manager/upload/preview-table';
 import type { ZoneData } from '@/types/zone'; // Import ZoneData type
 import * as XLSX from 'xlsx'; // Keep for potential direct use if needed, though parseExcelFile encapsulates it
 

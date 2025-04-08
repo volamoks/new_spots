@@ -13,9 +13,9 @@ export async function middleware(request: NextRequest) {
   // Redirect authorized users from home page to role-specific pages
   if (isHomePage && token) {
     const roleBasedRedirects = {
-      SUPPLIER: "/supplier/bookings",
-      CATEGORY_MANAGER: "/category-manager",
-      DMP_MANAGER: "/dmp-manager",
+      SUPPLIER: "/manageBookings",
+      CATEGORY_MANAGER: "/manageBookings",
+      DMP_MANAGER: "/manageBookings",
     }
 
     const userRole = token.role as keyof typeof roleBasedRedirects
@@ -44,9 +44,9 @@ export async function middleware(request: NextRequest) {
   // Role-based route protection
   if (token.role) {
     const roleBasedPaths = {
-      SUPPLIER: ["/zones", "/supplier"],
-      CATEGORY_MANAGER: ["/category-manager"],
-      DMP_MANAGER: ["/dmp-manager"],
+      SUPPLIER: ["/zones", "/supplier", "/createBookings", "/manageBookings"],
+      CATEGORY_MANAGER: ["/createBookings", "/manageBookings", "/category-manager"],
+      DMP_MANAGER: ["/manageBookings", "/manageZones", "/importExportData", "/approvalAccounts"],
     }
 
     const userRole = token.role as keyof typeof roleBasedPaths

@@ -16,12 +16,9 @@ import BookingRole from '@/lib/enums/BookingRole';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { ZonePagination } from '@/app/components/zones/ZonePagination'; // Import reusable pagination
+import router from 'next/router';
 
-interface BookingRequestManagementProps {
-    role?: 'SUPPLIER' | 'CATEGORY_MANAGER' | 'DMP_MANAGER';
-}
-
-const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ role: propRole }) => {
+const BookingRequestManagement: React.FC = () => {
     // Get state/actions from new stores
     const {
         bookingRequests, // Use the current page data
@@ -43,8 +40,10 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
 
     const { toast } = useToast(); // Initialize toast
     const { user } = useAuth();
-    const role = propRole || user?.role || 'SUPPLIER';
-    // Removed: const { setLoading } = useLoader();
+
+    if (!user) {
+        router.push('/login'); // Redirect to login if user is not authenticated
+    }
 
     // Centralized error handling for both stores
     useEffect(() => {
@@ -58,17 +57,19 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
         }
     }, [requestError, updateStatusError, toast]);
 
+    const role = user?.role;
+
     // Load bookings and set initial filter
     useEffect(() => {
         // If user is a supplier, set the supplierInn filter
-        if (user && user.role === 'SUPPLIER' && user.inn) {
+        if (user && role === 'SUPPLIER' && user.inn) {
             // Use setFilterCriteria from the new store
-            setFilterCriteria({ supplierInn: user.inn });
+            setFilterCriteria({ supplierInn: user.inn || undefined });
         }
         console.log('Effect running, calling fetchBookingRequests. User:', user); // Add log
         // Fetch all bookings using the new action name
         fetchBookingRequests();
-    }, [fetchBookingRequests, user, setFilterCriteria]); // Add setFilterCriteria dependency
+    }, [fetchBookingRequests, user, setFilterCriteria, role]); // Add setFilterCriteria dependency
 
     // Separate function to handle manual refresh
     const handleRefreshBookings = async () => {

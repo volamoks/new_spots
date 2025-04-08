@@ -1,8 +1,8 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ExcelUploadForm } from '@/app/components/dmp/ExcelUploadForm';
-import { TemplateDownloadButton } from '@/app/components/dmp/TemplateDownloadButton';
+import { ExcelUploadForm } from '@/app/components/export/dmp/ExcelUploadForm';
+import { TemplateDownloadButton } from '@/app/components/export/dmp/TemplateDownloadButton';
 
 export default function DMPUploadPage() {
     return (
@@ -20,7 +20,7 @@ export default function DMPUploadPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {/* Button to download the template */}
-                        <TemplateDownloadButton />
+                        <TemplateDownloadButton uploadType="zones" />
 
                         {/* The main upload form component */}
                         <ExcelUploadForm />

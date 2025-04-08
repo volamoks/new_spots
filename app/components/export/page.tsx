@@ -4,13 +4,13 @@ import React from 'react'; // Remove useState
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Added CardDescription
 import { DataExportCard } from '@/app/components/DataExportCard';
 // import { DataImportCard } from '@/app/components/DataImportCard'; // Remove generic import card
-import { ExcelUploadForm } from '@/app/components/dmp/ExcelUploadForm'; // Import specific upload form
-import { TemplateDownloadButton } from '@/app/components/dmp/TemplateDownloadButton'; // Import download button
+import { ExcelUploadForm } from '@/app/components/export/dmp/ExcelUploadForm'; // Import specific upload form
+import { TemplateDownloadButton } from '@/app/components/export/dmp/TemplateDownloadButton'; // Import download button
 // Remove RadioGroup and Label imports if no longer needed elsewhere
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
-export default function DMPManagerExportPage() {
+export default function ExportPage() {
     const { data: session, status } = useSession();
 
     if (status === 'unauthenticated') {
