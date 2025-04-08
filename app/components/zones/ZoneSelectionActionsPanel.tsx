@@ -38,10 +38,6 @@ export function ZoneSelectionActionsPanel({
         clearSelection, // Assuming this action exists to clear selection
     } = useRoleData((session?.user?.role as 'dmp' | 'supplier' | 'categoryManager') || 'supplier'); // Use consolidated hook, provide role dynamically, default/fallback needed
 
-    // Setup the booking hook
-    // Note: useCreateBooking might need refactoring if it relies on the removed stores/hooks
-    // For now, assume it uses useBookingActionsStore correctly.
-    // The clearSelection call might need adjustment if the action name changes in useRoleData
     const handleBookingSuccess = useCallback(() => {
         if (clearSelection) {
             clearSelection(); // Clear selection in the store on success
@@ -160,7 +156,6 @@ export function ZoneSelectionActionsPanel({
                         <strong>{selectedZonesCount}</strong> выбранных зон?
                         {isCategoryManager && selectedSupplier && (
                             <>
-                                {' '}
                                 у поставщика <strong>{selectedSupplier}</strong>
                             </>
                         )}
@@ -171,5 +166,5 @@ export function ZoneSelectionActionsPanel({
                 cancelText="Отмена"
             />
         </>
-    ); // Close Fragment
+    );
 }

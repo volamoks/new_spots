@@ -28,7 +28,7 @@ export function DropdownFilterGroup<T = BookingRequestFilters>({
 }: DropdownFilterGroupProps<T>) {
     return (
         <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-3">
+            <h4 className="text-sm font-medium text-gray-700 my-4">
                 {groupTitle} {/* TODO: i18n */}
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

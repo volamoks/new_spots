@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import BookingRequestManagement from '../../components/booking/BookingRequestManagement';
+
 import CreateBookingPage from '@/app/components/CreateBookingPage';
 
 export default function SupplierBookingsPage() {

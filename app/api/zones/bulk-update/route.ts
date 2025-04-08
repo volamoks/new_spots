@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ZoneStatus } from '@prisma/client'; // Используем ZoneStatus из Prisma
+import redis from '@/lib/redis'; // Import Redis client
 
 export async function POST(request: Request) {
     try {
@@ -38,6 +39,19 @@ export async function POST(request: Request) {
         });
 
         console.log(`Bulk updated status for ${result.count} zones to ${status}`);
+
+        // --- Cache Invalidation ---
+        try {
+            const keys = await redis.keys('zones:*'); // Find all zone cache keys
+            if (keys.length > 0) {
+                await redis.del(keys); // Delete them
+                console.log(`Invalidated ${keys.length} zone cache keys after bulk update.`);
+            }
+        } catch (redisError) {
+            console.error("Redis cache invalidation error during bulk update:", redisError);
+            // Log error but don't fail the request
+        }
+        // --- End Cache Invalidation ---
 
         // Возвращаем количество обновленных записей
         return NextResponse.json({ count: result.count }, { status: 200 });

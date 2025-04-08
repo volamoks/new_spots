@@ -24,7 +24,9 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 
     return (
         // Adjust grid columns based on whether supplier search is shown
-        <div className={`grid grid-cols-1 ${showSupplierSearch ? 'md:grid-cols-2' : ''} gap-4`}>
+        <div
+            className={`grid grid-cols-1 ${showSupplierSearch ? 'md:grid-cols-2' : ''} gap-4 pb-4`}
+        >
             {/* Zone Parameters Search */}
             <div>
                 <label className="text-sm font-medium mb-1 block text-gray-700">

@@ -13,9 +13,9 @@ import { RequestsTable } from '../RequestsTable';
 import ManageBookingsFilters from './ManageBookingsFilters';
 import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
-// Removed: import { useLoader } from '@/app/components/GlobalLoader';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { ZonePagination } from '@/app/components/zones/ZonePagination'; // Import reusable pagination
 
 interface BookingRequestManagementProps {
     role?: 'SUPPLIER' | 'CATEGORY_MANAGER' | 'DMP_MANAGER';
@@ -33,7 +33,7 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
         pageSize,
         totalCount,
         setPage,
-        // setPageSize, // Removed as it's not used in the current UI
+        setPageSize, // Get setPageSize action
     } = useBookingRequestStore();
 
     const {
@@ -83,6 +83,12 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
             // toast({ title: 'Ошибка', description: 'Не удалось обновить заявки.', variant: 'destructive' });
         }
         // finally block removed
+    };
+
+    // Handler for items per page change
+    const handleItemsPerPageChange = (size: number) => {
+        setPageSize(size);
+        setPage(1); // Reset to first page when page size changes
     };
 
     // Helper to find bookingId
@@ -209,35 +215,19 @@ const BookingRequestManagement: React.FC<BookingRequestManagementProps> = ({ rol
                             onReject={handleReject}
                             bookings={bookingRequests} // Pass current page data
                         />
-                        {/* Add Pagination Controls */}
-                        <div className="flex items-center justify-end space-x-2 py-4">
-                            <span className="text-sm text-gray-700">
-                                Page {page} of {Math.ceil(totalCount / pageSize)} ({totalCount}{' '}
-                                items)
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(page - 1)}
-                                disabled={page <= 1}
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(page + 1)}
-                                disabled={page * pageSize >= totalCount}
-                            >
-                                Next
-                            </Button>
-                            {/* Optional: Page size selector */}
-                            {/* <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
-                                {[10, 20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
-                            </select> */}
-                        </div>
+
+                        <div className="mt-4"> {/* Add some margin */}</div>
                     </CardContent>
                 </Card>
+                <div className=" mt-4">
+                    <ZonePagination
+                        currentPage={page}
+                        itemsPerPage={pageSize}
+                        totalCount={totalCount}
+                        onPageChange={setPage}
+                        onItemsPerPageChange={handleItemsPerPageChange}
+                    />
+                </div>
             </main>
         </div>
     );

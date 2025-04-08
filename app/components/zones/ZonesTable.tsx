@@ -20,10 +20,13 @@ export function ZonesTable() {
         selectedZoneIds,
         sortCriteria,
         isLoading,
+        paginationCriteria, // Get pagination state
+        totalCount, // Get total count
         // uniqueFilterValues, // Получать в дочернем компоненте
         error,
         fetchZones,
         setSortCriteria,
+        setPaginationCriteria, // Get pagination action
         toggleSelectAll,
         updateZoneField, // Action for updating supplier/brand
     } = useRoleData('dmp'); // Use consolidated hook for DMP role
@@ -139,7 +142,16 @@ export function ZonesTable() {
             </div>
 
             {/* Pagination */}
-            <ZonePagination />
+            <ZonePagination
+                currentPage={paginationCriteria.currentPage}
+                itemsPerPage={paginationCriteria.itemsPerPage}
+                totalCount={totalCount}
+                isLoading={isLoading}
+                onPageChange={page => setPaginationCriteria({ currentPage: page })}
+                onItemsPerPageChange={size =>
+                    setPaginationCriteria({ itemsPerPage: size, currentPage: 1 })
+                } // Reset to page 1 on size change
+            />
         </div>
     );
 }

@@ -95,9 +95,6 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
             : []),
     ];
 
-    // --- Internal Handler for Setting Filters ---
-    // The DropdownFilterGroup likely calls this with an object like { [filterKey]: newValue }
-    // Since we now use the correct keys directly from the store, no complex mapping is needed.
     const handleSetFilter = useCallback(
         (update: Partial<ZonesFilterCriteria>) => {
             // Directly pass the update to the store's setter
@@ -106,9 +103,6 @@ export function InteractiveZoneFilters({ selectedCategory = null }: InteractiveZ
         [setFilterCriteria],
     );
 
-    // --- Prepare filterCriteria for SelectedFiltersDisplay (Logic moved from ZonesFilters) ---
-    // --- Prepare filterCriteria for SelectedFiltersDisplay ---
-    // Use the correct keys from the store's filterCriteria
     const displayFilterCriteria: ZonesFilterCriteria = {
         // Ensure type compatibility
         city: city,

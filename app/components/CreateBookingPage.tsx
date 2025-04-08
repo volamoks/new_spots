@@ -9,10 +9,9 @@ import CategorySelection from './booking/CategorySelection';
 import { BrandSelector } from './booking/BrandSelector'; // Import BrandSelector
 import BookingFilters from './booking/BookingFilters';
 import ZonesTable from './booking/ZonesTable';
-import BookingPageHeader from './booking/BookingPageHeader';
+
 import SupplierSelection from './booking/SupplierSelection';
-import { Card, CardContent } from '@/components/ui/card';
-import CreateBookingActions from './booking/CreateBookingActions';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 
 export default function CreateBookingPage() {
     const { isAuthenticated, user } = useAuth();
@@ -23,11 +22,14 @@ export default function CreateBookingPage() {
     const selectedBrandId = useBookingActionsStore(state => state.selectedBrandId); // Get selected brand ID
     const setSelectedBrandId = useBookingActionsStore(state => state.setSelectedBrandId); // Get action to set brand ID
 
-    // Select specific state and actions from zones store
     const setFilterCriteria = useZonesStore(state => state.setFilterCriteria);
     const fetchZones = useZonesStore(state => state.fetchZones);
-    const filterCriteriaCategory = useZonesStore(state => state.filterCriteria.category); // Select category specifically
     const fetchFilterOptions = useZonesStore(state => state.fetchFilterOptions);
+    const totalCount = useZonesStore(state => state.totalCount);
+    const filterCriteriaCategory = useZonesStore(state => state.filterCriteria.category);
+    const paginationCriteria = useZonesStore(state => state.paginationCriteria);
+    const setPaginationCriteria = useZonesStore(state => state.setPaginationCriteria);
+    const isLoading = useZonesStore(state => state.isLoading); // Get loading state
 
     const setSelectedCategoryCallback = useCallback(
         (category: string) => {
@@ -36,45 +38,51 @@ export default function CreateBookingPage() {
         [setFilterCriteria],
     );
 
-    // Fetch initial zones and filter options on mount
     useEffect(() => {
         if (isAuthenticated) {
-            // These actions now trigger the global loader via withLoading in the store
             fetchZones(); // Temporarily commented out for debugging
             fetchFilterOptions(); // Temporarily commented out for debugging
         }
-    }, [isAuthenticated, fetchZones, fetchFilterOptions]);
-
-    // Add effect to log category changes
-    useEffect(() => {
-        console.log(
-            'Filter criteria category changed in CreateBookingPage:',
-            filterCriteriaCategory, // Use specifically selected category
-        );
-    }, [filterCriteriaCategory]); // Depend on the specifically selected category
+    }, [fetchFilterOptions, fetchZones, isAuthenticated]); // Removed fetchZones/fetchFilterOptions from deps
 
     useEffect(() => {
         if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {
             setSelectedSupplierInnForCreation(user.inn);
         }
-    }, [isAuthenticated, user, setSelectedSupplierInnForCreation]);
+        // Depend on specific user properties instead of the whole object
+    }, [isAuthenticated, user?.role, user?.inn, setSelectedSupplierInnForCreation]);
 
     const filtersAndContent = (
         <div>
-            <CreateBookingActions />
-            {/* BookingFilters gets isLoading from loader store directly */}
             <BookingFilters />
-            <Card className="py-4 mb-6"></Card>
-            {/* ZonesTable no longer needs isLoading prop */}
             <ZonesTable />
-            <ZonePagination />
+            <ZonePagination
+                currentPage={paginationCriteria.currentPage}
+                itemsPerPage={paginationCriteria.itemsPerPage}
+                totalCount={totalCount}
+                isLoading={isLoading}
+                onPageChange={page => setPaginationCriteria({ currentPage: page })}
+                onItemsPerPageChange={size =>
+                    setPaginationCriteria({ itemsPerPage: size, currentPage: 1 })
+                } // Reset to page 1 on size change
+            />
         </div>
     );
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <main className="flex-grow container mx-auto px-4 py-8">
-                <BookingPageHeader />
+                <Card className="mb-6 px-6 py-8">
+                    <CardTitle className="text-2xl font-bold text-red-600 ">
+                        Доступные зоны для бронирования
+                    </CardTitle>
+                    <p className="text-gray-600 mt-4">
+                        Выберите зоны для создания заявки на бронирование.
+                    </p>
+                    <p className="text-gray-600 mt-4 text-m">
+                        Всего доступных зон найдено (с учетом фильтров): {totalCount}{' '}
+                    </p>
+                </Card>
 
                 <div className="space-y-6">
                     <Card className="mb-6">

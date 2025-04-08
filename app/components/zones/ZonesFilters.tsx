@@ -32,6 +32,7 @@ export function ZonesFilters({ selectedCategory = null }) {
     return (
         <Card className="mb-6">
             <CardContent className="p-4 space-y-4">
+                <h3 className="text-xl font-semibold my-4">Выбор фильтров зон</h3>
                 {/* Tabs */}
                 <ZoneFilterTabs
                     activeTab={activeTab}
@@ -51,29 +52,29 @@ export function ZonesFilters({ selectedCategory = null }) {
                             onSupplierNameChange={() => {}} // Dummy handler
                         />
                     </div>
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={resetFilters}
-                            disabled={isLoading}
-                            className="whitespace-nowrap"
-                        >
-                            Сбросить фильтры
-                        </Button>
-                        <Button
-                            onClick={fetchZones}
-                            disabled={isLoading}
-                            className="whitespace-nowrap"
-                        >
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Обновить
-                        </Button>
-                    </div>
                 </div>
 
                 {/* Combined Dropdowns and Selected Filters */}
                 <InteractiveZoneFilters selectedCategory={selectedCategory} />
             </CardContent>
+            <div className="flex gap-2 m-6 justify-end">
+                <Button
+                    variant="outline"
+                    onClick={resetFilters}
+                    disabled={isLoading}
+                    className="whitespace-nowrap"
+                >
+                    Сбросить фильтры
+                </Button>
+                <Button
+                    onClick={fetchZones}
+                    disabled={isLoading}
+                    className="whitespace-nowrap"
+                >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Обновить
+                </Button>
+            </div>
         </Card>
     );
 }

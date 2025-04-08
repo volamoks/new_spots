@@ -5,7 +5,7 @@ import {
     type SupplierOption, // Import SupplierOption type
 } from '@/lib/stores/bookingRequestStore';
 import { useLoaderStore } from '@/lib/stores/loaderStore'; // Import the loader store
-import { Card, CardContent } from '@/components/ui/card';
+// import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { BookingStatus } from '@prisma/client';
@@ -13,6 +13,7 @@ import { DateRangeFilter } from './DateRangeFilter'; // Import the new component
 import { SearchFilters } from './SearchFilters'; // Import the new component
 import { DropdownFilterGroup } from './DropdownFilterGroup'; // Import the new component
 import { SelectedFiltersDisplay } from './SelectedFiltersDisplay'; // Import the new component
+import type { FilterCriteria as ZoneFilterCriteria } from '@/lib/stores/zonesStore'; // Import the expected type
 
 // Helper function to translate booking statuses
 const translateStatus = (status: BookingStatus): string => {
@@ -135,12 +136,43 @@ const ManageBookingsFilters = () => {
         setFilterCriteria({ supplierName: e.target.value }); // Changed function name
     };
 
+    // Adapter function to handle filter removal from SelectedFiltersDisplay
+    const handleSelectedFilterRemove = (update: Partial<ZoneFilterCriteria>) => {
+        // Translate ZoneFilterCriteria update back to BookingRequestFilters update
+        const bookingUpdate: Partial<BookingRequestFilters> = {};
+
+        // Map 'supplier' back to 'supplierIds'
+        if (update.supplier !== undefined) {
+            bookingUpdate.supplierIds = update.supplier;
+        }
+        // Map other common keys directly (if they exist in the update)
+        if (update.city !== undefined) bookingUpdate.city = update.city;
+        if (update.market !== undefined) bookingUpdate.market = update.market;
+        if (update.macrozone !== undefined) bookingUpdate.macrozone = update.macrozone;
+        if (update.equipment !== undefined) bookingUpdate.equipment = update.equipment;
+        // Note: searchTerm and activeTab from ZoneFilterCriteria are not directly mapped back
+        // as they might have different meanings or aren't used for removal in this context.
+
+        // Call the original store setter function
+        setFilterCriteria(bookingUpdate);
+    };
+
+    // Create an adapter object conforming to ZoneFilterCriteria for SelectedFiltersDisplay
+    const displayCriteriaForSelectedFilters: ZoneFilterCriteria = {
+        // Provide defaults or map existing values
+        searchTerm: filterCriteria.searchTerm || '', // Map searchTerm
+        activeTab: 'all', // Provide a default/placeholder - not displayed but needed for type
+        city: filterCriteria.city || [], // Map city
+        market: filterCriteria.market || [], // Map market
+        macrozone: filterCriteria.macrozone || [], // Map macrozone
+        equipment: filterCriteria.equipment || [], // Map equipment
+        supplier: filterCriteria.supplierIds || [], // Map supplierIds to supplier
+        category: undefined, // Not used in BookingRequestFilters
+    };
+
     return (
-        <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6 space-y-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Выбор фильтров</h3>{' '}
-                {/* TODO: i18n */}
-                {/* Date Filters */}
+        <div className="mb-6 shadow-sm">
+            <div className="">
                 <DateRangeFilter
                     dateFrom={filterCriteria.dateFrom}
                     dateTo={filterCriteria.dateTo}
@@ -173,8 +205,8 @@ const ManageBookingsFilters = () => {
                 />
                 {/* Selected Filters Display */}
                 <SelectedFiltersDisplay
-                    filterCriteria={filterCriteria}
-                    setFilterCriteria={setFilterCriteria}
+                    filterCriteria={displayCriteriaForSelectedFilters} // Pass the adapted object
+                    setFilterCriteria={handleSelectedFilterRemove} // Pass the adapter function
                 />
                 {/* Reset Button */}
                 <div className="flex justify-end pt-4">
@@ -189,8 +221,8 @@ const ManageBookingsFilters = () => {
                         Сбросить все фильтры
                     </Button>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 };
 

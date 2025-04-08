@@ -9,26 +9,33 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-// Import the store hook
-// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
-import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import the consolidated hook
+// Removed store import
+import { Card } from '@/components/ui/card';
 
-export function ZonePagination() {
-    const {
-        paginationCriteria,
-        totalCount, // Assuming this is the filtered count
-        isLoading,
-        setPaginationCriteria,
-    } = useRoleData('dmp'); // Use the consolidated hook for DMP role
+// Define props for reusability
+interface ZonePaginationProps {
+    currentPage: number;
+    itemsPerPage: number;
+    totalCount: number;
+    isLoading?: boolean;
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange: (size: number) => void;
+}
 
-    const { currentPage, itemsPerPage } = paginationCriteria;
+// Accept props instead of using the store hook
+export function ZonePagination({
+    currentPage,
+    itemsPerPage,
+    totalCount,
+    isLoading = false,
+    onPageChange,
+    onItemsPerPageChange,
+}: ZonePaginationProps) {
     const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
-    const filteredItems = totalCount; // Use totalCount as filteredItems
-    const isDisabled = isLoading; // Use isLoading from store
-    // ---
+    const filteredItems = totalCount; // Use totalCount directly
 
     return (
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <Card className="flex sm:flex-row justify-between items-center gap-4 p-6">
             <div className="text-sm text-gray-500">
                 Показано {Math.min(itemsPerPage, filteredItems - (currentPage - 1) * itemsPerPage)}{' '}
                 из {filteredItems} зон{' '}
@@ -40,9 +47,9 @@ export function ZonePagination() {
                     <Select
                         value={itemsPerPage.toString()}
                         onValueChange={
-                            value => setPaginationCriteria({ itemsPerPage: Number(value) }) // Use store action
+                            value => onItemsPerPageChange(Number(value)) // Use prop callback
                         }
-                        disabled={isDisabled}
+                        disabled={isLoading}
                     >
                         <SelectTrigger className="w-[70px] h-8">
                             <SelectValue placeholder="10" />
@@ -62,10 +69,9 @@ export function ZonePagination() {
                         variant="outline"
                         size="icon"
                         onClick={
-                            () =>
-                                setPaginationCriteria({ currentPage: Math.max(currentPage - 1, 1) }) // Use store action
+                            () => onPageChange(Math.max(currentPage - 1, 1)) // Use prop callback
                         }
-                        disabled={currentPage === 1 || isDisabled}
+                        disabled={currentPage === 1 || isLoading}
                         className="h-8 w-8 p-0"
                     >
                         <ChevronLeft className="h-4 w-4" />
@@ -78,12 +84,9 @@ export function ZonePagination() {
                         variant="outline"
                         size="icon"
                         onClick={
-                            () =>
-                                setPaginationCriteria({
-                                    currentPage: Math.min(currentPage + 1, totalPages),
-                                }) // Use store action
+                            () => onPageChange(Math.min(currentPage + 1, totalPages)) // Use prop callback
                         }
-                        disabled={currentPage >= totalPages || isDisabled}
+                        disabled={currentPage >= totalPages || isLoading}
                         className="h-8 w-8 p-0"
                     >
                         <ChevronRight className="h-4 w-4" />
@@ -91,6 +94,6 @@ export function ZonePagination() {
                     </Button>
                 </div>
             </div>
-        </div>
+        </Card>
     );
 }

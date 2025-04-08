@@ -42,7 +42,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
     };
 
     return (
-        <div className="flex w-full space-x-4">
+        <div className="flex w-full space-x-4 mb-4">
             {/* Date From */}
             <div className="flex flex-col flex-1">
                 <label className="text-sm font-medium mb-1 text-gray-700">Дата с</label>

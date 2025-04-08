@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react'; // Import useState
 import { useSession } from 'next-auth/react';
 import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import the new hook
 import { ZoneStatus } from '@/types/zone'; // Убран неиспользуемый Zone
@@ -10,10 +10,19 @@ import { ZonesTable } from '@/app/components/zones/ZonesTable';
 import { Button } from '@/components/ui/button'; // Добавлено
 import { ZonesFilters } from '@/app/components/zones/ZonesFilters'; // Import ZonesFilters
 import { Check, X, Trash2, Ban } from 'lucide-react'; // Добавлены иконки
-
+import { ConfirmationModal } from '@/app/components/ui/ConfirmationModal'; // Import ConfirmationModal
 export default function DmpManagerZonesPage() {
     const { data: session } = useSession();
 
+    // State for Confirmation Modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalConfig, setModalConfig] = useState({
+        title: '',
+        description: '',
+        onConfirm: () => {},
+        confirmText: 'Confirm',
+        confirmVariant: 'default' as 'default' | 'destructive',
+    });
     // Получаем состояние и методы из стора
     const {
         isLoading,
@@ -44,27 +53,38 @@ export default function DmpManagerZonesPage() {
         };
         const statusText = statusMap[newStatus] || newStatus;
 
-        const confirmed = window.confirm(
-            `Вы уверены, что хотите изменить статус ${selectedZoneIds.size} зон на "${statusText}"?`, // Use .size for Set
-        );
-
-        if (confirmed && bulkUpdateZoneStatus) {
-            await bulkUpdateZoneStatus(Array.from(selectedZoneIds), newStatus); // Convert Set to Array
-            // Очистка выбора не нужна, т.к. стор сам это сделает при Успешное
-        }
+        setModalConfig({
+            title: 'Подтвердите изменение статуса',
+            description: `Вы уверены, что хотите изменить статус ${selectedZoneIds.size} зон на "${statusText}"?`,
+            onConfirm: async () => {
+                if (bulkUpdateZoneStatus) {
+                    await bulkUpdateZoneStatus(Array.from(selectedZoneIds), newStatus); // Convert Set to Array
+                }
+                setIsModalOpen(false); // Close modal after action
+            },
+            confirmText: 'Изменить статус',
+            confirmVariant: 'default',
+        });
+        setIsModalOpen(true);
     };
 
     // Обработчик массового удаления
     const handleBulkDelete = async () => {
         if (selectedZoneIds.size === 0) return; // Use .size for Set
 
-        const confirmed = window.confirm(
-            `Вы уверены, что хотите удалить ${selectedZoneIds.size} зон? Это действие необратимо.`, // Use .size for Set
-        );
-
-        if (confirmed && bulkDeleteZones) {
-            await bulkDeleteZones(Array.from(selectedZoneIds)); // Convert Set to Array
-        }
+        setModalConfig({
+            title: 'Подтвердите удаление',
+            description: `Вы уверены, что хотите удалить ${selectedZoneIds.size} зон? Это действие необратимо.`,
+            onConfirm: async () => {
+                if (bulkDeleteZones) {
+                    await bulkDeleteZones(Array.from(selectedZoneIds)); // Convert Set to Array
+                }
+                setIsModalOpen(false); // Close modal after action
+            },
+            confirmText: 'Удалить',
+            confirmVariant: 'destructive', // Use destructive variant for delete
+        });
+        setIsModalOpen(true);
     };
 
     return (
@@ -72,9 +92,6 @@ export default function DmpManagerZonesPage() {
             <main className="flex-grow container mx-auto px-4 py-8">
                 <ZonesSummaryCard />
                 <div className="mb-6">
-                    {' '}
-                    Обертка для заголовка фильтров
-                    <h3 className="text-xl font-semibold mb-4">Выбор фильтров зон</h3>
                     <ZonesFilters />
                 </div>
                 {selectedZoneIds.size > 0 && ( // Use .size for Set
@@ -132,6 +149,17 @@ export default function DmpManagerZonesPage() {
                 {/* Таблица зон */}
                 <ZonesTable />
             </main>
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onConfirm={modalConfig.onConfirm}
+                title={modalConfig.title}
+                description={modalConfig.description}
+                confirmText={modalConfig.confirmText}
+                confirmVariant={modalConfig.confirmVariant}
+                cancelText="Отмена" // Customize cancel text if needed
+            />
         </div>
     );
 }

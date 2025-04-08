@@ -105,13 +105,10 @@ export function EditableSupplierCell({
             nameToSave = null; // No selection
         }
 
-        // Normalize null/empty string for comparison.
-        // currentValue should ideally be the name passed from the parent.
         const normalizedCurrentValue = currentValue || null;
         const normalizedNameToSave = nameToSave || null;
 
         // Only save if the name actually changed
-        // This comparison assumes currentValue is the name. If it might be INN, this needs adjustment.
         if (normalizedNameToSave === normalizedCurrentValue) {
             setIsEditing(false);
             setIsSaving(false);
@@ -151,8 +148,7 @@ export function EditableSupplierCell({
     if (!isEditing) {
         return (
             <div className="flex items-center justify-between group min-h-[32px]">
-                {' '}
-                {/* Ensure min height */}
+
                 <span
                     title={displayValue}
                     className="truncate"

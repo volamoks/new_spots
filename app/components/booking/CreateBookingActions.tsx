@@ -84,7 +84,7 @@ const CreateBookingActions = () => {
     };
 
     return (
-        <div className="flex flex-col items-start gap-2 m-6">
+        <div className="flex flex-col items-start gap-2 ">
             {' '}
             {/* Changed to flex-col for error message */}
             <div className="flex gap-2">

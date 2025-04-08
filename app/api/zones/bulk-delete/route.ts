@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import redis from '@/lib/redis'; // Import Redis client
 
 export async function POST(request: Request) {
     try {
@@ -23,6 +24,21 @@ export async function POST(request: Request) {
         });
 
         console.log(`Bulk deleted ${result.count} zones`);
+
+        // --- Cache Invalidation ---
+        if (result.count > 0) { // Only invalidate if something was actually deleted
+            try {
+                const keys = await redis.keys('zones:*'); // Find all zone cache keys
+                if (keys.length > 0) {
+                    await redis.del(keys); // Delete them
+                    console.log(`Invalidated ${keys.length} zone cache keys after bulk delete.`);
+                }
+            } catch (redisError) {
+                console.error("Redis cache invalidation error during bulk delete:", redisError);
+                // Log error but don't fail the request
+            }
+        }
+        // --- End Cache Invalidation ---
 
         // Возвращаем количество удаленных записей
         return NextResponse.json({ count: result.count }, { status: 200 });
