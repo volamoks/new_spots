@@ -1,12 +1,11 @@
 'use client';
 
 import BookingRole from '@/lib/enums/BookingRole';
-// Removed incorrect import from '@/types/booking'
-// Import the type from the store instead
+
 import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore';
 import { BookingStatus } from '@prisma/client';
-import { StatusBadge } from '../StatusBadge';
 import { BookingActions } from './BookingActions';
+import { StatusBadge } from '../ui/StatusBadge';
 
 type BookingActionsAndStatusProps = {
     // Use the correct type for a single booking from the store's definition

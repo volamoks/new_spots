@@ -1,4 +1,4 @@
-import CreateBookingPage from '@/app/components/CreateBookingPage';
+import CreateBookingPage from '@/app/components/booking/CreateBookingPage';
 
 const CreateBooking = () => {
     return <CreateBookingPage />;

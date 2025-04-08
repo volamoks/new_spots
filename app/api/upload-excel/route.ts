@@ -2,7 +2,9 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
 import { ZoneStatus } from "@/types/zone"
-import { } from "@prisma/client" // Removed unused Role, UserStatus
+import { Role } from "@prisma/client" // Import Role
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 
 // Общий интерфейс для данных из Excel
 interface ExcelData {
@@ -50,6 +52,19 @@ interface BrandData extends ExcelData {
 
 export async function POST(req: NextRequest) {
   try {
+    // --- Authentication & Authorization Check ---
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (session.user.role !== Role.DMP_MANAGER) {
+      return NextResponse.json(
+        { error: "Forbidden: Only DMP Managers can upload data." },
+        { status: 403 }
+      )
+    }
+    // --- End Check ---
+
     const formData = await req.formData()
     const file = formData.get("file") as File
     const type = formData.get("type") as string || req.nextUrl.searchParams.get("type") || "zones"

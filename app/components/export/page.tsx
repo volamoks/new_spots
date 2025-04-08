@@ -2,8 +2,7 @@
 
 import React from 'react'; // Remove useState
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Added CardDescription
-import { DataExportCard } from '@/app/components/DataExportCard';
-// import { DataImportCard } from '@/app/components/DataImportCard'; // Remove generic import card
+import { DataExportCard } from '@/app/components/export/DataExportCard';
 import { ExcelUploadForm } from '@/app/components/export/dmp/ExcelUploadForm'; // Import specific upload form
 import { TemplateDownloadButton } from '@/app/components/export/dmp/TemplateDownloadButton'; // Import download button
 // Remove RadioGroup and Label imports if no longer needed elsewhere

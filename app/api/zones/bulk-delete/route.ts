@@ -1,11 +1,26 @@
 // File: app/api/zones/bulk-delete/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
-import redis from '@/lib/redis'; // Import Redis client
+import { Prisma, Role } from '@prisma/client'; // Added Role
+import redis from '@/lib/redis';
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 
 export async function POST(request: Request) {
     try {
+        // --- Authentication & Authorization Check ---
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+        if (session.user.role !== Role.DMP_MANAGER) {
+            return NextResponse.json(
+                { error: "Forbidden: Only DMP Managers can bulk delete zones." },
+                { status: 403 }
+            )
+        }
+        // --- End Check ---
+
         const body = await request.json();
         const { zoneIds } = body;
 

@@ -1,11 +1,26 @@
 // File: app/api/zones/bulk-update/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ZoneStatus } from '@prisma/client'; // Используем ZoneStatus из Prisma
-import redis from '@/lib/redis'; // Import Redis client
+import { ZoneStatus, Role } from '@prisma/client'; // Added Role
+import redis from '@/lib/redis';
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 
 export async function POST(request: Request) {
     try {
+        // --- Authentication & Authorization Check ---
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+        if (session.user.role !== Role.DMP_MANAGER) {
+            return NextResponse.json(
+                { error: "Forbidden: Only DMP Managers can bulk update zone statuses." },
+                { status: 403 }
+            )
+        }
+        // --- End Check ---
+
         const body = await request.json();
         const { zoneIds, status } = body;
 

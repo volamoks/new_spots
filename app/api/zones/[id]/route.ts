@@ -1,8 +1,10 @@
 // File: app/api/zones/[id]/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; // Исправлено: используем именованный импорт
-import { Prisma, ZoneStatus } from '@prisma/client'; // Добавлен ZoneStatus
-import redis from '@/lib/redis'; // Import Redis client
+import { prisma } from '@/lib/prisma';
+import { Prisma, ZoneStatus, Role } from '@prisma/client'; // Добавлены Role и ZoneStatus
+import redis from '@/lib/redis';
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 
 // Обработчик DELETE запроса для удаления зоны по ID
 export async function DELETE(
@@ -10,6 +12,19 @@ export async function DELETE(
     { params }: { params: { id: string } },
 ) {
     const zoneId = params.id;
+
+    // --- Authentication & Authorization Check ---
+    const session = await getServerSession(authOptions)
+    if (!session) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (session.user.role !== Role.DMP_MANAGER) {
+        return NextResponse.json(
+            { error: "Forbidden: Only DMP Managers can delete zones." },
+            { status: 403 }
+        )
+    }
+    // --- End Check ---
 
     if (!zoneId) {
         return NextResponse.json(
@@ -85,6 +100,19 @@ export async function PATCH(
     { params }: { params: { id: string } },
 ) {
     const zoneId = params.id;
+
+    // --- Authentication & Authorization Check ---
+    const session = await getServerSession(authOptions)
+    if (!session) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (session.user.role !== Role.DMP_MANAGER) {
+        return NextResponse.json(
+            { error: "Forbidden: Only DMP Managers can update zones." },
+            { status: 403 }
+        )
+    }
+    // --- End Check ---
 
     if (!zoneId) {
         return NextResponse.json({ error: 'Zone ID is required' }, { status: 400 });

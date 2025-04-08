@@ -33,7 +33,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // Update only if the user is a category manager or DMP manager
     if (session.user.role !== "CATEGORY_MANAGER" && session.user.role !== "DMP_MANAGER") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const updatedBookingRequest = await prisma.bookingRequest.update({

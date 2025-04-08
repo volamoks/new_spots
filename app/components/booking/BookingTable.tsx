@@ -10,7 +10,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { StatusBadge } from '../StatusBadge';
+// import { StatusBadge } from '../StatusBadge';
 // Import the type from the new store
 import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore';
 // import { BookingActionsAndStatus } from './BookingActionsAndStatus'; // Removed unused import
@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import BookingRole from '@/lib/enums/BookingRole';
 import { BookingStatus, RequestStatus } from '@prisma/client'; // Import necessary statuses
+import { StatusBadge } from '../ui/StatusBadge';
 
 type BookingTableProps = {
     requests: BookingRequestWithBookings[];
