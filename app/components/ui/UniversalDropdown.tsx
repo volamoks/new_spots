@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -136,6 +136,12 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
         }
     };
 
+    // Memoize getTriggerLabel
+    const triggerLabel = useMemo(
+        () => getTriggerLabel(),
+        [selected, options, title, triggerPlaceholder],
+    );
+
     // --- Filter function for Command ---
     const filter = (): number => {
         // Removed unused parameters
@@ -148,26 +154,29 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
     };
 
     // --- Handle selection logic ---
-    const handleSelect = (optionValue: string | null) => {
-        if (mode === 'single') {
-            onChange(optionValue); // Pass null or the selected value
-            setOpen(false); // Close on select for single mode
-        } else {
-            // Multiple mode
-            const currentSelected = Array.isArray(selected) ? selected : [];
-            let newSelected: string[];
-            if (optionValue === null) {
-                // Should not happen in multi-select normally
-                newSelected = currentSelected;
-            } else if (currentSelected.includes(optionValue)) {
-                newSelected = currentSelected.filter(val => val !== optionValue); // Deselect
+    const handleSelect = useCallback(
+        (optionValue: string | null) => {
+            if (mode === 'single') {
+                onChange(optionValue); // Pass null or the selected value
+                setOpen(false); // Close on select for single mode
             } else {
-                newSelected = [...currentSelected, optionValue]; // Select
+                // Multiple mode
+                const currentSelected = Array.isArray(selected) ? selected : [];
+                let newSelected: string[];
+                if (optionValue === null) {
+                    // Should not happen in multi-select normally
+                    newSelected = currentSelected;
+                } else if (currentSelected.includes(optionValue)) {
+                    newSelected = currentSelected.filter(val => val !== optionValue); // Deselect
+                } else {
+                    newSelected = [...currentSelected, optionValue]; // Select
+                }
+                onChange(newSelected);
+                // Keep popover open for multi-select
             }
-            onChange(newSelected);
-            // Keep popover open for multi-select
-        }
-    };
+        },
+        [mode, selected, onChange],
+    );
 
     return (
         <Popover
@@ -182,7 +191,7 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
                     disabled={effectiveIsDisabled}
                     className={cn('w-full justify-between', className)}
                 >
-                    <span className="truncate">{getTriggerLabel()}</span>
+                    <span className="truncate">{triggerLabel}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>

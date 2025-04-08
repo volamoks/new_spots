@@ -39,13 +39,13 @@ export function BrandSelector({ value, onChange, disabled }: BrandSelectorProps)
                     // to the expected BrandSelector onChange (string | null)
                     if (Array.isArray(selectedValue)) {
                         // This shouldn't happen in single mode, but handle defensively
-                        console.warn(
-                            'BrandSelector received an array value in single mode:',
+                        console.error(
+                            'Unexpected behavior: BrandSelector received an array value in single mode. This should not happen.',
                             selectedValue,
                         );
-                        onChange(null); // Or handle as appropriate, e.g., selectedValue[0] ?? null
+                        onChange(selectedValue[0] ?? null); // Use the first value if available, otherwise null
                     } else {
-                        onChange(selectedValue); // Pass string or null
+                        onChange(selectedValue);
                     }
                 }}
                 // UI props

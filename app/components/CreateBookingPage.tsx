@@ -12,6 +12,7 @@ import ZonesTable from './booking/ZonesTable';
 
 import SupplierSelection from './booking/SupplierSelection';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import router from 'next/router';
 
 export default function CreateBookingPage() {
     const { isAuthenticated, user } = useAuth();
@@ -68,6 +69,11 @@ export default function CreateBookingPage() {
             />
         </div>
     );
+
+    if (!isAuthenticated) {
+        router.push('/login');
+        return <div>Пожалуйста, войдите в систему.</div>;
+    }
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
