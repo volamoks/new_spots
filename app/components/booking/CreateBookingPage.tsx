@@ -53,7 +53,7 @@ export default function CreateBookingPage() {
             fetchZones();
         }
         // Add filterCriteria and paginationCriteria to dependencies
-    }, [fetchZones, isAuthenticated, filterCriteria, paginationCriteria]);
+    }, [fetchZones, isAuthenticated, paginationCriteria]);
 
     useEffect(() => {
         if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {
