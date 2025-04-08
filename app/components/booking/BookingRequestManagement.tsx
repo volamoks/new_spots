@@ -16,7 +16,7 @@ import BookingRole from '@/lib/enums/BookingRole';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { ZonePagination } from '@/app/components/zones/ZonePagination'; // Import reusable pagination
-import router from 'next/router';
+import { useRouter } from 'next/navigation'; // Correct import for App Router
 
 const BookingRequestManagement: React.FC = () => {
     // Get state/actions from new stores
@@ -40,10 +40,15 @@ const BookingRequestManagement: React.FC = () => {
 
     const { toast } = useToast(); // Initialize toast
     const { user } = useAuth();
+    const router = useRouter(); // Initialize the router hook
 
-    if (!user) {
-        router.push('/login'); // Redirect to login if user is not authenticated
-    }
+    // Effect for redirecting unauthenticated users
+    useEffect(() => {
+        // Only run the effect on the client-side after mount
+        if (typeof window !== 'undefined' && !user) {
+            router.push('/login');
+        }
+    }, [user, router]);
 
     // Centralized error handling for both stores
     useEffect(() => {
@@ -165,6 +170,11 @@ const BookingRequestManagement: React.FC = () => {
     };
 
     const getPageDescription = 'Просмотр и управление бронированиями';
+
+    // Render loading state or null while checking authentication (AFTER all hooks)
+    if (!user) {
+        return <div>Загрузка или перенаправление на страницу входа...</div>; // Or a loading spinner
+    }
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">

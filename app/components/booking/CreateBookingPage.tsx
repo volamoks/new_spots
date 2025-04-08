@@ -12,10 +12,11 @@ import ZonesTable from '../booking/ZonesTable';
 
 import SupplierSelection from '../booking/SupplierSelection';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
-import router from 'next/router';
+import { useRouter } from 'next/navigation'; // Correct import for App Router
 
 export default function CreateBookingPage() {
     const { isAuthenticated, user } = useAuth();
+    const router = useRouter(); // Initialize the router hook
 
     const setSelectedSupplierInnForCreation = useBookingActionsStore(
         state => state.setSelectedSupplierInnForCreation,
@@ -78,9 +79,17 @@ export default function CreateBookingPage() {
         </div>
     );
 
+    // Effect for redirecting unauthenticated users
+    useEffect(() => {
+        // Only run the effect on the client-side after mount
+        if (typeof window !== 'undefined' && !isAuthenticated) {
+            router.push('/login');
+        }
+    }, [isAuthenticated, router]);
+
+    // Render loading state or null while checking authentication
     if (!isAuthenticated) {
-        router.push('/login');
-        return <div>Пожалуйста, войдите в систему.</div>;
+        return <div>Загрузка или перенаправление на страницу входа...</div>; // Or a loading spinner
     }
 
     return (
