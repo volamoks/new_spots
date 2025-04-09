@@ -4,7 +4,7 @@ import { fetchZones } from "@/lib/zones";
 import { authOptions } from "@/lib/auth";
 import { ZoneStatus } from "@/types/zone";
 import { getCorrespondingMacrozones } from "@/lib/filterData";
-import redis from '@/lib/redis'; // Import Redis client
+import getRedisClient from '@/lib/redis'; // Import the function
 export const dynamic = 'force-dynamic'; // Force dynamic rendering
 
 export async function GET(request: Request) {
@@ -114,8 +114,9 @@ export async function GET(request: Request) {
     }
     const cacheKey = `zones:${JSON.stringify(keyParams)}`;
 
+    const redis = getRedisClient(); // Get the client instance outside the try block
     try {
-      const cachedData = await redis.get(cacheKey);
+      const cachedData = await redis.get(cacheKey); // Use the instance
       if (cachedData) {
         console.log(`Cache hit for zones key: ${cacheKey.substring(0, 100)}...`); // Log truncated key
         return NextResponse.json(JSON.parse(cachedData));
@@ -136,6 +137,7 @@ export async function GET(request: Request) {
 
     // --- Store in Redis ---
     try {
+      // redis instance is now available here due to declaration outside the try block
       await redis.set(cacheKey, JSON.stringify(result), 'EX', cacheTTL);
       console.log(`Cached zones data for key: ${cacheKey.substring(0, 100)}...`);
     } catch (redisError) {

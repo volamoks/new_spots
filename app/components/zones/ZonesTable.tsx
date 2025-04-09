@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react'; // Добавлен useState и React
+import React, { useState } from 'react'; // Removed unused useEffect
 import { useSession } from 'next-auth/react';
 import { ZoneKeys } from '@/types/zone'; // ZoneStatus removed
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
@@ -24,7 +24,7 @@ export function ZonesTable() {
         totalCount, // Get total count
         // uniqueFilterValues, // Получать в дочернем компоненте
         error,
-        fetchZones,
+        // fetchZones, // Removed unused fetchZones
         setSortCriteria,
         setPaginationCriteria, // Get pagination action
         toggleSelectAll,
@@ -55,11 +55,8 @@ export function ZonesTable() {
         zones.length > 0 && zones.every(zone => selectedZoneIds.has(zone.id));
 
     // --- Initial Data Fetch ---
-    useEffect(() => {
-        if (zones.length === 0 && !isLoading) {
-            fetchZones();
-        }
-    }, [fetchZones, zones.length, isLoading]);
+    // Removed problematic useEffect that caused infinite refetching
+    // Initial fetch is handled by the parent page component (DmpManagerZonesPage)
 
     // --- Handlers ---
     // Removed handleCreateBooking

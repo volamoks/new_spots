@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
-import { ZoneStatus } from "@/types/zone"
-import { Role } from "@prisma/client" // Import Role
+import { ZoneStatus } from "@/types/zone";
+import { Role, Zone, InnOrganization, Brand } from "@prisma/client"; // Import Role and Prisma types
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
@@ -203,30 +203,41 @@ export async function POST(req: NextRequest) {
     }
 
     // Save data to database based on type using the potentially filtered data
-    let savedData
+    let results;
+    let savedData = [];
+    let failedCount = 0;
+    const rowsAttempted = dataToProcess.length; // Rows that passed initial validation
+
     if (type === "zones") {
-      savedData = await Promise.all(dataToProcess.map(row => createOrUpdateZone(row as ZoneData)))
+      results = await Promise.allSettled(dataToProcess.map(row => createOrUpdateZone(row as ZoneData)));
+      savedData = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<Zone>).value);
+      failedCount = results.filter(r => r.status === 'rejected').length;
+      console.log(`[Zones Path] Processed ${results.length} rows. Succeeded: ${savedData.length}, Failed: ${failedCount}`);
     } else if (type === "inn") {
       // For 'inn', dataToProcess is the original 'data'
-      savedData = await Promise.all(dataToProcess.map(row => createOrUpdateSupplier(row as InnData)))
+      results = await Promise.allSettled(dataToProcess.map(row => createOrUpdateSupplier(row as InnData)));
+      savedData = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<InnOrganization>).value);
+      failedCount = results.filter(r => r.status === 'rejected').length;
+      console.log(`[INN Path] Processed ${results.length} rows. Succeeded: ${savedData.length}, Failed: ${failedCount}`);
     } else if (type === "brands") {
       // For 'brands', dataToProcess is the original 'data'
       console.log(`[Brands Path] Attempting to save ${dataToProcess.length} brand rows.`); // Log count before saving
-      // Use Promise.allSettled or map with individual try/catch to handle row errors
-      const results = await Promise.all(dataToProcess.map(async (row, index) => {
+      // Use Promise.allSettled or map with individual try/catch to handle row errors (already done)
+      results = await Promise.all(dataToProcess.map(async (row, index) => {
         try {
           // console.log(`[Brands Path] Processing row ${index + 2}:`, row); // Uncomment for very verbose logging
           const result = await createOrUpdateBrand(row as BrandData);
-          return { status: 'fulfilled', value: result, rowNum: index + 2 };
+          return { status: 'fulfilled', value: result, rowNum: index + 2 }; // Keep existing structure
         } catch (error) {
           console.error(`[Brands Path] Error processing row ${index + 2}:`, error);
-          return { status: 'rejected', reason: error, rowNum: index + 2 };
+          return { status: 'rejected', reason: error, rowNum: index + 2 }; // Keep existing structure
         }
       }));
 
       // Filter successful results
-      savedData = results.filter(r => r.status === 'fulfilled').map(r => r.value);
-      const failedCount = results.filter(r => r.status === 'rejected').length;
+      // Filter successful results (already done)
+      savedData = results.filter(r => r.status === 'fulfilled').map(r => (r as { status: 'fulfilled', value: Brand }).value); // Use Brand type
+      failedCount = results.filter(r => r.status === 'rejected').length;
 
       console.log(`[Brands Path] Successfully saved ${savedData.length} brand rows.`);
       if (failedCount > 0) {
@@ -236,13 +247,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Неизвестный тип импорта" }, { status: 400 })
     }
 
+    // Construct the response with detailed statistics
     return NextResponse.json({
-      message: "Данные успешно обработаны и сохранены",
-      processedRows: savedData.length, // Renamed 'count' for clarity
-      totalRows: data.length, // Total rows read from Excel (before filtering/validation)
-      data: savedData, // Optional: might remove this in production if large
-      headers: headers, // Debug: Include headers in success response
-    })
+      message: `Обработка завершена. Успешно: ${savedData.length}, Ошибки: ${failedCount}.`,
+      totalRowsRead: data.length, // Total rows read from Excel (excluding header)
+      rowsAttempted: rowsAttempted, // Rows passing initial validation
+      rowsSucceeded: savedData.length,
+      rowsFailed: failedCount,
+      // data: savedData, // Consider removing or limiting this in production
+      // headers: headers, // Debug info, maybe remove later
+    });
   } catch (error) {
     console.error("Ошибка при загрузке данных:", error)
     return NextResponse.json({

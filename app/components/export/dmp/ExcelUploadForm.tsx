@@ -2,7 +2,7 @@
 
 import type React from 'react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+// Remove unused useRouter import
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -185,10 +185,11 @@ const uploadExcelData = async (formData: FormData): Promise<unknown> => {
 
 // Define a type for the expected API success response
 interface UploadApiResponse {
-    processedRows?: number;
-    count?: number;
-    totalRows?: number;
-    // Add other potential success fields if known
+    message: string;
+    totalRowsRead: number;
+    rowsAttempted: number;
+    rowsSucceeded: number;
+    rowsFailed: number;
 }
 
 export function ExcelUploadForm() {
@@ -203,13 +204,15 @@ export function ExcelUploadForm() {
     // Use unknown[] for preview data state, as structure varies
     // Use Record<string, unknown>[] for preview data state
     const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
-    const router = useRouter();
+    const [uploadStats, setUploadStats] = useState<UploadApiResponse | null>(null); // State for statistics
+    // const router = useRouter(); // Removed unused router
     const { toast } = useToast();
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         setFile(null); // Reset file state immediately
         setPreviewData([]); // Clear preview
         setErrors([]); // Clear errors
+        setUploadStats(null); // Clear previous stats
 
         if (e.target.files && e.target.files.length > 0) {
             const selectedFile = e.target.files[0];
@@ -273,6 +276,7 @@ export function ExcelUploadForm() {
         setUploading(true);
         setProgress(0);
         setErrors([]);
+        setUploadStats(null); // Clear previous stats
 
         const formData = new FormData();
         formData.append('file', file);
@@ -291,31 +295,28 @@ export function ExcelUploadForm() {
             }, 500);
 
             // Use the extracted API call function
-            const data = await uploadExcelData(formData);
+            const responseData = await uploadExcelData(formData);
+            const stats = responseData as UploadApiResponse; // Assert type
 
             // Stop progress simulation *after* successful API call
             clearInterval(progressInterval);
             setProgress(100);
 
-            // No need to check response.ok here, uploadExcelData handles it
+            // Store stats
+            setUploadStats(stats);
 
+            // Show detailed toast
             toast({
-                title: 'Успешно',
-                // Adjust success message based on type and API response structure
-                // Safely access properties on 'data' (which is unknown)
-                // Use type assertion for the API response data
-                description: `Данные (${uploadType}) успешно загружены. Обработано строк: ${
-                    (data as UploadApiResponse)?.processedRows ??
-                    (data as UploadApiResponse)?.count ??
-                    'N/A'
-                }. Всего строк в файле: ${(data as UploadApiResponse)?.totalRows ?? 'N/A'}`,
-                variant: 'success',
+                title: 'Загрузка завершена',
+                description: `Успешно: ${stats.rowsSucceeded}, Ошибки: ${stats.rowsFailed} (из ${stats.rowsAttempted} попыток). Всего строк в файле: ${stats.totalRowsRead}.`,
+                variant: stats.rowsFailed > 0 ? 'destructive' : 'success', // Use destructive for errors
+                duration: 9000, // Keep toast longer
             });
 
-            // Даем время увидеть 100% прогресс
-            setTimeout(() => {
-                router.push('/dmp-manager');
-            }, 1000);
+            // Remove automatic redirect to show stats
+            // setTimeout(() => {
+            //     router.push('/dmp-manager'); // Or maybe refresh current page?
+            // }, 1000);
         } catch (error) {
             const errorMessage =
                 error instanceof Error ? error.message : 'Произошла ошибка при загрузке данных';
@@ -423,6 +424,35 @@ export function ExcelUploadForm() {
                 </div>
             )}
 
+            {/* Display Upload Statistics */}
+            {uploadStats && !uploading && (
+                <Alert variant={uploadStats.rowsFailed > 0 ? 'destructive' : 'default'}>
+                    <AlertTitle>Результаты импорта ({uploadType})</AlertTitle>
+                    <AlertDescription>
+                        <ul className="list-none space-y-1">
+                            <li>
+                                Прочитано строк из файла (без заголовка):{' '}
+                                {uploadStats.totalRowsRead}
+                            </li>
+                            <li>
+                                Строк прошло валидацию и отправлено на обработку:{' '}
+                                {uploadStats.rowsAttempted}
+                            </li>
+                            <li>Успешно сохранено/обновлено: {uploadStats.rowsSucceeded}</li>
+                            <li>
+                                Не удалось сохранить/обновить (ошибки): {uploadStats.rowsFailed}
+                            </li>
+                        </ul>
+                        {uploadStats.rowsFailed > 0 && (
+                            <p className="mt-2 text-xs">
+                                Подробности об ошибках смотрите в консоли сервера.
+                            </p>
+                        )}
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {/* Progress Bar */}
             {uploading && (
                 <div className="space-y-2">
                     <Progress
@@ -432,11 +462,11 @@ export function ExcelUploadForm() {
                     <p className="text-sm text-muted-foreground text-center">
                         {progress === 100 ? (
                             <span className="flex items-center justify-center">
-                                Загрузка завершена{' '}
+                                Обработка на сервере...{' '}
                                 <CheckCircle2 className="ml-2 h-4 w-4 text-green-500" />
                             </span>
                         ) : (
-                            `Загрузка... ${progress}%`
+                            `Загрузка файла... ${progress}%`
                         )}
                     </p>
                 </div>

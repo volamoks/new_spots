@@ -37,12 +37,17 @@ export default function DmpManagerZonesPage() {
     } = useRoleData('dmp'); // Use the new hook with the 'dmp' role
 
     useEffect(() => {
+        // Fetch initial data only when the session becomes available.
         if (session) {
-            // Fetch both zones and filter options on mount
+            console.log("--- Triggering initial data fetch (useEffect [session]) ---");
             fetchZones();
             fetchFilterOptions();
         }
-    }, [session, fetchZones, fetchFilterOptions]);
+        // We intentionally omit fetchZones and fetchFilterOptions from deps
+        // as they should be stable refs from the store, and we only want
+        // this effect to run once when the session is first available.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session]);
 
     const handleBulkStatusChange = async (newStatus: ZoneStatus) => {
         if (selectedZoneIds.size === 0) return; // Use .size for Set

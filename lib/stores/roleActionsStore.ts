@@ -337,23 +337,25 @@ export const useRoleData = (role: 'dmp' | 'supplier' | 'categoryManager') => {
   ), [session?.user]);
 
   // Prepare dependencies with specific functions from both stores
+  // Memoize dependencies, ensuring stability by depending on stable function refs from stores
   const dependencies: RoleActionsDependencies = React.useMemo(() => ({
-    // Zones Store Functions
+    // Zones Store Functions (Get stable references directly)
     getZonesState: useZonesStore.getState,
     setZonesState: useZonesStore.setState,
-    setFilterCriteria: zonesStoreSelectors.setFilterCriteria,
-    clearSpecificFilters: zonesStoreSelectors.clearSpecificFilters,
-    fetchZones: zonesStoreSelectors.fetchZones,
-    updateZoneLocally: zonesStoreSelectors.updateZoneLocally,
-    clearSelection: zonesStoreSelectors.clearSelection,
-    removeZonesLocally: zonesStoreSelectors.removeZonesLocally,
+    setFilterCriteria: useZonesStore.getState().setFilterCriteria, // Get stable ref via getState
+    clearSpecificFilters: useZonesStore.getState().clearSpecificFilters,
+    fetchZones: useZonesStore.getState().fetchZones,
+    updateZoneLocally: useZonesStore.getState().updateZoneLocally,
+    clearSelection: useZonesStore.getState().clearSelection,
+    removeZonesLocally: useZonesStore.getState().removeZonesLocally,
     // Booking Actions Store Functions
     getBookingActionsState: useBookingActionsStore.getState,
-    createBookingRequestAction: bookingActionsSelectors.createBookingRequest, // Pass the action
+    createBookingRequestAction: useBookingActionsStore.getState().createBookingRequest, // Get stable ref via getState
     // Other Dependencies
     toast,
     user,
-  }), [zonesStoreSelectors, bookingActionsSelectors, toast, user]); // Dependencies updated
+    // Depend on the stable function references and other stable values
+  }), [toast, user]); // Removed store selectors from dependency array
 
   // --- Create Role Actions Store Hook Instance ---
   // Memoize the hook creation itself
@@ -366,27 +368,51 @@ export const useRoleData = (role: 'dmp' | 'supplier' | 'categoryManager') => {
   const actions = useRoleActions();
 
   // --- Combine and Return Data/Actions ---
+  // Return a more stable object by selecting specific properties
+  // instead of spreading the entire zonesStoreSelectors
   return {
-    // Zones state and base actions
-    ...zonesStoreSelectors,
+    // State from zonesStore needed by components
+    isLoading: zonesStoreSelectors.isLoading,
+    isLoadingFilters: zonesStoreSelectors.isLoadingFilters, // Keep if needed for UI indicators
+    zones: zonesStoreSelectors.zones, // Needed by ZonesTable
+    totalCount: zonesStoreSelectors.totalCount, // Needed by ZonesSummaryCard, ZonesTable pagination
+    selectedZoneIds: zonesStoreSelectors.selectedZoneIds, // Needed by DmpManagerZonesPage, ZonesTable
+    filterCriteria: zonesStoreSelectors.filterCriteria, // Needed by ZonesFilters, InteractiveZoneFilters
+    sortCriteria: zonesStoreSelectors.sortCriteria, // Needed by ZonesTable
+    paginationCriteria: zonesStoreSelectors.paginationCriteria, // Needed by ZonesTable
+    uniqueFilterValues: zonesStoreSelectors.uniqueFilterValues, // Needed by InteractiveZoneFilters
+    error: zonesStoreSelectors.error, // Potentially for display
+    filtersError: zonesStoreSelectors.filtersError, // Potentially for display
+
+    // Actions from zonesStore needed by components (use stable refs from dependencies or getState)
+    fetchZones: dependencies.fetchZones,
+    fetchFilterOptions: useZonesStore.getState().fetchFilterOptions, // Get stable ref
+    setFilterCriteria: dependencies.setFilterCriteria,
+    setSortCriteria: useZonesStore.getState().setSortCriteria, // Get stable ref
+    setPaginationCriteria: useZonesStore.getState().setPaginationCriteria, // Get stable ref
+    toggleZoneSelection: useZonesStore.getState().toggleZoneSelection, // Get stable ref
+    toggleSelectAll: useZonesStore.getState().toggleSelectAll, // Get stable ref
+    clearSelection: dependencies.clearSelection,
+    updateZoneLocally: dependencies.updateZoneLocally,
+    removeZonesLocally: dependencies.removeZonesLocally,
+    clearSpecificFilters: dependencies.clearSpecificFilters,
+    resetFilters: useZonesStore.getState().resetFilters, // Get stable ref
 
     // Booking creation state/actions (relevant for CM and potentially DMP)
     ...(role === 'dmp' || role === 'categoryManager' ? {
-      selectedZonesForCreation: bookingActionsSelectors.selectedZonesForCreation, // Type is Set<string>
+      selectedZonesForCreation: bookingActionsSelectors.selectedZonesForCreation,
       selectedSupplierInnForCreation: bookingActionsSelectors.selectedSupplierInnForCreation,
-      selectedBrandId: bookingActionsSelectors.selectedBrandId, // Pass through brand ID state
-      // isCreatingBooking: bookingActionsSelectors.isCreating, // Removed - loading handled globally
+      selectedBrandId: bookingActionsSelectors.selectedBrandId,
       createBookingError: bookingActionsSelectors.createError,
-      // Ensure correct types for Set based actions if needed, though direct pass-through is fine
       setSelectedZonesForCreation: bookingActionsSelectors.setSelectedZonesForCreation,
       addSelectedZoneForCreation: bookingActionsSelectors.addSelectedZoneForCreation,
       removeSelectedZoneForCreation: bookingActionsSelectors.removeSelectedZoneForCreation,
       clearSelectedZonesForCreation: bookingActionsSelectors.clearSelectedZonesForCreation,
       setSelectedSupplierInnForCreation: bookingActionsSelectors.setSelectedSupplierInnForCreation,
-      setSelectedBrandId: bookingActionsSelectors.setSelectedBrandId, // Pass through brand ID action
+      setSelectedBrandId: bookingActionsSelectors.setSelectedBrandId,
     } : {}),
 
-    // Actions specific to the role
+    // Actions specific to the role (defined within createRoleActionsStore)
     ...actions,
   };
 };

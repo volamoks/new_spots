@@ -1,78 +1,64 @@
-// File: app/api/zones/bulk-delete/route.ts
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Prisma, Role } from '@prisma/client'; // Added Role
-import redis from '@/lib/redis';
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import getRedisClient from '@/lib/redis'; // Import the function
 
-export async function POST(request: Request) {
-    try {
-        // --- Authentication & Authorization Check ---
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
-        if (session.user.role !== Role.DMP_MANAGER) {
-            return NextResponse.json(
-                { error: "Forbidden: Only DMP Managers can bulk delete zones." },
-                { status: 403 }
-            )
-        }
-        // --- End Check ---
-
-        const body = await request.json();
-        const { zoneIds } = body;
-
-        // Валидация входных данных
-        if (!Array.isArray(zoneIds) || zoneIds.length === 0) {
-            return NextResponse.json({ error: 'zoneIds must be a non-empty array' }, { status: 400 });
-        }
-
-        // Удаляем зоны
-        const result = await prisma.zone.deleteMany({
-            where: {
-                id: {
-                    in: zoneIds,
-                },
-            },
-        });
-
-        console.log(`Bulk deleted ${result.count} zones`);
-
-        // --- Cache Invalidation ---
-        if (result.count > 0) { // Only invalidate if something was actually deleted
-            try {
-                const keys = await redis.keys('zones:*'); // Find all zone cache keys
-                if (keys.length > 0) {
-                    await redis.del(keys); // Delete them
-                    console.log(`Invalidated ${keys.length} zone cache keys after bulk delete.`);
-                }
-            } catch (redisError) {
-                console.error("Redis cache invalidation error during bulk delete:", redisError);
-                // Log error but don't fail the request
-            }
-        }
-        // --- End Cache Invalidation ---
-
-        // Возвращаем количество удаленных записей
-        return NextResponse.json({ count: result.count }, { status: 200 });
-
-    } catch (error) {
-        console.error('Error during bulk zone delete:', error);
-
-        // Обработка ошибки внешнего ключа (P2003)
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-            return NextResponse.json(
-                {
-                    error: 'Cannot delete some zones because they are associated with existing bookings.',
-                    code: 'P2003',
-                },
-                { status: 409 }, // 409 Conflict
-            );
-        }
-
-        // Общая ошибка сервера
-        return NextResponse.json({ error: 'Failed to bulk delete zones' }, { status: 500 });
+export async function DELETE(request: Request) {
+  try {
+    // 1. Authorization Check
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'DMP_MANAGER') { // Ensure only DMP Managers can delete
+      console.log("API bulk-delete: Unauthorized attempt.");
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // 2. Parse Request Body
+    const { zoneIds } = await request.json();
+
+    if (!Array.isArray(zoneIds) || zoneIds.length === 0) {
+      console.log("API bulk-delete: Invalid or empty zoneIds received.");
+      return NextResponse.json({ error: 'Invalid input: zoneIds must be a non-empty array.' }, { status: 400 });
+    }
+
+    console.log(`API bulk-delete: User ${session.user.id} attempting to delete ${zoneIds.length} zones.`);
+
+    // 3. Database Operation
+    const deleteResult = await prisma.zone.deleteMany({
+      where: {
+        id: {
+          in: zoneIds,
+        },
+      },
+    });
+
+    console.log(`API bulk-delete: Successfully deleted ${deleteResult.count} zones.`);
+
+    // 4. Cache Invalidation (Important!)
+    // Since deleting zones affects potentially many cached GET requests,
+    // a simple approach is to invalidate all zone-related keys.
+    // A more complex approach could try to identify specific keys, but might be error-prone.
+    try {
+      const redis = getRedisClient(); // Get the client instance
+      const keys = await redis.keys('zones:*'); // Find all keys starting with 'zones:'
+      if (keys.length > 0) {
+        await redis.del(keys); // Use the instance
+        console.log(`API bulk-delete: Invalidated ${keys.length} zone cache keys.`);
+      }
+    } catch (redisError) {
+      console.error("API bulk-delete: Redis cache invalidation failed:", redisError);
+      // Log the error but don't fail the request, deletion was successful.
+    }
+
+    // 5. Return Success Response
+    return NextResponse.json({ message: `Successfully deleted ${deleteResult.count} zones.` }, { status: 200 });
+
+  } catch (error) {
+    console.error("API bulk-delete: Error deleting zones:", error);
+    // Distinguish between known errors (like invalid input) and server errors
+    if (error instanceof SyntaxError) { // JSON parsing error
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to delete zones' }, { status: 500 });
+  }
 }
