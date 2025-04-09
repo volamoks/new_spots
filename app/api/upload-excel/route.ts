@@ -162,8 +162,8 @@ export async function POST(req: NextRequest) {
         const dbStartTime = Date.now();
 
         if (type === "zones") {
-            // Use the new transaction-based function
-            const result = await batchUpsertZonesWithTransaction(dataToProcess as ZoneData[]);
+            // *** CALL THE NEW OPTIMIZED FUNCTION ***
+            const result = await batchUpsertZonesOptimized(dataToProcess as ZoneData[]);
             createdCount = result.created;
             updatedCount = result.updated;
             failedCount = result.failed;
@@ -249,107 +249,103 @@ function formatZoneData(zoneData: ZoneData): Omit<Prisma.ZoneCreateInput, 'uniqu
 }
 
 
-// --- Batch Upsert Logic for Zones (Using Transaction) ---
-async function batchUpsertZonesWithTransaction(zoneDataArray: ZoneData[]) {
+// --- Batch Upsert Logic for Zones (Optimized with createMany + updates in Tx) ---
+async function batchUpsertZonesOptimized(zoneDataArray: ZoneData[]) {
     let createdCount = 0;
     let updatedCount = 0;
-    let skippedCount = 0; // Count rows skipped due to missing ID *before* transaction
+    let skippedCount = 0; // Count rows skipped due to missing ID
 
-    // Pre-filter identifiers to potentially reduce findMany query size
+    const zonesToCreate: Prisma.ZoneCreateManyInput[] = [];
+    const updatesToPerform: { where: Prisma.ZoneWhereUniqueInput; data: Prisma.ZoneUpdateInput }[] = [];
+
+    // 1. Pre-filter and prepare data structures
     const validEntries = zoneDataArray
         .map(zoneData => ({
             uniqueIdentifier: zoneData["Уникальный идентификатор"],
-            data: zoneData // Keep original data for formatting later
+            data: zoneData
         }))
         .filter(entry => {
             if (!entry.uniqueIdentifier) {
-                console.warn("[Zones Tx] Skipping row due to missing unique identifier:", entry.data);
+                console.warn("[Zones Optimized] Skipping row due to missing unique identifier:", entry.data);
                 skippedCount++;
                 return false;
             }
             return true;
-        }) as { uniqueIdentifier: string; data: ZoneData }[]; // Type assertion after filter
+        }) as { uniqueIdentifier: string; data: ZoneData }[];
 
     if (validEntries.length === 0) {
-        console.warn("[Zones Tx] No valid entries with unique identifiers found.");
+        console.warn("[Zones Optimized] No valid entries with unique identifiers found.");
         return { created: 0, updated: 0, failed: zoneDataArray.length };
     }
 
     const uniqueIdentifiers = validEntries.map(entry => entry.uniqueIdentifier);
 
     try {
-        const result = await prisma.$transaction(async (tx) => {
-            let txCreated = 0;
-            let txUpdated = 0;
+        // 2. Find existing zones *before* the transaction
+        console.log(`[Zones Optimized] Finding existing zones for ${uniqueIdentifiers.length} unique IDs.`);
+        const existingZones = await prisma.zone.findMany({
+            where: { uniqueIdentifier: { in: uniqueIdentifiers } },
+            select: { uniqueIdentifier: true },
+        });
+        const existingIds = new Set(existingZones.map(z => z.uniqueIdentifier));
+        console.log(`[Zones Optimized] Found ${existingIds.size} existing zones.`);
 
-            // 1. Find existing zones within the transaction
-            const existingZones = await tx.zone.findMany({
-                where: { uniqueIdentifier: { in: uniqueIdentifiers } },
-                select: { uniqueIdentifier: true }, // Select only necessary field
-            });
-            const existingIds = new Set(existingZones.map(z => z.uniqueIdentifier));
-            console.log(`[Zones Tx] Found ${existingIds.size} existing zones among ${uniqueIdentifiers.length} unique IDs.`);
+        // 3. Separate into create and update lists
+        for (const entry of validEntries) {
+            const formattedData = formatZoneData(entry.data);
+            if (existingIds.has(entry.uniqueIdentifier)) {
+                updatesToPerform.push({
+                    where: { uniqueIdentifier: entry.uniqueIdentifier },
+                    data: formattedData
+                });
+            } else {
+                zonesToCreate.push({
+                    uniqueIdentifier: entry.uniqueIdentifier,
+                    ...formattedData
+                });
+            }
+        }
+        console.log(`[Zones Optimized] Prepared ${zonesToCreate.length} creates and ${updatesToPerform.length} updates.`);
 
-            // 2. Iterate and perform create or update within the transaction
-            for (const entry of validEntries) {
-                const formattedData = formatZoneData(entry.data); // Format data here
-
-                if (existingIds.has(entry.uniqueIdentifier)) {
-                    // Update existing
-                    try {
-                        await tx.zone.update({
-                            where: { uniqueIdentifier: entry.uniqueIdentifier },
-                            data: formattedData,
-                        });
-                        txUpdated++;
-                    } catch (updateError) {
-                        console.error(`[Zones Tx] Failed to update zone ${entry.uniqueIdentifier}:`, updateError);
-                        // Decide how to handle: throw to rollback all, or just log and continue?
-                        // For bulk uploads, often better to log and continue if possible.
-                        // Re-throwing will rollback the entire transaction.
-                        throw updateError; // Rollback transaction on individual update failure
-                    }
-                } else {
-                    // Create new
-                    try {
-                        await tx.zone.create({
-                            data: {
-                                uniqueIdentifier: entry.uniqueIdentifier,
-                                ...formattedData
-                            },
-                        });
-                        txCreated++;
-                    } catch (createError) {
-                        console.error(`[Zones Tx] Failed to create zone ${entry.uniqueIdentifier}:`, createError);
-                        // Check for unique constraint violation specifically if needed
-                        if (createError instanceof Prisma.PrismaClientKnownRequestError && createError.code === 'P2002') {
-                            console.warn(`[Zones Tx] Zone ${entry.uniqueIdentifier} might have been created concurrently or check failed.`);
-                            // Decide if this should cause rollback or be treated as a specific failure type
-                        }
-                        throw createError; // Rollback transaction on individual create failure
-                    }
-                }
+        // 4. Execute in a single transaction
+        await prisma.$transaction(async (tx) => {
+            // Perform creations
+            if (zonesToCreate.length > 0) {
+                console.log(`[Zones Tx] Executing createMany for ${zonesToCreate.length} zones.`);
+                const createResult = await tx.zone.createMany({
+                    data: zonesToCreate,
+                    skipDuplicates: true, // Important in case of race conditions or duplicate IDs in input
+                });
+                createdCount = createResult.count;
+                console.log(`[Zones Tx] createMany result count: ${createdCount}`);
             }
 
-            console.log(`[Zones Tx] Transaction summary: Created ${txCreated}, Updated ${txUpdated}`);
-            return { created: txCreated, updated: txUpdated };
-
+            // Perform updates sequentially (updateMany doesn't support unique conditions per row easily)
+            if (updatesToPerform.length > 0) {
+                console.log(`[Zones Tx] Executing ${updatesToPerform.length} updates sequentially.`);
+                let updateSuccess = 0;
+                for (const updateArgs of updatesToPerform) {
+                    // Add try-catch for individual updates if needed, otherwise transaction rollback handles it
+                    await tx.zone.update(updateArgs);
+                    updateSuccess++;
+                }
+                updatedCount = updateSuccess; // Count successful updates
+                console.log(`[Zones Tx] Completed ${updatedCount} updates.`);
+            }
         }, {
-            maxWait: 15000, // Allow longer wait time for transaction acquisition (default 2000ms)
-            // timeout: 30000, // Removed: Prisma Accelerate has a hard limit of 15000ms for interactive transactions (P6005 error)
+            maxWait: 15000,
+            timeout: 15000, // Keep the max allowed timeout
         });
 
-        createdCount = result.created;
-        updatedCount = result.updated;
-        // Failed count = total attempted - successful (created + updated) - initially skipped
+        // Calculate failures based on initial skips and transaction success
         const failedCount = zoneDataArray.length - createdCount - updatedCount - skippedCount;
+        console.log(`[Zones Optimized] Transaction successful. Created: ${createdCount}, Updated: ${updatedCount}, Failed/Skipped: ${failedCount}`);
         return { created: createdCount, updated: updatedCount, failed: failedCount };
 
     } catch (error) {
-        console.error("[Zones Tx] Transaction failed:", error);
-        // If transaction fails, all operations within it are rolled back.
-        // All entries attempted within the transaction are considered failed.
-        const failedCount = zoneDataArray.length - skippedCount; // All valid entries failed
+        console.error("[Zones Optimized] Transaction failed:", error);
+        // If transaction fails, assume all attempted operations within it failed
+        const failedCount = zoneDataArray.length - skippedCount;
         return { created: 0, updated: 0, failed: failedCount };
     }
 }
