@@ -8,244 +8,244 @@ import { authOptions } from "@/lib/auth"
 
 // Общий интерфейс для данных из Excel
 interface ExcelData {
-  [key: string]: string | number | null | undefined;
+    [key: string]: string | number | null | undefined;
 }
 
 // Интерфейс для данных зон
 interface ZoneData extends ExcelData {
-  "Уникальный идентификатор"?: string;
-  "Область"?: string;
-  "Город"?: string;
-  "№"?: string;
-  "Маркет"?: string;
-  "Формат маркета"?: string;
-  "Формат оборудования"?: string;
-  "Оборудование"?: string;
-  "Цена"?: string | number;
-  "ID"?: string;
-  "Габариты"?: string;
-  "Сектор"?: string;
-  "КМ"?: string;
-  "Основная Макрозона"?: string;
-  "Смежная макрозона"?: string;
-  "Товарное соседство ДМП"?: string;
-  "Назначение"?: string;
-  "Подназначение"?: string;
-  "Категория"?: string;
-  "Поставщик"?: string | null;
-  "Brand"?: string | null;
-  "Категория товара"?: string | null;
-  "Статус"?: string;
+    "Уникальный идентификатор"?: string;
+    "Область"?: string;
+    "Город"?: string;
+    "№"?: string;
+    "Маркет"?: string;
+    "Формат маркета"?: string;
+    "Формат оборудования"?: string;
+    "Оборудование"?: string;
+    "Цена"?: string | number;
+    "ID"?: string;
+    "Габариты"?: string;
+    "Сектор"?: string;
+    "КМ"?: string;
+    "Основная Макрозона"?: string;
+    "Смежная макрозона"?: string;
+    "Товарное соседство ДМП"?: string;
+    "Назначение"?: string;
+    "Подназначение"?: string;
+    "Категория"?: string;
+    "Поставщик"?: string | null;
+    "Brand"?: string | null;
+    "Категория товара"?: string | null;
+    "Статус"?: string;
 }
 
 // Интерфейс для данных ИНН
 interface InnData extends ExcelData {
-  "Поставщик"?: string;
-  "Налоговый номер"?: string;
+    "Поставщик"?: string;
+    "Налоговый номер"?: string;
 }
 
 // Интерфейс для данных Брендов
 interface BrandData extends ExcelData {
-  "Название Бренда"?: string; // Brand Name
-  "ИНН Поставщика"?: string; // Optional Supplier INN
+    "Название Бренда"?: string; // Brand Name
+    "ИНН Поставщика"?: string; // Optional Supplier INN
 }
 
 export async function POST(req: NextRequest) {
-  const startTime = Date.now();
-  console.log(`[Upload Start] Received request at ${new Date(startTime).toISOString()}`);
-  try {
-    // --- Authentication & Authorization Check ---
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    if (session.user.role !== Role.DMP_MANAGER) {
-      return NextResponse.json(
-        { error: "Forbidden: Only DMP Managers can upload data." },
-        { status: 403 }
-      )
-    }
-    console.log(`[Auth Check] Passed. Time: ${Date.now() - startTime} ms`);
-
-    // --- Form Data & File Reading ---
-    const formData = await req.formData()
-    const file = formData.get("file") as File
-    const type = formData.get("type") as string || req.nextUrl.searchParams.get("type") || "zones"
-
-    if (!file) {
-      return NextResponse.json({ error: "Файл не загружен" }, { status: 400 })
-    }
-
-    // --- File Size Check (Vercel Hobby Limit ~4.5MB) ---
-    const VERCEL_HOBBY_LIMIT = 4.5 * 1024 * 1024;
-    console.log(`[File Check] Size: ${file.size} bytes`);
-    if (file.size > VERCEL_HOBBY_LIMIT) {
-        console.error(`[File Check] File size ${file.size} exceeds limit ${VERCEL_HOBBY_LIMIT}`);
-        return NextResponse.json({ error: `Файл слишком большой (${(file.size / (1024*1024)).toFixed(2)} MB). Максимальный размер: 4.5 MB.` }, { status: 413 }); // 413 Payload Too Large
-    }
-
-    const buffer = await file.arrayBuffer()
-    console.log(`[File Read] Read into buffer. Time: ${Date.now() - startTime} ms`);
-
-    // --- Excel Parsing ---
-    const workbook = XLSX.read(buffer, { type: "buffer", codepage: 65001, cellDates: true, raw: true });
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const headers: { [key: string]: number } = {}
-    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:Z1")
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-        const address = XLSX.utils.encode_cell({ r: range.s.r, c: C })
-        const cell = worksheet[address]
-        if (cell && cell.v) {
-            const headerName = cell.v.toString().replace(/["\n\r]/g, "").replace(/\s+/g, " ").trim()
-            headers[headerName] = C
-            cell.v = headerName
-            cell.w = headerName
+    const startTime = Date.now();
+    console.log(`[Upload Start] Received request at ${new Date(startTime).toISOString()}`);
+    try {
+        // --- Authentication & Authorization Check ---
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
-    }
-    const data: ExcelData[] = []
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-        const row: ExcelData = {}
+        if (session.user.role !== Role.DMP_MANAGER) {
+            return NextResponse.json(
+                { error: "Forbidden: Only DMP Managers can upload data." },
+                { status: 403 }
+            )
+        }
+        console.log(`[Auth Check] Passed. Time: ${Date.now() - startTime} ms`);
+
+        // --- Form Data & File Reading ---
+        const formData = await req.formData()
+        const file = formData.get("file") as File
+        const type = formData.get("type") as string || req.nextUrl.searchParams.get("type") || "zones"
+
+        if (!file) {
+            return NextResponse.json({ error: "Файл не загружен" }, { status: 400 })
+        }
+
+        // --- File Size Check (Vercel Hobby Limit ~4.5MB) ---
+        const VERCEL_HOBBY_LIMIT = 4.5 * 1024 * 1024;
+        console.log(`[File Check] Size: ${file.size} bytes`);
+        if (file.size > VERCEL_HOBBY_LIMIT) {
+            console.error(`[File Check] File size ${file.size} exceeds limit ${VERCEL_HOBBY_LIMIT}`);
+            return NextResponse.json({ error: `Файл слишком большой (${(file.size / (1024 * 1024)).toFixed(2)} MB). Максимальный размер: 4.5 MB.` }, { status: 413 }); // 413 Payload Too Large
+        }
+
+        const buffer = await file.arrayBuffer()
+        console.log(`[File Read] Read into buffer. Time: ${Date.now() - startTime} ms`);
+
+        // --- Excel Parsing ---
+        const workbook = XLSX.read(buffer, { type: "buffer", codepage: 65001, cellDates: true, raw: true });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const headers: { [key: string]: number } = {}
+        const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:Z1")
         for (let C = range.s.c; C <= range.e.c; ++C) {
-            const address = XLSX.utils.encode_cell({ r: R, c: C })
+            const address = XLSX.utils.encode_cell({ r: range.s.r, c: C })
             const cell = worksheet[address]
-            const headerAddress = XLSX.utils.encode_cell({ r: range.s.r, c: C })
-            const headerCell = worksheet[headerAddress]
-            if (headerCell && headerCell.v) {
-                const headerName = headerCell.v.toString()
-                if (headerName === "Цена" && cell && typeof cell.v === 'string' && !isNaN(parseFloat(cell.v))) {
-                    row[headerName] = parseFloat(cell.v);
-                } else {
-                    row[headerName] = cell ? cell.v : null
-                }
+            if (cell && cell.v) {
+                const headerName = cell.v.toString().replace(/["\n\r]/g, "").replace(/\s+/g, " ").trim()
+                headers[headerName] = C
+                cell.v = headerName
+                cell.w = headerName
             }
         }
-        data.push(row)
+        const data: ExcelData[] = []
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            const row: ExcelData = {}
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const address = XLSX.utils.encode_cell({ r: R, c: C })
+                const cell = worksheet[address]
+                const headerAddress = XLSX.utils.encode_cell({ r: range.s.r, c: C })
+                const headerCell = worksheet[headerAddress]
+                if (headerCell && headerCell.v) {
+                    const headerName = headerCell.v.toString()
+                    if (headerName === "Цена" && cell && typeof cell.v === 'string' && !isNaN(parseFloat(cell.v))) {
+                        row[headerName] = parseFloat(cell.v);
+                    } else {
+                        row[headerName] = cell ? cell.v : null
+                    }
+                }
+            }
+            data.push(row)
+        }
+        console.log(`[Excel Parse] Parsed ${data.length} rows. Time: ${Date.now() - startTime} ms`);
+
+        // --- Validation ---
+        const validationErrors: string[] = []
+        let dataToProcess = data;
+        if (type === "zones") {
+            const filteredData = data.filter(row => row["Поставщик"] && row["Brand"] && row["Категория товара"]);
+            dataToProcess = filteredData;
+            dataToProcess.forEach((row, index) => {
+                const rowNum = index + 2
+                if (!row["Уникальный идентификатор"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует уникальный идентификатор`)
+                if (!row["Город"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует город`)
+                if (!row["Маркет"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует маркет`)
+                if (!row["Основная Макрозона"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует основная макрозона`)
+            })
+        } else if (type === "inn") {
+            dataToProcess.forEach((row, index) => {
+                const rowNum = index + 2
+                if (!row["Поставщик"]) validationErrors.push(`Строка ${rowNum}: Отсутствует название поставщика`)
+                if (!row["Налоговый номер"]) validationErrors.push(`Строка ${rowNum}: Отсутствует ИНН`)
+            })
+        } else if (type === "brands") {
+            dataToProcess.forEach((row, index) => {
+                const rowNum = index + 2
+                if (!row["Название Бренда"]) validationErrors.push(`Строка ${rowNum}: Отсутствует Название Бренда`)
+            })
+        }
+        if (validationErrors.length > 0) {
+            return NextResponse.json({ error: "Ошибки валидации", details: validationErrors, firstRow: data[0] }, { status: 400 });
+        }
+        console.log(`[Validation] Passed. Time: ${Date.now() - startTime} ms`);
+
+        // --- Batch Save Logic ---
+        let savedCount = 0; // General count for upserted records (inn, brands)
+        let updatedCount = 0; // Specific count for updated zones
+        let createdCount = 0; // Specific count for created zones
+        let failedCount = 0;
+        const rowsAttempted = dataToProcess.length;
+        const dbStartTime = Date.now();
+
+        if (type === "zones") {
+            // Use the new transaction-based function
+            const result = await batchUpsertZonesWithTransaction(dataToProcess as ZoneData[]);
+            createdCount = result.created;
+            updatedCount = result.updated;
+            failedCount = result.failed;
+            console.log(`[Zones DB] Processed ${rowsAttempted} rows. Created: ${createdCount}, Updated: ${updatedCount}, Failed: ${failedCount}. DB Time: ${Date.now() - dbStartTime} ms`);
+
+        } else if (type === "inn") {
+            const { upserted, failed } = await batchUpsertSuppliers(dataToProcess as InnData[]);
+            savedCount = upserted;
+            failedCount = failed;
+            console.log(`[INN DB] Processed ${rowsAttempted} rows. Upserted: ${savedCount}, Failed: ${failedCount}. DB Time: ${Date.now() - dbStartTime} ms`);
+
+        } else if (type === "brands") {
+            const { upserted, failed } = await batchUpsertBrands(dataToProcess as BrandData[]);
+            savedCount = upserted;
+            failedCount = failed;
+            console.log(`[Brands DB] Processed ${rowsAttempted} rows. Upserted: ${savedCount}, Failed: ${failedCount}. DB Time: ${Date.now() - dbStartTime} ms`);
+
+        } else {
+            return NextResponse.json({ error: "Неизвестный тип импорта" }, { status: 400 })
+        }
+
+        // --- Response ---
+        const successCount = type === "zones" ? createdCount + updatedCount : savedCount;
+        const totalTime = Date.now() - startTime;
+        console.log(`[Upload End] Completed. Total time: ${totalTime} ms`);
+        return NextResponse.json({
+            message: `Обработка завершена. Успешно создано/обновлено: ${successCount}, Ошибки: ${failedCount}. Время: ${totalTime} ms`,
+            totalRowsRead: data.length,
+            rowsAttempted: rowsAttempted,
+            rowsCreated: type === "zones" ? createdCount : undefined,
+            rowsUpdated: type === "zones" ? updatedCount : undefined,
+            rowsSucceeded: successCount,
+            rowsFailed: failedCount,
+        });
+
+    } catch (error) {
+        const totalTime = Date.now() - startTime;
+        console.error(`[Upload Error] Error after ${totalTime} ms:`, error);
+        // Ensure a valid JSON response even on unexpected errors
+        return NextResponse.json({
+            error: "Произошла внутренняя ошибка сервера при обработке файла",
+            details: error instanceof Error ? error.message : String(error),
+        }, { status: 500 })
     }
-    console.log(`[Excel Parse] Parsed ${data.length} rows. Time: ${Date.now() - startTime} ms`);
-
-    // --- Validation ---
-    const validationErrors: string[] = []
-    let dataToProcess = data;
-    if (type === "zones") {
-        const filteredData = data.filter(row => row["Поставщик"] && row["Brand"] && row["Категория товара"]);
-        dataToProcess = filteredData;
-        dataToProcess.forEach((row, index) => {
-            const rowNum = index + 2
-            if (!row["Уникальный идентификатор"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует уникальный идентификатор`)
-            if (!row["Город"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует город`)
-            if (!row["Маркет"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует маркет`)
-            if (!row["Основная Макрозона"]) validationErrors.push(`Строка ${rowNum} (после фильтрации): Отсутствует основная макрозона`)
-        })
-    } else if (type === "inn") {
-        dataToProcess.forEach((row, index) => {
-            const rowNum = index + 2
-            if (!row["Поставщик"]) validationErrors.push(`Строка ${rowNum}: Отсутствует название поставщика`)
-            if (!row["Налоговый номер"]) validationErrors.push(`Строка ${rowNum}: Отсутствует ИНН`)
-        })
-    } else if (type === "brands") {
-        dataToProcess.forEach((row, index) => {
-            const rowNum = index + 2
-            if (!row["Название Бренда"]) validationErrors.push(`Строка ${rowNum}: Отсутствует Название Бренда`)
-        })
-    }
-    if (validationErrors.length > 0) {
-        return NextResponse.json({ error: "Ошибки валидации", details: validationErrors, firstRow: data[0] }, { status: 400 });
-    }
-    console.log(`[Validation] Passed. Time: ${Date.now() - startTime} ms`);
-
-    // --- Batch Save Logic ---
-    let savedCount = 0; // General count for upserted records (inn, brands)
-    let updatedCount = 0; // Specific count for updated zones
-    let createdCount = 0; // Specific count for created zones
-    let failedCount = 0;
-    const rowsAttempted = dataToProcess.length;
-    const dbStartTime = Date.now();
-
-    if (type === "zones") {
-      // Use the new transaction-based function
-      const result = await batchUpsertZonesWithTransaction(dataToProcess as ZoneData[]);
-      createdCount = result.created;
-      updatedCount = result.updated;
-      failedCount = result.failed;
-      console.log(`[Zones DB] Processed ${rowsAttempted} rows. Created: ${createdCount}, Updated: ${updatedCount}, Failed: ${failedCount}. DB Time: ${Date.now() - dbStartTime} ms`);
-
-    } else if (type === "inn") {
-      const { upserted, failed } = await batchUpsertSuppliers(dataToProcess as InnData[]);
-      savedCount = upserted;
-      failedCount = failed;
-      console.log(`[INN DB] Processed ${rowsAttempted} rows. Upserted: ${savedCount}, Failed: ${failedCount}. DB Time: ${Date.now() - dbStartTime} ms`);
-
-    } else if (type === "brands") {
-       const { upserted, failed } = await batchUpsertBrands(dataToProcess as BrandData[]);
-       savedCount = upserted;
-       failedCount = failed;
-       console.log(`[Brands DB] Processed ${rowsAttempted} rows. Upserted: ${savedCount}, Failed: ${failedCount}. DB Time: ${Date.now() - dbStartTime} ms`);
-
-    } else {
-      return NextResponse.json({ error: "Неизвестный тип импорта" }, { status: 400 })
-    }
-
-    // --- Response ---
-    const successCount = type === "zones" ? createdCount + updatedCount : savedCount;
-    const totalTime = Date.now() - startTime;
-    console.log(`[Upload End] Completed. Total time: ${totalTime} ms`);
-    return NextResponse.json({
-      message: `Обработка завершена. Успешно создано/обновлено: ${successCount}, Ошибки: ${failedCount}. Время: ${totalTime} ms`,
-      totalRowsRead: data.length,
-      rowsAttempted: rowsAttempted,
-      rowsCreated: type === "zones" ? createdCount : undefined,
-      rowsUpdated: type === "zones" ? updatedCount : undefined,
-      rowsSucceeded: successCount,
-      rowsFailed: failedCount,
-    });
-
-  } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`[Upload Error] Error after ${totalTime} ms:`, error);
-    // Ensure a valid JSON response even on unexpected errors
-    return NextResponse.json({
-      error: "Произошла внутренняя ошибка сервера при обработке файла",
-      details: error instanceof Error ? error.message : String(error),
-    }, { status: 500 })
-  }
 }
 
 // --- Helper function to format zone data for Prisma ---
 function formatZoneData(zoneData: ZoneData): Omit<Prisma.ZoneCreateInput, 'uniqueIdentifier'> {
-  const status = getZoneStatus(zoneData["Статус"] || "");
-  let price: number | undefined = undefined;
-  if (zoneData["Цена"] !== undefined && zoneData["Цена"] !== null) {
-    price = typeof zoneData["Цена"] === 'number'
-      ? zoneData["Цена"]
-      : parseFloat(String(zoneData["Цена"])); // Ensure string conversion before parseFloat
-    if (isNaN(price)) {
-      price = undefined;
+    const status = getZoneStatus(zoneData["Статус"] || "");
+    let price: number | undefined = undefined;
+    if (zoneData["Цена"] !== undefined && zoneData["Цена"] !== null) {
+        price = typeof zoneData["Цена"] === 'number'
+            ? zoneData["Цена"]
+            : parseFloat(String(zoneData["Цена"])); // Ensure string conversion before parseFloat
+        if (isNaN(price)) {
+            price = undefined;
+        }
     }
-  }
 
-  return {
-    city: zoneData["Город"] || "",
-    number: zoneData["№"] || "",
-    market: zoneData["Маркет"] || "",
-    newFormat: zoneData["Формат маркета"] || "",
-    equipment: zoneData["Оборудование"] || "",
-    dimensions: zoneData["Габариты"] !== undefined && zoneData["Габариты"] !== null ? String(zoneData["Габариты"]) : "",
-    mainMacrozone: zoneData["Основная Макрозона"] || "",
-    adjacentMacrozone: zoneData["Смежная макрозона"] || "",
-    status: status,
-    supplier: zoneData["Поставщик"] || null,
-    brand: zoneData["Brand"] || null,
-    category: zoneData["Категория товара"] || null,
-    region: zoneData["Область"] || null,
-    equipmentFormat: zoneData["Формат оборудования"] || null,
-    price: price,
-    externalId: zoneData["ID"] || null,
-    sector: zoneData["Сектор"] || null,
-    km: zoneData["КМ"] !== undefined && zoneData["КМ"] !== null ? String(zoneData["КМ"]) : null,
-    dmpNeighborhood: zoneData["Товарное соседство ДМП"] || null,
-    purpose: zoneData["Назначение"] || null,
-    subpurpose: zoneData["Подназначение"] || null,
-  };
+    return {
+        city: zoneData["Город"] || "",
+        number: zoneData["№"] || "",
+        market: zoneData["Маркет"] || "",
+        newFormat: zoneData["Формат маркета"] || "",
+        equipment: zoneData["Оборудование"] || "",
+        dimensions: zoneData["Габариты"] !== undefined && zoneData["Габариты"] !== null ? String(zoneData["Габариты"]) : "",
+        mainMacrozone: zoneData["Основная Макрозона"] || "",
+        adjacentMacrozone: zoneData["Смежная макрозона"] || "",
+        status: status,
+        supplier: zoneData["Поставщик"] || null,
+        brand: zoneData["Brand"] || null,
+        category: zoneData["Категория товара"] || null,
+        region: zoneData["Область"] || null,
+        equipmentFormat: zoneData["Формат оборудования"] || null,
+        price: price,
+        externalId: zoneData["ID"] || null,
+        sector: zoneData["Сектор"] || null,
+        km: zoneData["КМ"] !== undefined && zoneData["КМ"] !== null ? String(zoneData["КМ"]) : null,
+        dmpNeighborhood: zoneData["Товарное соседство ДМП"] || null,
+        purpose: zoneData["Назначение"] || null,
+        subpurpose: zoneData["Подназначение"] || null,
+    };
 }
 
 
@@ -303,15 +303,15 @@ async function batchUpsertZonesWithTransaction(zoneDataArray: ZoneData[]) {
                         });
                         txUpdated++;
                     } catch (updateError) {
-                         console.error(`[Zones Tx] Failed to update zone ${entry.uniqueIdentifier}:`, updateError);
-                         // Decide how to handle: throw to rollback all, or just log and continue?
-                         // For bulk uploads, often better to log and continue if possible.
-                         // Re-throwing will rollback the entire transaction.
-                         throw updateError; // Rollback transaction on individual update failure
+                        console.error(`[Zones Tx] Failed to update zone ${entry.uniqueIdentifier}:`, updateError);
+                        // Decide how to handle: throw to rollback all, or just log and continue?
+                        // For bulk uploads, often better to log and continue if possible.
+                        // Re-throwing will rollback the entire transaction.
+                        throw updateError; // Rollback transaction on individual update failure
                     }
                 } else {
                     // Create new
-                     try {
+                    try {
                         await tx.zone.create({
                             data: {
                                 uniqueIdentifier: entry.uniqueIdentifier,
@@ -320,13 +320,13 @@ async function batchUpsertZonesWithTransaction(zoneDataArray: ZoneData[]) {
                         });
                         txCreated++;
                     } catch (createError) {
-                         console.error(`[Zones Tx] Failed to create zone ${entry.uniqueIdentifier}:`, createError);
-                         // Check for unique constraint violation specifically if needed
-                         if (createError instanceof Prisma.PrismaClientKnownRequestError && createError.code === 'P2002') {
-                             console.warn(`[Zones Tx] Zone ${entry.uniqueIdentifier} might have been created concurrently or check failed.`);
-                             // Decide if this should cause rollback or be treated as a specific failure type
-                         }
-                         throw createError; // Rollback transaction on individual create failure
+                        console.error(`[Zones Tx] Failed to create zone ${entry.uniqueIdentifier}:`, createError);
+                        // Check for unique constraint violation specifically if needed
+                        if (createError instanceof Prisma.PrismaClientKnownRequestError && createError.code === 'P2002') {
+                            console.warn(`[Zones Tx] Zone ${entry.uniqueIdentifier} might have been created concurrently or check failed.`);
+                            // Decide if this should cause rollback or be treated as a specific failure type
+                        }
+                        throw createError; // Rollback transaction on individual create failure
                     }
                 }
             }
@@ -336,7 +336,7 @@ async function batchUpsertZonesWithTransaction(zoneDataArray: ZoneData[]) {
 
         }, {
             maxWait: 15000, // Allow longer wait time for transaction acquisition (default 2000ms)
-            timeout: 30000, // Allow longer execution time for the transaction itself (default 5000ms) - Adjust based on Vercel plan limit!
+            // timeout: 30000, // Removed: Prisma Accelerate has a hard limit of 15000ms for interactive transactions (P6005 error)
         });
 
         createdCount = result.created;
@@ -443,7 +443,7 @@ async function batchUpsertBrands(brandDataArray: BrandData[]) {
             });
             suppliers.forEach(s => {
                 if (s.inn) { // Should always have INN based on query
-                   supplierIdMap.set(s.inn, s.id);
+                    supplierIdMap.set(s.inn, s.id);
                 }
             });
             console.log(`[Brands Batch] Found ${supplierIdMap.size} existing supplier users for linking.`);
@@ -462,7 +462,7 @@ async function batchUpsertBrands(brandDataArray: BrandData[]) {
             .map(id => ({ id })); // Format for connect/set
 
         if (supplierInns.length > 0 && connectData.length !== supplierInns.length) {
-             console.warn(`[Brands Batch] For brand "${brandName}", some supplier INNs were not found or did not correspond to a SUPPLIER user: ${supplierInns.join(', ')}. Found ${connectData.length} valid suppliers to link.`);
+            console.warn(`[Brands Batch] For brand "${brandName}", some supplier INNs were not found or did not correspond to a SUPPLIER user: ${supplierInns.join(', ')}. Found ${connectData.length} valid suppliers to link.`);
         }
 
         upsertsToPerform.push({
@@ -482,10 +482,10 @@ async function batchUpsertBrands(brandDataArray: BrandData[]) {
         const results = await Promise.allSettled(
             upsertsToPerform.map(item =>
                 prisma.brand.upsert(item.args).catch(err => {
-                     console.error(`[Brands Batch] Failed to upsert brand "${item.brandName}":`, err);
-                     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-                         console.error(`[Brands Batch] Brand name "${item.brandName}" likely already exists (unique constraint violation).`);
-                     }
+                    console.error(`[Brands Batch] Failed to upsert brand "${item.brandName}":`, err);
+                    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+                        console.error(`[Brands Batch] Brand name "${item.brandName}" likely already exists (unique constraint violation).`);
+                    }
                     throw err; // Re-throw for Promise.allSettled
                 })
             )
@@ -497,7 +497,7 @@ async function batchUpsertBrands(brandDataArray: BrandData[]) {
             }
             // Don't increment failedCount here, calculate at the end
         });
-         console.log(`[Brands Batch] Upserted ${upsertedCount} brands. Failures in this step: ${upsertsToPerform.length - upsertedCount}.`);
+        console.log(`[Brands Batch] Upserted ${upsertedCount} brands. Failures in this step: ${upsertsToPerform.length - upsertedCount}.`);
     }
 
     // Final failure count = initial skips + failures during DB operations
@@ -509,11 +509,11 @@ async function batchUpsertBrands(brandDataArray: BrandData[]) {
 
 // --- Get Zone Status ---
 function getZoneStatus(status: string): ZoneStatus {
-  switch (status?.toLowerCase()) {
-    case "свободно": return ZoneStatus.AVAILABLE;
-    case "забронировано": return ZoneStatus.BOOKED;
-    default: return ZoneStatus.UNAVAILABLE;
-  }
+    switch (status?.toLowerCase()) {
+        case "свободно": return ZoneStatus.AVAILABLE;
+        case "забронировано": return ZoneStatus.BOOKED;
+        default: return ZoneStatus.UNAVAILABLE;
+    }
 }
 
 // Note: Removed old batchUpsertZones function
