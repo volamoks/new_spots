@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
 import { ZoneStatus } from "@/types/zone";
-import { Role, Zone, InnOrganization, Brand } from "@prisma/client"; // Import Role and Prisma types
+import { Role, Prisma } from "@prisma/client"; // Import Role, Prisma types, and Prisma namespace (Removed unused Zone, InnOrganization, Brand)
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
@@ -124,7 +124,13 @@ export async function POST(req: NextRequest) {
 
         if (headerCell && headerCell.v) {
           const headerName = headerCell.v.toString()
-          row[headerName] = cell ? cell.v : null
+          // Attempt to parse numbers if header suggests it (e.g., "Цена")
+          // Be cautious with this, might need refinement based on actual headers
+          if (headerName === "Цена" && cell && typeof cell.v === 'string' && !isNaN(parseFloat(cell.v))) {
+            row[headerName] = parseFloat(cell.v);
+          } else {
+            row[headerName] = cell ? cell.v : null
+          }
         }
       }
       data.push(row)
@@ -202,60 +208,62 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Save data to database based on type using the potentially filtered data
-    let results;
-    let savedData = [];
+    // --- Batch Save Logic ---
+    let savedCount = 0;
+    let updatedCount = 0;
     let failedCount = 0;
-    const rowsAttempted = dataToProcess.length; // Rows that passed initial validation
+    const rowsAttempted = dataToProcess.length;
 
     if (type === "zones") {
-      results = await Promise.allSettled(dataToProcess.map(row => createOrUpdateZone(row as ZoneData)));
-      savedData = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<Zone>).value);
-      failedCount = results.filter(r => r.status === 'rejected').length;
-      console.log(`[Zones Path] Processed ${results.length} rows. Succeeded: ${savedData.length}, Failed: ${failedCount}`);
+      const { created, updated, failed } = await batchUpsertZones(dataToProcess as ZoneData[]);
+      savedCount = created;
+      updatedCount = updated;
+      failedCount = failed;
+      console.log(`[Zones Batch] Processed ${rowsAttempted} rows. Created: ${savedCount}, Updated: ${updatedCount}, Failed: ${failedCount}`);
+
     } else if (type === "inn") {
-      // For 'inn', dataToProcess is the original 'data'
-      results = await Promise.allSettled(dataToProcess.map(row => createOrUpdateSupplier(row as InnData)));
-      savedData = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<InnOrganization>).value);
+      // Keep original Promise.allSettled for INN for now, or implement batching similarly
+      // Also, update to use upsert for consistency
+      const results = await Promise.allSettled(dataToProcess.map(row => createOrUpdateSupplier(row as InnData)));
+      savedCount = results.filter(r => r.status === 'fulfilled').length; // Simplified count
       failedCount = results.filter(r => r.status === 'rejected').length;
-      console.log(`[INN Path] Processed ${results.length} rows. Succeeded: ${savedData.length}, Failed: ${failedCount}`);
+      console.log(`[INN Path] Processed ${results.length} rows. Succeeded: ${savedCount}, Failed: ${failedCount}`);
+      // Note: This doesn't distinguish between created/updated for INN
+
     } else if (type === "brands") {
-      // For 'brands', dataToProcess is the original 'data'
-      console.log(`[Brands Path] Attempting to save ${dataToProcess.length} brand rows.`); // Log count before saving
-      // Use Promise.allSettled or map with individual try/catch to handle row errors (already done)
-      results = await Promise.all(dataToProcess.map(async (row, index) => {
+      // Keep original Promise.all for Brands for now, or implement batching similarly
+      // Also, update to use upsert for consistency
+      console.log(`[Brands Path] Attempting to save ${dataToProcess.length} brand rows.`);
+      const results = await Promise.all(dataToProcess.map(async (row, index) => {
         try {
-          // console.log(`[Brands Path] Processing row ${index + 2}:`, row); // Uncomment for very verbose logging
           const result = await createOrUpdateBrand(row as BrandData);
-          return { status: 'fulfilled', value: result, rowNum: index + 2 }; // Keep existing structure
+          return { status: 'fulfilled', value: result, rowNum: index + 2 };
         } catch (error) {
           console.error(`[Brands Path] Error processing row ${index + 2}:`, error);
-          return { status: 'rejected', reason: error, rowNum: index + 2 }; // Keep existing structure
+          return { status: 'rejected', reason: error, rowNum: index + 2 };
         }
       }));
-
-      // Filter successful results
-      // Filter successful results (already done)
-      savedData = results.filter(r => r.status === 'fulfilled').map(r => (r as { status: 'fulfilled', value: Brand }).value); // Use Brand type
+      savedCount = results.filter(r => r.status === 'fulfilled').length; // Simplified count
       failedCount = results.filter(r => r.status === 'rejected').length;
-
-      console.log(`[Brands Path] Successfully saved ${savedData.length} brand rows.`);
+      console.log(`[Brands Path] Successfully processed ${savedCount} brand rows.`);
       if (failedCount > 0) {
         console.warn(`[Brands Path] Failed to save ${failedCount} brand rows.`);
       }
+      // Note: This doesn't distinguish between created/updated for Brands
     } else {
       return NextResponse.json({ error: "Неизвестный тип импорта" }, { status: 400 })
     }
 
     // Construct the response with detailed statistics
+    // Construct the response with detailed statistics
     return NextResponse.json({
-      message: `Обработка завершена. Успешно: ${savedData.length}, Ошибки: ${failedCount}.`,
-      totalRowsRead: data.length, // Total rows read from Excel (excluding header)
-      rowsAttempted: rowsAttempted, // Rows passing initial validation
-      rowsSucceeded: savedData.length,
+      message: `Обработка завершена. Успешно создано/обновлено: ${savedCount + updatedCount}, Ошибки: ${failedCount}.`,
+      totalRowsRead: data.length,
+      rowsAttempted: rowsAttempted,
+      rowsCreated: type === "zones" ? savedCount : undefined, // Provide specific counts if available
+      rowsUpdated: type === "zones" ? updatedCount : undefined,
+      rowsSucceeded: savedCount + updatedCount, // General success count
       rowsFailed: failedCount,
-      // data: savedData, // Consider removing or limiting this in production
-      // headers: headers, // Debug info, maybe remove later
     });
   } catch (error) {
     console.error("Ошибка при загрузке данных:", error)
@@ -266,37 +274,25 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function createOrUpdateZone(zoneData: ZoneData) {
+// --- Helper function to format zone data for Prisma ---
+function formatZoneData(zoneData: ZoneData): Omit<Prisma.ZoneCreateInput, 'uniqueIdentifier'> {
   const status = getZoneStatus(zoneData["Статус"] || "");
-
-  // Преобразуем цену в число или undefined (не null)
   let price: number | undefined = undefined;
   if (zoneData["Цена"] !== undefined && zoneData["Цена"] !== null) {
-    // Если цена уже число, используем его, иначе преобразуем строку в число
     price = typeof zoneData["Цена"] === 'number'
       ? zoneData["Цена"]
-      : parseFloat(zoneData["Цена"].toString());
-
-    // Проверяем, что получилось валидное число
+      : parseFloat(String(zoneData["Цена"])); // Ensure string conversion before parseFloat
     if (isNaN(price)) {
       price = undefined;
     }
   }
 
-  // Убедимся, что все обязательные поля имеют значения
-  const uniqueIdentifier = zoneData["Уникальный идентификатор"] || "";
-  if (!uniqueIdentifier) {
-    throw new Error("Уникальный идентификатор обязателен");
-  }
-
-  // Создаем объект с данными для сохранения
-  const zoneDataToSave = {
+  return {
     city: zoneData["Город"] || "",
     number: zoneData["№"] || "",
     market: zoneData["Маркет"] || "",
     newFormat: zoneData["Формат маркета"] || "",
     equipment: zoneData["Оборудование"] || "",
-    // Ensure dimensions is always a string
     dimensions: zoneData["Габариты"] !== undefined && zoneData["Габариты"] !== null ? String(zoneData["Габариты"]) : "",
     mainMacrozone: zoneData["Основная Макрозона"] || "",
     adjacentMacrozone: zoneData["Смежная макрозона"] || "",
@@ -304,73 +300,142 @@ async function createOrUpdateZone(zoneData: ZoneData) {
     supplier: zoneData["Поставщик"] || null,
     brand: zoneData["Brand"] || null,
     category: zoneData["Категория товара"] || null,
-    // Новые поля
     region: zoneData["Область"] || null,
     equipmentFormat: zoneData["Формат оборудования"] || null,
     price: price,
     externalId: zoneData["ID"] || null,
     sector: zoneData["Сектор"] || null,
-    // Преобразуем КМ в строку, так как в схеме Prisma это поле определено как String?
-    km: zoneData["КМ"] !== undefined && zoneData["КМ"] !== null
-      ? String(zoneData["КМ"])
-      : null,
+    km: zoneData["КМ"] !== undefined && zoneData["КМ"] !== null ? String(zoneData["КМ"]) : null,
     dmpNeighborhood: zoneData["Товарное соседство ДМП"] || null,
     purpose: zoneData["Назначение"] || null,
     subpurpose: zoneData["Подназначение"] || null,
   };
-
-  try {
-    // Теперь типы Prisma соответствуют нашей схеме
-    return await prisma.zone.upsert({
-      where: { uniqueIdentifier },
-      update: zoneDataToSave,
-      create: {
-        uniqueIdentifier,
-        ...zoneDataToSave
-      },
-    });
-  } catch (error) {
-    console.error("Ошибка при сохранении зоны:", error);
-    console.error("Данные зоны:", { uniqueIdentifier, ...zoneDataToSave });
-    throw error;
-  }
 }
 
+
+// --- Batch Upsert Logic for Zones ---
+async function batchUpsertZones(zoneDataArray: ZoneData[]) {
+  let createdCount = 0;
+  let updatedCount = 0;
+  let failedCount = 0;
+  const zonesToCreate: Prisma.ZoneCreateManyInput[] = [];
+  const updatesToPerform: { uniqueIdentifier: string; data: Omit<Prisma.ZoneUpdateInput, 'uniqueIdentifier'> }[] = [];
+
+  const uniqueIdentifiers = zoneDataArray
+    .map(z => z["Уникальный идентификатор"])
+    .filter((id): id is string => !!id); // Filter out null/undefined IDs
+
+  if (uniqueIdentifiers.length === 0) {
+    console.warn("[Zones Batch] No valid unique identifiers found in the data to process.");
+    return { created: 0, updated: 0, failed: zoneDataArray.length };
+  }
+
+  try {
+    // 1. Find existing zones
+    const existingZones = await prisma.zone.findMany({
+      where: { uniqueIdentifier: { in: uniqueIdentifiers } },
+      select: { uniqueIdentifier: true },
+    });
+    const existingIdentifiers = new Set(existingZones.map(z => z.uniqueIdentifier));
+
+    // 2. Separate data into create and update lists
+    for (const zoneData of zoneDataArray) {
+      const uniqueIdentifier = zoneData["Уникальный идентификатор"];
+      if (!uniqueIdentifier) {
+        console.warn("[Zones Batch] Skipping row due to missing unique identifier:", zoneData);
+        failedCount++;
+        continue;
+      }
+
+      const formattedData = formatZoneData(zoneData);
+
+      if (existingIdentifiers.has(uniqueIdentifier)) {
+        updatesToPerform.push({ uniqueIdentifier, data: formattedData });
+      } else {
+        zonesToCreate.push({ uniqueIdentifier, ...formattedData });
+      }
+    }
+
+    // 3. Perform batch create
+    if (zonesToCreate.length > 0) {
+      try {
+        const createResult = await prisma.zone.createMany({
+          data: zonesToCreate,
+          skipDuplicates: true, // Skip if a duplicate uniqueIdentifier somehow exists despite our check
+        });
+        createdCount = createResult.count;
+        console.log(`[Zones Batch] Created ${createdCount} new zones.`);
+      } catch (error) {
+        console.error("[Zones Batch] Error during createMany:", error);
+        // Assume all creates failed in this batch if createMany throws
+        failedCount += zonesToCreate.length;
+      }
+    }
+
+    // 4. Perform updates individually (within Promise.allSettled for better error handling)
+    if (updatesToPerform.length > 0) {
+      console.log(`[Zones Batch] Attempting to update ${updatesToPerform.length} existing zones.`);
+      const updateResults = await Promise.allSettled(
+        updatesToPerform.map(update =>
+          prisma.zone.update({
+            where: { uniqueIdentifier: update.uniqueIdentifier },
+            data: update.data,
+          }).catch(err => {
+            // Catch errors within the map to prevent Promise.allSettled from masking them
+            console.error(`[Zones Batch] Failed to update zone ${update.uniqueIdentifier}:`, err);
+            throw err; // Re-throw to mark the promise as rejected
+          })
+        )
+      );
+
+      updateResults.forEach((result) => { // Removed unused index
+        if (result.status === 'fulfilled') {
+          updatedCount++;
+        } else {
+          failedCount++;
+          // Error already logged in the catch block above
+        }
+      });
+      console.log(`[Zones Batch] Updated ${updatedCount} zones. Failed updates: ${updatesToPerform.length - updatedCount}.`);
+    }
+
+  } catch (error) {
+    console.error("[Zones Batch] General error during batch upsert process:", error);
+    // If the initial findMany fails, assume all rows failed
+    if (createdCount === 0 && updatedCount === 0) {
+      failedCount = zoneDataArray.length;
+    } else {
+      // If findMany succeeded but something else failed later,
+      // adjust failedCount based on already processed counts.
+      // This might overestimate failures if some updates succeeded before a later error.
+      failedCount = zoneDataArray.length - createdCount - updatedCount;
+    }
+  }
+
+  // Ensure failedCount doesn't exceed total rows attempted
+  failedCount = Math.min(failedCount, zoneDataArray.length);
+
+
+  return { created: createdCount, updated: updatedCount, failed: failedCount };
+}
+
+
+// Removed unused createOrUpdateZone function as it's replaced by batchUpsertZones
 async function createOrUpdateSupplier(innData: InnData) {
+  // ... (original implementation remains, but updated to use upsert) ...
   const inn = innData["Налоговый номер"]?.toString() || "";
   const organizationName = innData["Поставщик"]?.toString() || "";
 
-  if (!inn) {
-    throw new Error("ИНН обязателен");
-  }
-
-  if (!organizationName) {
-    throw new Error("Название поставщика обязательно");
-  }
+  if (!inn) throw new Error("ИНН обязателен");
+  if (!organizationName) throw new Error("Название поставщика обязательно");
 
   try {
-    // Проверяем, существует ли организация с таким ИНН
-    const existingOrganization = await prisma.innOrganization.findUnique({
-      where: { inn }
+    // Use upsert for simplicity and atomicity
+    return await prisma.innOrganization.upsert({
+      where: { inn },
+      update: { name: organizationName },
+      create: { inn, name: organizationName },
     });
-
-    if (existingOrganization) {
-      // Обновляем существующую организацию
-      return await prisma.innOrganization.update({
-        where: { id: existingOrganization.id },
-        data: {
-          name: organizationName
-        }
-      });
-    } else {
-      // Создаем новую организацию
-      return await prisma.innOrganization.create({
-        data: {
-          inn,
-          name: organizationName
-        }
-      });
-    }
   } catch (error) {
     console.error("Ошибка при сохранении организации:", error);
     console.error("Данные организации:", { inn, organizationName });
@@ -379,64 +444,38 @@ async function createOrUpdateSupplier(innData: InnData) {
 }
 
 async function createOrUpdateBrand(brandData: BrandData) {
+  // ... (original implementation remains, but updated to use upsert and better error check) ...
   const brandName = brandData["Название Бренда"]?.toString().trim();
   const supplierInnsString = brandData["ИНН Поставщика"]?.toString().trim() || "";
 
-  if (!brandName) {
-    throw new Error("Название бренда обязательно");
-  }
+  if (!brandName) throw new Error("Название бренда обязательно");
 
-  // Parse comma-separated INNs, trim whitespace, and filter out empty strings
-  const supplierInns = supplierInnsString
-    .split(',')
-    .map(inn => inn.trim())
-    .filter(inn => inn.length > 0);
+  const supplierInns = supplierInnsString.split(',').map(inn => inn.trim()).filter(inn => inn.length > 0);
 
-  // Find supplier users based on the parsed INNs
   const suppliersToConnect = await prisma.user.findMany({
-    where: {
-      inn: {
-        in: supplierInns,
-      },
-      role: 'SUPPLIER', // Ensure we only link to actual suppliers
-    },
-    select: {
-      id: true, // Select only the ID for connecting
-    },
+    where: { inn: { in: supplierInns }, role: 'SUPPLIER' },
+    select: { id: true },
   });
 
   if (supplierInns.length > 0 && suppliersToConnect.length !== supplierInns.length) {
-    // Optional: Warn if some provided INNs didn't match existing suppliers
-    // const foundInns = suppliersToConnect.map(u => u.id); // Removed unused variable
-    // Need to re-fetch INNs if we want to show which ones were not found
     console.warn(`[Brand Upload] For brand "${brandName}", some supplier INNs were not found or did not correspond to a SUPPLIER user: ${supplierInns.join(', ')}. Found ${suppliersToConnect.length} valid suppliers.`);
   }
 
   const connectData = suppliersToConnect.map(supplier => ({ id: supplier.id }));
 
   try {
-    // Upsert the brand
+    // Use upsert for simplicity and atomicity
     return await prisma.brand.upsert({
       where: { name: brandName },
-      update: {
-        // Use 'set' to replace existing suppliers with the new list
-        // Use 'connect' if you only want to add without removing existing ones (less common for bulk upload)
-        suppliers: {
-          set: connectData, // Replaces all existing connections for this brand
-        },
-      },
-      create: {
-        name: brandName,
-        suppliers: {
-          connect: connectData, // Connects the found suppliers on creation
-        },
-      },
+      update: { suppliers: { set: connectData } }, // Use set to replace existing connections
+      create: { name: brandName, suppliers: { connect: connectData } },
     });
   } catch (error) {
     console.error(`Ошибка при сохранении бренда "${brandName}":`, error);
     console.error("Данные бренда:", { brandName, supplierInns, connectData });
-    if (error instanceof Error && 'code' in error && error.code === 'P2002') {
-      console.error(`Brand name "${brandName}" might already exist.`);
+    // Check specifically for Prisma unique constraint violation
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      console.error(`Brand name "${brandName}" might already exist (unique constraint violation).`);
     }
     throw error;
   }
