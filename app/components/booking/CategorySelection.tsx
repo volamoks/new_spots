@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-// import { SimpleSelectDropdown } from '@/app/components/booking/SimpleSelectDropdown'; // Replaced
 import { UniversalDropdown } from '@/app/components/ui/UniversalDropdown';
-import { categoryData } from '@/lib/filterData';
+// import { categoryData } from '@/lib/filterData'; // Replaced with kmCategories
+import { CATEGORIES } from '@/lib/constants/kmCategories'; // Import our new categories
 
 interface CategorySelectionProps {
     onCategorySelect: (category: string) => void;
@@ -13,9 +13,12 @@ const CategorySelection: React.FC<CategorySelectionProps> = ({
     selectedCategory,
 }) => {
     const categories = useMemo(() => {
-        return categoryData.map(item => ({
-            value: item.category,
-            label: item.category,
+        // Map CATEGORIES to the format needed by UniversalDropdown
+        // Map CATEGORIES to the format needed by UniversalDropdown
+        // Use category code for the value and name for the label
+        return CATEGORIES.map(item => ({
+            value: item.code, // Use code as the value
+            label: item.name, // Use name as the display label
         }));
     }, []);
 

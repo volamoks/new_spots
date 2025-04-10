@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react'; // Removed unused useCallback
 import { useAuth } from '@/lib/hooks/useAuth';
+import { KM_CATEGORY_MAP } from '@/lib/constants/kmCategories'; // Import the map
 import { useBookingActionsStore } from '@/lib/stores/bookingActionsStore';
 import { useZonesStore } from '@/lib/stores/zonesStore';
 import { ZonePagination } from '@/app/components/zones/ZonePagination';
@@ -23,22 +24,37 @@ export default function CreateBookingPage() {
     );
     const selectedBrandId = useBookingActionsStore(state => state.selectedBrandId); // Get selected brand ID
     const setSelectedBrandId = useBookingActionsStore(state => state.setSelectedBrandId); // Get action to set brand ID
+    const selectedCategoryForCreation = useBookingActionsStore(
+        state => state.selectedCategoryForCreation,
+    ); // Get selected category for creation
+    const setSelectedCategoryForCreation = useBookingActionsStore(
+        state => state.setSelectedCategoryForCreation,
+    ); // Get action to set category for creation
 
     const setFilterCriteria = useZonesStore(state => state.setFilterCriteria);
     const fetchZones = useZonesStore(state => state.fetchZones);
     const fetchFilterOptions = useZonesStore(state => state.fetchFilterOptions);
     const totalCount = useZonesStore(state => state.totalCount);
-    const filterCriteriaCategory = useZonesStore(state => state.filterCriteria.category);
+    // const filterCriteriaCategory = useZonesStore(state => state.filterCriteria.category); // We'll use selectedCategoryForCreation for the dropdown now
     const paginationCriteria = useZonesStore(state => state.paginationCriteria);
     const setPaginationCriteria = useZonesStore(state => state.setPaginationCriteria);
     const isLoading = useZonesStore(state => state.isLoading); // Get loading state
 
-    const setSelectedCategoryCallback = useCallback(
-        (category: string) => {
-            setFilterCriteria({ category: category || undefined });
-        },
-        [setFilterCriteria],
+    // This callback was for filtering zones based on category selection.
+    // We still need this filtering behavior, but the CategorySelection component
+    // will now directly update the bookingActionsStore state.
+    // We need to trigger zone filtering when the category for creation changes.
+    const selectedCategoryForCreationFromStore = useBookingActionsStore(
+        state => state.selectedCategoryForCreation,
     );
+    useEffect(() => {
+        // Look up the category name using the code stored in the state
+        const categoryName = selectedCategoryForCreationFromStore
+            ? KM_CATEGORY_MAP[selectedCategoryForCreationFromStore]
+            : undefined;
+        // Set the filter criteria using the category name
+        setFilterCriteria({ category: categoryName });
+    }, [selectedCategoryForCreationFromStore, setFilterCriteria]);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -112,21 +128,25 @@ export default function CreateBookingPage() {
                         <CardContent className=" ">
                             {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
                             <CategorySelection
-                                onCategorySelect={setSelectedCategoryCallback}
-                                selectedCategory={filterCriteriaCategory || ''} // Use specifically selected category
+                                // Pass the action from bookingActionsStore
+                                onCategorySelect={setSelectedCategoryForCreation}
+                                // Pass the state from bookingActionsStore
+                                selectedCategory={selectedCategoryForCreation || ''}
                             />
 
-                            {filterCriteriaCategory && ( // Use specifically selected category
+                            {/* Brand selector should appear when a category is selected for creation */}
+                            {selectedCategoryForCreation && (
                                 <BrandSelector
                                     value={selectedBrandId}
                                     onChange={setSelectedBrandId}
-                                    disabled={!filterCriteriaCategory} // Use specifically selected category
+                                    disabled={!selectedCategoryForCreation}
                                 />
                             )}
                         </CardContent>
                     </Card>
                     {/* Render content if category is selected */}
-                    {filterCriteriaCategory && filtersAndContent}
+                    {/* Content (filters, table, pagination) should appear when a category is selected for creation */}
+                    {selectedCategoryForCreation && filtersAndContent}
                 </div>
             </main>
         </div>

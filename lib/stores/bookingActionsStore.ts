@@ -24,6 +24,7 @@ export interface BookingActionsState { // Export the interface
     selectedZonesForCreation: Set<string>; // Use Set for efficiency
     selectedSupplierInnForCreation: string | null;
     selectedBrandId: string | null; // Add state for selected brand ID
+    selectedCategoryForCreation: string | null; // Add state for selected category
     // isCreating: boolean; // Removed, use global loader
     createError: string | null;
 
@@ -38,6 +39,7 @@ export interface BookingActionsState { // Export the interface
     clearSelectedZonesForCreation: () => void;
     setSelectedSupplierInnForCreation: (inn: string | null) => void;
     setSelectedBrandId: (brandId: string | null) => void; // Add action for brand ID
+    setSelectedCategoryForCreation: (category: string | null) => void; // Add action for category
 
     createBookingRequest: (user: SimplifiedUser) => Promise<boolean>; // Returns true on success
     updateBookingStatus: (bookingId: string, status: BookingStatus, role: BookingRole) => Promise<boolean>; // Use custom BookingRole enum
@@ -53,6 +55,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
             selectedZonesForCreation: new Set(),
             selectedSupplierInnForCreation: null,
             selectedBrandId: null, // Initialize brand ID state
+            selectedCategoryForCreation: null, // Initialize category state
             // isCreating: false, // Removed
             createError: null,
             // isUpdatingStatus: false, // Removed
@@ -86,9 +89,12 @@ export const useBookingActionsStore = create<BookingActionsState>()(
             setSelectedBrandId: (brandId) => {
                 set({ selectedBrandId: brandId });
             },
+            setSelectedCategoryForCreation: (category) => {
+                set({ selectedCategoryForCreation: category });
+            },
 
             createBookingRequest: async (user) => {
-                const { selectedZonesForCreation, selectedSupplierInnForCreation, selectedBrandId } = get();
+                const { selectedZonesForCreation, selectedSupplierInnForCreation, selectedBrandId, selectedCategoryForCreation } = get(); // Get category
                 // Remove direct loader import: const { withLoading } = useLoaderStore.getState();
                 const refreshBookingRequests = useBookingRequestStore.getState().fetchBookingRequests;
                 const refreshZones = useZonesStore.getState().fetchZones;
@@ -107,6 +113,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                         supplierId: selectedSupplierInnForCreation,
                         userId: user.id,
                         brandId: selectedBrandId,
+                        category: selectedCategoryForCreation, // Add category to request data
                     };
                     console.log('[Store Action] Creating booking with requestData:', requestData);
 
@@ -118,7 +125,7 @@ export const useBookingActionsStore = create<BookingActionsState>()(
                         requestData
                     );
 
-                    set({ selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null, selectedBrandId: null });
+                    set({ selectedZonesForCreation: new Set(), selectedSupplierInnForCreation: null, selectedBrandId: null, selectedCategoryForCreation: null }); // Reset category
                     await refreshBookingRequests();
                     await refreshZones();
                     toast({

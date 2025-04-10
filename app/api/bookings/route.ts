@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { zoneIds, supplierId, brandId } = body;
+    const { zoneIds, supplierId, brandId, category } = body; // Extract category
     console.log('[API Route] Received booking request body:', body);
     console.log(`[API Route] Extracted brandId: ${brandId}`);
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       session.user.id,
       zoneIdsArray,
       userRole, // Pass the validated role
-      session.user.category,
+      category, // Pass the category from the request body
       supplierId,
       brandId
     );
@@ -109,6 +109,7 @@ export async function GET(req: Request) {
       id: session.user.id,
       role: session.user.role as Role, // Use imported Role enum
       inn: session.user.inn, // Pass INN if available
+      category: session.user.category // Pass Category if available
     };
 
     // Call the service function (needs modification)

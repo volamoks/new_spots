@@ -28,8 +28,17 @@ export async function createBookingRequest(
         if (!supplierInn) {
             throw new Error('Для бронирования необходимо выбрать поставщика');
         }
-        const supplierOrg = await prisma.innOrganization.findUnique({ where: { inn: supplierInn } });
-        if (!supplierOrg) { throw new Error(`Supplier with INN ${supplierInn} not found`); }
+        // Find the Supplier User record based on the selected INN
+        const supplierUser = await prisma.user.findFirst({
+            where: { inn: supplierInn, role: 'SUPPLIER' }, // Ensure it's a supplier role
+            select: { id: true }
+        });
+        if (!supplierUser) {
+            throw new Error(`Supplier user with INN ${supplierInn} not found or is not registered as a SUPPLIER.`);
+        }
+        // We still need the org name later, let's get it too (or assume it exists if user exists)
+        const supplierOrg = await prisma.innOrganization.findUnique({ where: { inn: supplierInn }, select: { name: true } });
+        if (!supplierOrg) { throw new Error(`Supplier organization details not found for INN ${supplierInn}`); }
         const simpleId = generateSimpleId('BR');
         const bookingRequest = await prisma.bookingRequest.create({
             data: {
@@ -37,7 +46,7 @@ export async function createBookingRequest(
                 userId,
                 status: 'NEW' as RequestStatus,
                 category: userCategory,
-                supplierId: userId, // Using CM's ID as placeholder? Revisit if needed.
+                supplierId: supplierUser.id, // Use the found Supplier's User ID
             },
         });
         const bookings = [];
@@ -71,7 +80,7 @@ export async function createBookingRequest(
                 id: simpleId,
                 userId,
                 status: 'NEW' as RequestStatus,
-                category: undefined, // Suppliers don't have category on request
+                category: userCategory, // Use the category selected by the supplier
                 supplierId: userId, // Supplier user is the supplier
             },
         });
@@ -106,20 +115,41 @@ export async function createBookingRequest(
 export async function getAllBookings(options: {
     filters: Partial<BookingRequestFilters>; // Use Partial as not all filters might be set
     pagination: { page: number; pageSize: number };
-    user: { id: string; role: string; inn?: string | null }; // Use string type for role comparison
+    user: { id: string; role: string; inn?: string | null; category?: string | null }; // Add category to user type
 }): Promise<{ data: BookingRequestWithBookings[]; totalCount: number }> { // Use specific return type
 
     const { filters, pagination, user } = options;
     const { page, pageSize } = pagination;
 
-    const where: Prisma.BookingRequestWhereInput = {};
-    const bookingWhereConditions: Prisma.BookingWhereInput[] = []; // Collect conditions for bookings
+    // Initialize the main 'where' clause with an AND array
+    const where: Prisma.BookingRequestWhereInput = { AND: [] };
+    // Keep this for collecting conditions related to bookings/zones
+    const bookingWhereConditions: Prisma.BookingWhereInput[] = [];
 
     // --- Role-based Filtering ---
     if (user.role === 'SUPPLIER') { // Compare with string literal
-        // Suppliers see requests they created
-        where.userId = user.id;
+        // Suppliers see requests assigned to them
+        (where.AND as Prisma.BookingRequestWhereInput[]).push({ supplierId: user.id });
     } else if (user.role === 'CATEGORY_MANAGER') { // Compare with string literal
+        // --- KM Category Filter ---
+        // KMs should only see requests matching their assigned category
+        // --- KM Category Filter ---
+        if (user.category) {
+            // Add category filter to the main AND clause
+            const categoryFilter = { category: user.category };
+            (where.AND as Prisma.BookingRequestWhereInput[]).push(categoryFilter);
+            console.log(`[Service - getAllBookings] Applied KM category filter:`, JSON.stringify(categoryFilter)); // Log applied filter as string
+        } else {
+            // If KM has no category assigned, add an impossible condition to the main AND clause
+            console.warn(`[Service - getAllBookings] Category Manager ${user.id} has no category assigned. Filtering out all requests.`);
+            // If KM has no category assigned, add an impossible condition to the main AND clause
+            // If KM has no category assigned, add an impossible condition to the main AND clause
+            const impossibleFilter = { id: '-1' };
+            (where.AND as Prisma.BookingRequestWhereInput[]).push(impossibleFilter);
+            console.warn(`[Service - getAllBookings] Category Manager ${user.id} has no category assigned. Applied impossible filter:`, JSON.stringify(impossibleFilter)); // Log impossible filter
+        }
+
+        // --- KM Supplier Filter (Existing Logic) ---
         // Category Managers see requests relevant to their suppliers/category?
         // Filter by supplierInn or supplierIds if provided
         if (filters.supplierInn) {
@@ -129,7 +159,8 @@ export async function getAllBookings(options: {
                 bookingWhereConditions.push({ zone: { supplier: supplierOrg.name } });
             } else {
                 // If INN doesn't match, return no results for this filter
-                where.id = '-1'; // Impossible condition to return no results
+                // Add impossible condition to the main AND clause if supplier not found
+                (where.AND as Prisma.BookingRequestWhereInput[]).push({ id: '-1' });
             }
         } else if (filters.supplierIds && filters.supplierIds.length > 0) {
             // Find requests where at least one booking's zone has a supplier name from the list
@@ -139,12 +170,20 @@ export async function getAllBookings(options: {
                 bookingWhereConditions.push({ zone: { supplier: { in: supplierNames } } });
             } else {
                 // If INNs don't match any orgs, return no results for this filter
-                where.id = '-1'; // Impossible condition
+                // Add impossible condition to the main AND clause if suppliers not found
+                (where.AND as Prisma.BookingRequestWhereInput[]).push({ id: '-1' });
             }
         }
         // If neither supplierInn nor supplierIds is provided, CM sees all requests (no additional where clause here)
     }
     // Add other role logic if necessary (e.g., DMP_MANAGER)
+
+    // --- Filter out empty requests (requests with no bookings) ---
+    (where.AND as Prisma.BookingRequestWhereInput[]).push({
+        bookings: {
+            some: {} // Ensures there is at least one booking linked
+        }
+    });
 
     // --- Apply Filters ---
 
@@ -175,7 +214,8 @@ export async function getAllBookings(options: {
         } catch { console.error("Invalid dateTo format:", filters.dateTo); } // Omit unused error variable
     }
     if (Object.keys(dateConditions).length > 0) {
-        where.createdAt = dateConditions;
+        // Add date conditions to the main AND clause
+        (where.AND as Prisma.BookingRequestWhereInput[]).push({ createdAt: dateConditions });
     }
 
     // Zone attribute filters
@@ -197,12 +237,15 @@ export async function getAllBookings(options: {
     }
 
     // Combine booking conditions if any exist
+    // If there are conditions related to bookings/zones, add them to the main AND clause
     if (bookingWhereConditions.length > 0) {
-        where.bookings = {
-            some: {
-                AND: bookingWhereConditions // Use AND to ensure all booking conditions match within the same booking(s)
+        (where.AND as Prisma.BookingRequestWhereInput[]).push({
+            bookings: {
+                some: {
+                    AND: bookingWhereConditions
+                }
             }
-        };
+        });
     }
 
     // General Search Term filter
@@ -237,16 +280,8 @@ export async function getAllBookings(options: {
         };
 
         // Combine with existing where clause using AND
-        if (where.OR) {
-            // If OR already exists (unlikely here, but for safety), merge conditions
-            where.AND = [...(Array.isArray(where.AND) ? where.AND : []), termConditions];
-        } else if (where.AND) {
-            // If AND already exists, add the OR block to it
-            where.AND = [...(Array.isArray(where.AND) ? where.AND : []), termConditions];
-        } else {
-            // Otherwise, just add the OR block
-            where.AND = [termConditions]; // Wrap in AND to combine with other top-level conditions
-        }
+        // Add the search term conditions to the main AND clause
+        (where.AND as Prisma.BookingRequestWhereInput[]).push(termConditions);
     }
 
 
@@ -255,12 +290,17 @@ export async function getAllBookings(options: {
     const take = pageSize;
 
     // --- Database Query ---
-    console.log("[Service - getAllBookings] Prisma Where Clause:", JSON.stringify(where, null, 2)); // Log the final where clause
+    // Clean up the where clause if AND is empty
+    // Clean up the where clause if AND is empty or only contains empty objects
+    const cleanedAND = (where.AND as Prisma.BookingRequestWhereInput[]).filter(cond => Object.keys(cond).length > 0);
+    const finalWhere = cleanedAND.length > 0 ? { AND: cleanedAND } : {};
+    // Log the final clause *before* the query
+    console.log("[Service - getAllBookings] FINAL Prisma Where Clause before query:", JSON.stringify(finalWhere, null, 2));
 
     const [totalCount, bookingRequests] = await prisma.$transaction([
-        prisma.bookingRequest.count({ where }),
+        prisma.bookingRequest.count({ where: finalWhere }),
         prisma.bookingRequest.findMany({
-            where,
+            where: finalWhere,
             include: {
                 bookings: {
                     include: {
