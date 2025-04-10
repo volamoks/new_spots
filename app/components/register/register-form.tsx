@@ -230,7 +230,7 @@ export function RegisterForm({ className, ...props }: React.HTMLAttributes<HTMLD
                                     <FormLabel>Категория</FormLabel>
                                     <FormControl>
                                         <Input
-                                            placeholder="Введите категорию"
+                                            placeholder="Введите номер Вашей категории"
                                             {...field}
                                         />
                                     </FormControl>

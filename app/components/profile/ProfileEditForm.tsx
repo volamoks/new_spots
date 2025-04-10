@@ -82,7 +82,7 @@ export default function ProfileEditForm({
                                 <FormControl>
                                     <Input
                                         {...field}
-                                        placeholder="Введите категорию"
+                                        placeholder="Введите номер вашей категории"
                                         // Ensure value is always a string for the Input component
                                         value={field.value || ''}
                                     />
