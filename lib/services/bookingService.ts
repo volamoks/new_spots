@@ -23,19 +23,18 @@ export async function createBookingRequest(
     brandId?: string | null,
 ) {
     // ... (existing implementation)
-    console.log(`[Service] createBookingRequest called with userId: ${userId}, zoneIds: ${zoneIds.length}, userRole: ${userRole}, supplierInn: ${supplierInn}, brandId: ${brandId}`);
+    console.log(`[Service] createBookingRequest called with userId: ${userId}, zoneIds: ${zoneIds.length}, userRole: ${userRole}, userCategory: ${userCategory}, supplierInn: ${supplierInn}, brandId: ${brandId}`);
+
+    // --- Mandatory Brand Check ---
+    if (!brandId) {
+        throw new Error('Для бронирования необходимо выбрать бренд');
+    }
     if (userRole === 'CATEGORY_MANAGER') {
         if (!supplierInn) {
             throw new Error('Для бронирования необходимо выбрать поставщика');
         }
-        // Find the Supplier User record based on the selected INN
-        const supplierUser = await prisma.user.findFirst({
-            where: { inn: supplierInn, role: 'SUPPLIER' }, // Ensure it's a supplier role
-            select: { id: true }
-        });
-        if (!supplierUser) {
-            throw new Error(`Supplier user with INN ${supplierInn} not found or is not registered as a SUPPLIER.`);
-        }
+        // Find the Organization name directly using the selected INN
+        // No need to check for a registered User based on new requirements
         // We still need the org name later, let's get it too (or assume it exists if user exists)
         const supplierOrg = await prisma.innOrganization.findUnique({ where: { inn: supplierInn }, select: { name: true } });
         if (!supplierOrg) { throw new Error(`Supplier organization details not found for INN ${supplierInn}`); }
@@ -46,7 +45,7 @@ export async function createBookingRequest(
                 userId,
                 status: 'NEW' as RequestStatus,
                 category: userCategory,
-                supplierId: supplierUser.id, // Use the found Supplier's User ID
+                supplierId: null, // KM books for an org, not necessarily a registered user
             },
         });
         const bookings = [];
@@ -68,11 +67,16 @@ export async function createBookingRequest(
             });
         }
         return { bookingRequest, bookings };
-    } else { // Supplier role
-        const user = await prisma.user.findUnique({ where: { id: userId }, select: { inn: true } });
-        if (!user?.inn) { throw new Error(`INN not found for user ${userId}`); }
+    } else if (userRole === 'SUPPLIER') {
+        // --- Supplier Role Logic ---
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { inn: true, category: true } }); // Also fetch category if needed
+        if (!user?.inn) { throw new Error(`ИНН не найден для пользователя ${userId}`); }
+
+        // Use the supplier's own category if not provided explicitly (or decide priority)
+        const effectiveCategory = userCategory || user.category; // Use provided category, fallback to user's profile category
+
         const supplierOrg = await prisma.innOrganization.findUnique({ where: { inn: user.inn } });
-        if (!supplierOrg) { throw new Error(`Supplier organization not found for INN ${user.inn}`); }
+        if (!supplierOrg) { throw new Error(`Организация поставщика не найдена для ИНН ${user.inn}`); }
         const supplierName = supplierOrg.name;
         const simpleId = generateSimpleId('BR');
         const bookingRequest = await prisma.bookingRequest.create({
@@ -80,7 +84,7 @@ export async function createBookingRequest(
                 id: simpleId,
                 userId,
                 status: 'NEW' as RequestStatus,
-                category: userCategory, // Use the category selected by the supplier
+                category: effectiveCategory, // Use the determined category
                 supplierId: userId, // Supplier user is the supplier
             },
         });

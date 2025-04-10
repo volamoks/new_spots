@@ -22,7 +22,7 @@ export function BrandSelector({ value, onChange, disabled }: BrandSelectorProps)
 
     return (
         <div className="w-full max-w mb-6">
-            <label className="block text-m font-medium mb-2 mt-4">Выберите Бренд</label>
+            <label className="block text-m font-medium mb-2">Выберите Бренд</label>
             <UniversalDropdown<Brand> // Specify the type if needed for valueField/labelField
                 mode="single"
                 // Data fetching props passed directly

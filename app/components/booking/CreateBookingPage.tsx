@@ -78,6 +78,18 @@ export default function CreateBookingPage() {
         // Depend on specific user properties instead of the whole object
     }, [isAuthenticated, user?.role, user?.inn, setSelectedSupplierInnForCreation]);
 
+    // Effect to automatically set category for Category Managers
+    useEffect(() => {
+        if (isAuthenticated && user?.role === 'CATEGORY_MANAGER' && user.category) {
+            console.log(
+                `[CreateBookingPage] Setting category for KM ${user.id} to: ${user.category}`,
+            );
+            setSelectedCategoryForCreation(user.category);
+        }
+        // Reset category if user is not KM or doesn't have one? Consider implications.
+        // For now, only set it if they are KM and have a category.
+    }, [isAuthenticated, user, setSelectedCategoryForCreation]); // Rerun if user object changes
+
     const filtersAndContent = (
         <div>
             <BookingFilters />
@@ -127,26 +139,40 @@ export default function CreateBookingPage() {
                     <Card className="mb-6">
                         <CardContent className=" ">
                             {user?.role === 'CATEGORY_MANAGER' && <SupplierSelection />}
-                            <CategorySelection
-                                // Pass the action from bookingActionsStore
-                                onCategorySelect={setSelectedCategoryForCreation}
-                                // Pass the state from bookingActionsStore
-                                selectedCategory={selectedCategoryForCreation || ''}
-                            />
-
-                            {/* Brand selector should appear when a category is selected for creation */}
-                            {selectedCategoryForCreation && (
-                                <BrandSelector
-                                    value={selectedBrandId}
-                                    onChange={setSelectedBrandId}
-                                    disabled={!selectedCategoryForCreation}
+                            {/* Only show CategorySelection if user is NOT a Category Manager */}
+                            {user?.role !== 'CATEGORY_MANAGER' && (
+                                <CategorySelection
+                                    // Pass the action from bookingActionsStore
+                                    onCategorySelect={setSelectedCategoryForCreation}
+                                    // Pass the state from bookingActionsStore
+                                    selectedCategory={selectedCategoryForCreation || ''}
                                 />
+                            )}
+
+                            {/* Brand selector logic based on role */}
+                            {/* Show for KM only if their category is set */}
+                            {/* Show always for Supplier */}
+                            {(user?.role === 'SUPPLIER' ||
+                                (user?.role === 'CATEGORY_MANAGER' &&
+                                    selectedCategoryForCreation)) && (
+                                <div>
+                                    <BrandSelector
+                                        value={selectedBrandId}
+                                        onChange={setSelectedBrandId}
+                                        // Disable based on category for KM, always enabled for Supplier
+                                        disabled={
+                                            user?.role === 'CATEGORY_MANAGER' &&
+                                            !selectedCategoryForCreation
+                                        }
+                                    />
+                                </div>
                             )}
                         </CardContent>
                     </Card>
-                    {/* Render content if category is selected */}
-                    {/* Content (filters, table, pagination) should appear when a category is selected for creation */}
-                    {selectedCategoryForCreation && filtersAndContent}
+                    {/* Render content only if a Brand is selected */}
+                    {/* For KM, category is auto-set, so brand is the main gate */}
+                    {/* For Supplier, brand is the main gate */}
+                    {selectedBrandId && filtersAndContent}
                 </div>
             </main>
         </div>
