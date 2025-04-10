@@ -65,7 +65,7 @@ export default function CreateBookingPage() {
     const filtersAndContent = (
         <div>
             <BookingFilters />
-            <ZonesTable userRole={user?.role} />
+            <ZonesTable />
             <ZonePagination
                 currentPage={paginationCriteria.currentPage}
                 itemsPerPage={paginationCriteria.itemsPerPage}

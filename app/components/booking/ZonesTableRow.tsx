@@ -24,9 +24,20 @@ const ZonesTableRow: React.FC<ZonesTableRowProps> = ({ zone, selectedZones, onZo
             </TableCell>
             <TableCell>{zone.uniqueIdentifier}</TableCell>
             <TableCell>{zone.city}</TableCell>
-            <TableCell>{zone.market}</TableCell>
+            <TableCell>
+                {zone.market?.startsWith('Korzinka - ')
+                    ? zone.market.substring('Korzinka - '.length)
+                    : zone.market}
+            </TableCell>
             <TableCell>{zone.mainMacrozone}</TableCell>
             <TableCell>{zone.equipment}</TableCell>
+            {/* Price Cell */}
+            <TableCell>
+                {zone.price && typeof zone.price === 'number'
+                    ? `${(zone.price / 1000000).toFixed(1)} mln UZS`
+                    : 'N/A'}
+            </TableCell>
+            {/* Status Cell */}
             <TableCell className="text-gray-900">
                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                     Доступна

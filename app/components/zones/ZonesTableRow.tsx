@@ -75,7 +75,11 @@ export function ZonesTableRow({
             )}
             <TableCell className="font-medium">{zone.uniqueIdentifier}</TableCell>
             <TableCell>{zone.city}</TableCell>
-            <TableCell>{zone.market}</TableCell>
+            <TableCell>
+                {zone.market?.startsWith('Korzinka - ')
+                    ? zone.market.substring('Korzinka - '.length)
+                    : zone.market}
+            </TableCell>
             <TableCell>{zone.mainMacrozone}</TableCell>
             <TableCell>{zone.equipment || '-'}</TableCell>
             {/* Supplier Cell */}
@@ -108,8 +112,8 @@ export function ZonesTableRow({
                     zone.brand || '-'
                 )}
             </TableCell>
-            {/* Price Cell (KM only) */}
-            {isCategoryManager && (
+            {/* Price Cell (KM/DMP only) */}
+            {(isCategoryManager || isDmpManager) && (
                 <TableCell>
                     {zone.price ? `${(zone.price / 1000000).toFixed(1)} mln UZS` : 'N/A'}
                 </TableCell>

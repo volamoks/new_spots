@@ -44,7 +44,6 @@ const ZonesTableHeader: React.FC<ZonesTableHeaderProps> = ({
                             disabled={zones.length === 0}
                             className="mr-2"
                         />
-                        Выбор
                     </div>
                 </th>
                 <TableHeaderCell>ID</TableHeaderCell>
@@ -52,6 +51,7 @@ const ZonesTableHeader: React.FC<ZonesTableHeaderProps> = ({
                 <TableHeaderCell>Магазин</TableHeaderCell>
                 <TableHeaderCell>Макрозона</TableHeaderCell>
                 <TableHeaderCell>Оборудование</TableHeaderCell>
+                <TableHeaderCell>Цена</TableHeaderCell>
                 <TableHeaderCell>Статус</TableHeaderCell>
             </tr>
         </thead>

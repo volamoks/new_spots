@@ -14,6 +14,7 @@ import { ConfirmationModal } from '@/app/components/ui/ConfirmationModal'; // Im
 
 export default function DmpManagerZonesPage() {
     const { data: session } = useSession();
+    const userRole = session?.user?.role; // Get user role from session
 
     // State for Confirmation Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,7 +40,7 @@ export default function DmpManagerZonesPage() {
     useEffect(() => {
         // Fetch initial data only when the session becomes available.
         if (session) {
-            console.log("--- Triggering initial data fetch (useEffect [session]) ---");
+            console.log('--- Triggering initial data fetch (useEffect [session]) ---');
             fetchZones();
             fetchFilterOptions();
         }
@@ -151,9 +152,8 @@ export default function DmpManagerZonesPage() {
                         </div>
                     </div>
                 )}
-
                 {/* Таблица зон */}
-                <ZonesTable />
+                <ZonesTable userRole={userRole} /> {/* Pass userRole prop */}
             </main>
             {/* Confirmation Modal */}
             <ConfirmationModal

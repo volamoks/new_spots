@@ -143,14 +143,13 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
     );
 
     // --- Filter function for Command ---
-    const filter = (): number => {
-        // Removed unused parameters
-        // CommandInput handles filtering internally based on `value` prop of CommandItem
-        // We just need to provide the correct `value` (the label) to CommandItem
-        // This custom filter might not be strictly necessary unless complex logic is needed.
-        // Let's rely on Command's default filtering for now.
-        // return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
-        return 1; // Default filter passes all, Command handles the rest
+    const filter = (value: string, search: string): number => {
+        // Perform case-insensitive comparison
+        // value is the CommandItem's value (option.label in this case)
+        // search is the CommandInput's value
+        const lowerCaseValue = value.toLowerCase();
+        const lowerCaseSearch = search.toLowerCase();
+        return lowerCaseValue.includes(lowerCaseSearch) ? 1 : 0;
     };
 
     // --- Handle selection logic ---

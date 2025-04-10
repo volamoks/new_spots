@@ -1,15 +1,13 @@
 'use client';
 
 import React, { useState } from 'react'; // Removed unused useEffect
-import { ZoneKeys } from '@/types/zone'; // ZoneStatus removed
+// Removed unused ZoneKeys import
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { ZonePagination } from './ZonePagination';
 import { ZonesTableHeader } from './ZonesTableHeader';
 import { ZonesTableRow } from './ZonesTableRow';
 import { ZoneSelectionActionsPanel } from './ZoneSelectionActionsPanel';
-// import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
 import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import consolidated hook
-// import { useSupplierStore } from '@/lib/stores/supplierStore'; // Возможно, понадобится для uniqueSuppliers, если их нет в zonesStore
 
 import { Role } from '@prisma/client'; // Import Role enum
 
@@ -22,22 +20,19 @@ export function ZonesTable({ userRole }: ZonesTableProps) {
     const {
         zones,
         selectedZoneIds,
-        sortCriteria,
+        // Removed sortCriteria
         isLoading,
         paginationCriteria, // Get pagination state
         totalCount, // Get total count
         // uniqueFilterValues, // Получать в дочернем компоненте
         error,
         // fetchZones, // Removed unused fetchZones
-        setSortCriteria,
+        // Removed setSortCriteria
         setPaginationCriteria, // Get pagination action
         toggleSelectAll,
         updateZoneField, // Action for updating supplier/brand
     } = useRoleData('dmp'); // Use consolidated hook for DMP role
 
-    // --- Role Logic (using prop) ---
-    // const { data: session } = useSession(); // Removed session call
-    // const userRole = session?.user?.role; // Role now comes from props
     const isSupplier = userRole === Role.SUPPLIER;
     const isCategoryManager = userRole === Role.CATEGORY_MANAGER;
     const isDmpManager = userRole === Role.DMP_MANAGER;
@@ -53,31 +48,22 @@ export function ZonesTable({ userRole }: ZonesTableProps) {
     const [actionPanelSupplier, setActionPanelSupplier] = useState<string | null>(null); // Локальное состояние
 
     // --- Derived State ---
-    const { field: sortField, direction: sortDirection } = sortCriteria;
+    // Removed derived state for sortField and sortDirection
 
     const areAllCurrentZonesSelected =
         zones.length > 0 && zones.every(zone => selectedZoneIds.has(zone.id));
-
-    // --- Initial Data Fetch ---
-    // Removed problematic useEffect that caused infinite refetching
-    // Initial fetch is handled by the parent page component (DmpManagerZonesPage)
-
-    // --- Handlers ---
-    // Removed handleCreateBooking
 
     const handleSelectAll = (checked: boolean) => {
         toggleSelectAll(checked);
     };
 
-    const handleSortChange = (field: ZoneKeys, direction: 'asc' | 'desc' | null) => {
-        setSortCriteria({ field, direction });
-    };
+    // Removed handleSortChange handler
 
     // --- Calculate ColSpan ---
     // Base columns: ID, City, Market, Macrozone, Equipment, Supplier, Brand, Status = 8
     let colSpan = 8;
     if (showSelectionColumn) colSpan++; // Selection checkbox
-    if (isCategoryManager) colSpan++; // Price column for KM
+    if (isCategoryManager || isDmpManager) colSpan++; // Price column for KM or DMP
     if (showStatusActions) colSpan++; // Status actions (Supplier/KM)
 
     // --- Render Logic ---
@@ -105,9 +91,6 @@ export function ZonesTable({ userRole }: ZonesTableProps) {
                         showSelectionColumn={showSelectionColumn}
                         areAllCurrentZonesSelected={areAllCurrentZonesSelected}
                         onSelectAll={handleSelectAll}
-                        sortField={sortField as ZoneKeys | null}
-                        sortDirection={sortDirection}
-                        onSortChange={handleSortChange}
                         showStatusActions={showStatusActions}
                         disableSelectAll={zones.length === 0 || isLoading}
                     />

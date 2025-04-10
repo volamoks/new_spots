@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Zone } from '@/types/zone';
+// Removed unused Zone import
 import { TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+// Removed ArrowUpDown, ArrowUp, ArrowDown import
 
 import { Role } from '@prisma/client'; // Import Role enum
 
@@ -13,9 +13,7 @@ interface ZonesTableHeaderProps {
     showSelectionColumn: boolean;
     areAllCurrentZonesSelected: boolean;
     onSelectAll: (checked: boolean) => void;
-    sortField: keyof Zone | null;
-    sortDirection: 'asc' | 'desc' | null;
-    onSortChange?: (field: keyof Zone, direction: 'asc' | 'desc' | null) => void;
+    // Removed sortField, sortDirection, onSortChange props
     showStatusActions: boolean;
     disableSelectAll?: boolean; // To disable checkbox if no items on page
 }
@@ -25,64 +23,13 @@ export function ZonesTableHeader({
     showSelectionColumn,
     areAllCurrentZonesSelected,
     onSelectAll,
-    sortField,
-    sortDirection,
-    onSortChange,
+    // Removed sortField, sortDirection, onSortChange destructuring
     showStatusActions,
     disableSelectAll = false,
 }: ZonesTableHeaderProps) {
     const isCategoryManager = userRole === Role.CATEGORY_MANAGER;
-    // Обработчик изменения сортировки
-    const handleSortChange = (field: keyof Zone) => {
-        if (!onSortChange) return;
-
-        let newDirection: 'asc' | 'desc' | null = 'asc';
-
-        if (sortField === field) {
-            if (sortDirection === 'asc') {
-                newDirection = 'desc';
-            } else if (sortDirection === 'desc') {
-                newDirection = null;
-            }
-        }
-        onSortChange(field, newDirection);
-    };
-
-    // Функция для отображения иконки сортировки
-    const getSortIcon = (field: keyof Zone) => {
-        if (!onSortChange || sortField !== field) {
-            return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
-        }
-        if (sortDirection === 'asc') {
-            return <ArrowUp className="ml-2 h-4 w-4" />;
-        }
-        if (sortDirection === 'desc') {
-            return <ArrowDown className="ml-2 h-4 w-4" />;
-        }
-        // If direction is null (reset)
-        return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
-    };
-
-    // Функция для создания заголовка с сортировкой
-    const SortableHeader = ({
-        field,
-        children,
-        className = '',
-    }: {
-        field: keyof Zone;
-        children: React.ReactNode;
-        className?: string;
-    }) => (
-        <TableHead className={className}>
-            <div
-                className={`flex items-center ${onSortChange ? 'cursor-pointer' : ''}`}
-                onClick={() => onSortChange && handleSortChange(field)}
-            >
-                {children}
-                {getSortIcon(field)}
-            </div>
-        </TableHead>
-    );
+    const isDmpManager = userRole === Role.DMP_MANAGER;
+    // Removed handleSortChange, getSortIcon, SortableHeader component
 
     return (
         <TableHeader>
@@ -97,16 +44,16 @@ export function ZonesTableHeader({
                         />
                     </TableHead>
                 )}
-                <SortableHeader field="uniqueIdentifier">ID</SortableHeader>
-                <SortableHeader field="city">Город</SortableHeader>
-                <SortableHeader field="market">Магазин</SortableHeader>
-                <SortableHeader field="mainMacrozone">Макрозона</SortableHeader>
-                <SortableHeader field="equipment">Оборудование</SortableHeader>
-                <SortableHeader field="supplier">Поставщик</SortableHeader>
-                <SortableHeader field="brand">Бренд</SortableHeader>
-                {isCategoryManager && <SortableHeader field="price">Цена</SortableHeader>}{' '}
-                {/* Add Price header for KM */}
-                <SortableHeader field="status">Статус</SortableHeader>
+                <TableHead>ID</TableHead>
+                <TableHead>Город</TableHead>
+                <TableHead>Магазин</TableHead>
+                <TableHead>Макрозона</TableHead>
+                <TableHead>Оборудование</TableHead>
+                <TableHead>Поставщик</TableHead>
+                <TableHead>Бренд</TableHead>
+                {(isCategoryManager || isDmpManager) && <TableHead>Цена</TableHead>}{' '}
+                {/* Add Price header for KM or DMP */}
+                <TableHead>Статус</TableHead>
                 {showStatusActions && <TableHead>Действия</TableHead>}
             </TableRow>
         </TableHeader>

@@ -62,14 +62,16 @@ export function EditableBrandCell({
 
     if (!isEditing) {
         return (
-            <div className="flex items-center justify-between group">
+            <div className="flex items-center group">
+                {' '}
+                {/* Removed justify-between */}
                 <span>{currentValue || '-'}</span>
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleEdit}
                     disabled={isDisabled}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto" /* Use ml-auto to push button right */
                     aria-label="Редактировать бренд"
                 >
                     <Edit2 className="h-3 w-3" />

@@ -275,7 +275,15 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                                             {booking.zone.uniqueIdentifier}
                                                         </TableCell>
                                                         <TableCell>{booking.zone.city}</TableCell>
-                                                        <TableCell>{booking.zone.market}</TableCell>
+                                                        <TableCell>
+                                                            {booking.zone.market?.startsWith(
+                                                                'Korzinka - ',
+                                                            )
+                                                                ? booking.zone.market.substring(
+                                                                      'Korzinka - '.length,
+                                                                  )
+                                                                : booking.zone.market}
+                                                        </TableCell>
                                                         <TableCell>
                                                             {booking.zone.mainMacrozone}
                                                         </TableCell>
