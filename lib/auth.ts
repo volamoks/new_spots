@@ -38,8 +38,9 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        if (user.role === "CATEGORY_MANAGER" && user.status !== "ACTIVE") {
-          console.error("Category Manager account not active")
+        // Check if the user account is active before allowing login
+        if (user.status !== "ACTIVE") {
+          console.error(`User account not active. Status: ${user.status}`)
           throw new Error("Your account is pending approval or has been rejected")
         }
 

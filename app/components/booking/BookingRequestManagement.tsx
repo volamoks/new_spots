@@ -77,22 +77,39 @@ const BookingRequestManagement: React.FC = () => {
         if (user && role === 'SUPPLIER' && user.inn) {
             // Use setFilterCriteria from the new store
             setFilterCriteria({ supplierInn: user.inn || undefined });
+            // Fetch only if supplier filter is set initially
+            console.log('Effect running (supplier), calling fetchBookingRequests. User:', user);
+            fetchBookingRequests();
+        } else if (user && role !== 'SUPPLIER') {
+             // Fetch for non-suppliers on initial load or role change
+             console.log('Effect running (non-supplier), calling fetchBookingRequests. User:', user);
+             fetchBookingRequests();
         }
-        console.log('Effect running, calling fetchBookingRequests. User:', user); // Add log
-        // Fetch all bookings using the new action name
-        fetchBookingRequests().then(() => {
-            // Initialize expanded state after initial fetch
-            setExpandedRequests(prev => {
-                const initialExpanded: Record<string, boolean> = {};
-                bookingRequests.forEach(req => {
-                    // Default to expanded only if not already set (preserves user interaction)
-                    initialExpanded[req.id] = prev[req.id] ?? true;
-                });
-                return initialExpanded;
-            });
-        });
-    }, [fetchBookingRequests, user, setFilterCriteria, role]); // bookingRequests dependency removed to avoid loop, initialization done in .then()
+        // Removed the .then() block for setting expanded state here
+    }, [fetchBookingRequests, user, setFilterCriteria, role]); // Dependencies for triggering initial fetch/filter set
 
+    // Effect to manage expanded state based on bookingRequests data
+    useEffect(() => {
+        console.log('Effect running to update expanded state. bookingRequests count:', bookingRequests.length);
+        setExpandedRequests(prevExpanded => {
+            const newExpanded: Record<string, boolean> = { ...prevExpanded }; // Start with previous state
+            bookingRequests.forEach(req => {
+                // If a request ID is new (not in prevExpanded), default it to expanded (true)
+                if (!(req.id in prevExpanded)) {
+                    newExpanded[req.id] = true;
+                }
+                // Existing request IDs retain their current expanded/collapsed state from prevExpanded
+            });
+            // Optional: Clean up IDs that are no longer in bookingRequests
+            // This prevents the expanded state from growing indefinitely if requests are removed.
+            Object.keys(newExpanded).forEach(id => {
+                 if (!bookingRequests.some(req => req.id === id)) {
+                     delete newExpanded[id];
+                 }
+             });
+            return newExpanded;
+        });
+    }, [bookingRequests]); // Run whenever bookingRequests data changes
     // Separate function to handle manual refresh
     const handleRefreshBookings = async () => {
         try {
