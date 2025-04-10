@@ -13,6 +13,9 @@ type RequestsTableProps = {
     onReject?: (requestId: string, zoneId: string) => void;
     // role: 'КМ' | 'ДМП' | 'Поставщик';
     bookings?: BookingRequestWithBookings[]; // Добавляем пропс для передачи бронирований
+    // Add props to forward down to BookingTable
+    expandedRequests: Record<string, boolean>;
+    onToggleExpand: (requestId: string) => void;
 };
 
 // const {user.role} = useSession();
@@ -31,7 +34,14 @@ const allColumns = [
     'Статус',
     'Действия',
 ];
-export function RequestsTable({ onApprove, onReject, bookings }: RequestsTableProps) {
+// Receive and forward the new props
+export function RequestsTable({
+    onApprove,
+    onReject,
+    bookings,
+    expandedRequests,
+    onToggleExpand,
+}: RequestsTableProps) {
     // Используем переданные бронирования или получаем их из bookingRequestStore как запасной вариант
     const { bookingRequests: storeBookings } = useBookingRequestStore(); // Use the new state property 'bookingRequests'
     // const [visibleColumns, setVisibleColumns] = useState(allColumns); // Removed state for column visibility
@@ -62,6 +72,9 @@ export function RequestsTable({ onApprove, onReject, bookings }: RequestsTablePr
                 userRole={userRole}
                 onApprove={onApprove}
                 onReject={onReject}
+                // Pass down the lifted state and handler
+                expandedRequests={expandedRequests}
+                onToggleExpand={onToggleExpand}
             />
         </div>
     );

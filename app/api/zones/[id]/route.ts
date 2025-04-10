@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma, ZoneStatus, Role } from '@prisma/client'; // Добавлены Role и ZoneStatus
-import redis from '@/lib/redis';
+import getRedisClient from '@/lib/redis';
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
@@ -43,9 +43,10 @@ export async function DELETE(
 
         // --- Cache Invalidation ---
         try {
-            const keys = await redis.keys('zones:*'); // Find all zone cache keys
+            const redisClient = getRedisClient(); // Get client instance
+            const keys = await redisClient.keys('zones:*'); // Find all zone cache keys
             if (keys.length > 0) {
-                await redis.del(keys); // Delete them
+                await redisClient.del(keys); // Delete them
                 console.log(`Invalidated ${keys.length} zone cache keys after deleting zone ${zoneId}.`);
             }
         } catch (redisError) {
@@ -120,25 +121,35 @@ export async function PATCH(
 
     try {
         const body = await request.json();
-        const { supplier, brand } = body;
+        // Accept status, supplier, brand from the body
+        const { status, supplier, brand }: { status?: ZoneStatus, supplier?: string | null, brand?: string | null } = body;
 
         // Определяем, какие данные обновлять
-        // Добавляем status в тип
-        const dataToUpdate: { supplier?: string | null; brand?: string | null; status?: ZoneStatus } = {};
-        let updatedField = '';
+        const dataToUpdate: Prisma.ZoneUpdateInput = {};
+        const updatedFields: string[] = [];
 
-        if (supplier !== undefined) {
-            // Разрешаем установку null или пустой строки (которая станет null в БД, если поле nullable)
+        if (status !== undefined) {
+            dataToUpdate.status = status;
+            updatedFields.push('status');
+            // If status is set to AVAILABLE, clear supplier and brand
+            if (status === ZoneStatus.AVAILABLE) {
+                dataToUpdate.supplier = null;
+                dataToUpdate.brand = null;
+                updatedFields.push('supplier', 'brand');
+            }
+        } else if (supplier !== undefined) {
+            // Keep original logic for direct supplier/brand update if status is not provided
             dataToUpdate.supplier = supplier === '' ? null : supplier;
             dataToUpdate.status = ZoneStatus.UNAVAILABLE; // Устанавливаем статус UNAVAILABLE
-            updatedField = 'supplier';
+            updatedFields.push('supplier', 'status');
         } else if (brand !== undefined) {
-            // Разрешаем установку null или пустой строки
             dataToUpdate.brand = brand === '' ? null : brand;
             dataToUpdate.status = ZoneStatus.UNAVAILABLE; // Устанавливаем статус UNAVAILABLE
-            updatedField = 'brand';
-        } else {
-            return NextResponse.json({ error: 'No valid field (supplier or brand) provided for update' }, { status: 400 });
+            updatedFields.push('brand', 'status');
+        }
+
+        if (Object.keys(dataToUpdate).length === 0) {
+            return NextResponse.json({ error: 'No valid fields (status, supplier, or brand) provided for update' }, { status: 400 });
         }
 
         // Обновляем зону
@@ -147,13 +158,14 @@ export async function PATCH(
             data: dataToUpdate,
         });
 
-        console.log(`Updated ${updatedField} for zone ${zoneId}`);
+        console.log(`Updated fields [${updatedFields.join(', ')}] for zone ${zoneId}`);
 
         // --- Cache Invalidation ---
         try {
-            const keys = await redis.keys('zones:*'); // Find all zone cache keys
+            const redisClient = getRedisClient(); // Get client instance
+            const keys = await redisClient.keys('zones:*'); // Find all zone cache keys
             if (keys.length > 0) {
-                await redis.del(keys); // Delete them
+                await redisClient.del(keys); // Delete them
                 console.log(`Invalidated ${keys.length} zone cache keys after updating zone ${zoneId}.`);
             }
         } catch (redisError) {

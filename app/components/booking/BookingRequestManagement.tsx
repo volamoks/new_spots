@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     useBookingRequestStore,
@@ -14,9 +14,11 @@ import ManageBookingsFilters from './ManageBookingsFilters';
 import { BookingStatus } from '@prisma/client';
 import BookingRole from '@/lib/enums/BookingRole';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'; // Import Tooltip components
+import { RefreshCw, Download, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { ZonePagination } from '@/app/components/zones/ZonePagination'; // Import reusable pagination
 import { useRouter } from 'next/navigation'; // Correct import for App Router
+import { stringify } from 'qs'; // For building query strings
 
 const BookingRequestManagement: React.FC = () => {
     // Get state/actions from new stores
@@ -31,6 +33,8 @@ const BookingRequestManagement: React.FC = () => {
         totalCount,
         setPage,
         setPageSize, // Get setPageSize action
+        // Get current filters
+        filterCriteria,
     } = useBookingRequestStore();
 
     const {
@@ -41,6 +45,9 @@ const BookingRequestManagement: React.FC = () => {
     const { toast } = useToast(); // Initialize toast
     const { user } = useAuth();
     const router = useRouter(); // Initialize the router hook
+
+    // Lifted state for expanded rows
+    const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
 
     // Effect for redirecting unauthenticated users
     useEffect(() => {
@@ -73,8 +80,18 @@ const BookingRequestManagement: React.FC = () => {
         }
         console.log('Effect running, calling fetchBookingRequests. User:', user); // Add log
         // Fetch all bookings using the new action name
-        fetchBookingRequests();
-    }, [fetchBookingRequests, user, setFilterCriteria, role]); // Add setFilterCriteria dependency
+        fetchBookingRequests().then(() => {
+            // Initialize expanded state after initial fetch
+            setExpandedRequests(prev => {
+                const initialExpanded: Record<string, boolean> = {};
+                bookingRequests.forEach(req => {
+                    // Default to expanded only if not already set (preserves user interaction)
+                    initialExpanded[req.id] = prev[req.id] ?? true;
+                });
+                return initialExpanded;
+            });
+        });
+    }, [fetchBookingRequests, user, setFilterCriteria, role]); // bookingRequests dependency removed to avoid loop, initialization done in .then()
 
     // Separate function to handle manual refresh
     const handleRefreshBookings = async () => {
@@ -89,6 +106,55 @@ const BookingRequestManagement: React.FC = () => {
             // toast({ title: 'Ошибка', description: 'Не удалось обновить заявки.', variant: 'destructive' });
         }
         // finally block removed
+    };
+
+    // Handler for exporting bookings
+    const handleExportBookings = () => {
+        // Construct query parameters from filterCriteria
+        // Use 'qs' library for robust query string generation, especially for arrays
+        const queryParams = stringify(filterCriteria, {
+            arrayFormat: 'repeat', // Use repeat format (e.g., status=PENDING&status=APPROVED)
+            skipNulls: true, // Don't include null/undefined values
+            filter: (prefix: string, value: unknown) => {
+                // Use unknown instead of any
+                // Ensure empty arrays are skipped as well
+                if (Array.isArray(value) && value.length === 0) {
+                    return; // Returning undefined skips the key
+                }
+                // Ensure empty strings are skipped
+                if (typeof value === 'string' && value.trim() === '') {
+                    return; // Returning undefined skips the key
+                }
+                return value; // Return the value to include it
+            },
+        });
+
+        const exportUrl = `/api/bookings/export?${queryParams}`;
+        console.log('Export URL:', exportUrl);
+
+        // Open the URL in a new tab to trigger download
+        window.open(exportUrl, '_blank');
+    };
+
+    // Lifted handlers for expansion
+    const toggleExpand = (requestId: string) => {
+        setExpandedRequests(prev => ({
+            ...prev,
+            [requestId]: !prev[requestId],
+        }));
+    };
+
+    const expandAll = () => {
+        const newExpandedRequests: Record<string, boolean> = {};
+        bookingRequests.forEach(request => {
+            // Use bookingRequests from store state
+            newExpandedRequests[request.id] = true;
+        });
+        setExpandedRequests(newExpandedRequests);
+    };
+
+    const collapseAll = () => {
+        setExpandedRequests({});
     };
 
     // Handler for items per page change
@@ -187,8 +253,12 @@ const BookingRequestManagement: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         <p className="text-gray-600">{getPageDescription}</p>
-                        <div className="flex justify-between items-center">
-                            <p className="text-gray-600 mt-2">
+                        <div className="flex justify-end items-center">
+                            {' '}
+                            {/* Changed justify-between to justify-end */}
+                            <p className="text-gray-600 mt-2 mr-auto">
+                                {' '}
+                                {/* Added mr-auto to push count to left */}
                                 Количество заявок:{' '}
                                 <span className="font-semibold">
                                     {totalCount} {/* Display total count from server */}
@@ -201,7 +271,9 @@ const BookingRequestManagement: React.FC = () => {
                                 <RefreshCw className="mr-2 h-4 w-4" />
                                 Обновить
                             </Button>
+                            {/* Export Button is moved below */}
                         </div>
+                        <div></div>
                     </CardContent>
                 </Card>
 
@@ -216,18 +288,60 @@ const BookingRequestManagement: React.FC = () => {
 
                 <Card>
                     <CardHeader>
+                        {' '}
+                        {/* Title only in the header */}
                         <CardTitle className="text-xl font-semibold">
                             Заявки на бронирование
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
+                        {/* Container for Action Buttons below header */}
+                        <div className="flex justify-end items-center mb-4 space-x-2">
+                            <Button
+                                variant="outline"
+                                onClick={expandAll}
+                                size="sm" // Smaller buttons might look better here
+                            >
+                                <ChevronsUpDown className="mr-2 h-4 w-4" /> {/* Icon for expand */}
+                                Раскрыть все
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={collapseAll}
+                                size="sm"
+                            >
+                                <ChevronsDownUp className="mr-2 h-4 w-4" />{' '}
+                                {/* Icon for collapse */}
+                                Скрыть все
+                            </Button>
+                            {/* Wrap Export button with Tooltip */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            onClick={handleExportBookings}
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Экспорт в Excel
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Экспорт с учетом текущих фильтров</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+
                         <RequestsTable
                             onApprove={handleApprove}
                             onReject={handleReject}
                             bookings={bookingRequests} // Pass current page data
+                            // Pass down lifted state and handler
+                            expandedRequests={expandedRequests}
+                            onToggleExpand={toggleExpand}
                         />
-
-                        <div className="mt-4"> {/* Add some margin */}</div>
                     </CardContent>
                 </Card>
                 <div className=" mt-4">

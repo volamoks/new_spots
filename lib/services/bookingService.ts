@@ -1,6 +1,7 @@
 import { BookingStatus, RequestStatus, Prisma } from '@prisma/client'; // Removed UserRole import
 import { createBooking, findZoneByUniqueIdentifier } from '../data/bookings';
 import { prisma } from '../prisma';
+import getRedisClient from '@/lib/redis'; // Import Redis client getter
 // Import types from the store
 import type { BookingRequestFilters, BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore';
 
@@ -65,6 +66,18 @@ export async function createBookingRequest(
                     brand: brandId ? (await prisma.brand.findUnique({ where: { id: brandId } }))?.name : null,
                 },
             });
+            // --- Cache Invalidation ---
+            try {
+                const redisClient = getRedisClient();
+                const keys = await redisClient.keys('zones:*');
+                if (keys.length > 0) {
+                    await redisClient.del(keys);
+                    console.log(`[Service] Invalidated ${keys.length} zone cache keys after booking zone ${zone.id} (KM).`);
+                }
+            } catch (redisError) {
+                console.error(`[Service] Redis cache invalidation error after booking zone ${zone.id} (KM):`, redisError);
+            }
+            // --- End Cache Invalidation ---
         }
         return { bookingRequest, bookings };
     } else if (userRole === 'SUPPLIER') {
@@ -105,6 +118,18 @@ export async function createBookingRequest(
                     brand: brandId ? (await prisma.brand.findUnique({ where: { id: brandId } }))?.name : null,
                 },
             });
+            // --- Cache Invalidation ---
+            try {
+                const redisClient = getRedisClient();
+                const keys = await redisClient.keys('zones:*');
+                if (keys.length > 0) {
+                    await redisClient.del(keys);
+                    console.log(`[Service] Invalidated ${keys.length} zone cache keys after booking zone ${zone.id} (Supplier).`);
+                }
+            } catch (redisError) {
+                console.error(`[Service] Redis cache invalidation error after booking zone ${zone.id} (Supplier):`, redisError);
+            }
+            // --- End Cache Invalidation ---
         }
         return { bookingRequest, bookings };
     }
@@ -118,12 +143,14 @@ export async function createBookingRequest(
  */
 export async function getAllBookings(options: {
     filters: Partial<BookingRequestFilters>; // Use Partial as not all filters might be set
-    pagination: { page: number; pageSize: number };
+    pagination?: { page: number; pageSize: number }; // Make pagination optional
     user: { id: string; role: string; inn?: string | null; category?: string | null }; // Add category to user type
 }): Promise<{ data: BookingRequestWithBookings[]; totalCount: number }> { // Use specific return type
 
     const { filters, pagination, user } = options;
-    const { page, pageSize } = pagination;
+    // Default pagination if not provided (for export case)
+    const page = pagination?.page ?? 1;
+    const pageSize = pagination?.pageSize; // Will be undefined if pagination is not provided
 
     // Initialize the main 'where' clause with an AND array
     const where: Prisma.BookingRequestWhereInput = { AND: [] };
@@ -290,7 +317,8 @@ export async function getAllBookings(options: {
 
 
     // --- Pagination ---
-    const skip = (page - 1) * pageSize;
+    // Only apply skip/take if pageSize is provided
+    const skip = pageSize ? (page - 1) * pageSize : undefined;
     const take = pageSize;
 
     // --- Database Query ---
@@ -323,7 +351,7 @@ export async function getAllBookings(options: {
         }),
     ]);
 
-    console.log(`[Service - getAllBookings] Found ${totalCount} total requests, returning ${bookingRequests.length} for page ${page}`);
+    console.log(`[Service - getAllBookings] Found ${totalCount} total requests. Pagination: ${pagination ? `page ${page}, size ${pageSize}` : 'ALL'}. Returning ${bookingRequests.length} requests.`);
 
     // --- Process Results (Add supplierName fallback if necessary) ---
     // This logic might be simplified if zone.supplier is always reliable

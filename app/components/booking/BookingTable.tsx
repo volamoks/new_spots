@@ -15,7 +15,6 @@ import {
 import { BookingRequestWithBookings } from '@/lib/stores/bookingRequestStore';
 // import { BookingActionsAndStatus } from './BookingActionsAndStatus'; // Removed unused import
 import { BookingActions } from './BookingActions'; // Added import
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import BookingRole from '@/lib/enums/BookingRole';
@@ -28,6 +27,9 @@ type BookingTableProps = {
     userRole: BookingRole;
     onApprove: (requestId: string, zoneId: string) => void;
     onReject?: (requestId: string, zoneId: string) => void;
+    // Add props for lifted state and handler
+    expandedRequests: Record<string, boolean>;
+    onToggleExpand: (requestId: string) => void;
 };
 
 // Helper function moved outside the component
@@ -117,47 +119,16 @@ const getRequestDisplayStatus = (
 };
 // End of getRequestDisplayStatus function definition
 
-export function BookingTable({ requests, userRole, onApprove, onReject }: BookingTableProps) {
-    const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>(() => {
-        const expanded: Record<string, boolean> = {};
-        requests.forEach(request => {
-            expanded[request.id] = true;
-        });
-        return expanded;
-    });
-
-    // Update expanded state when requests change to ensure new requests are expanded by default
-    React.useEffect(() => {
-        setExpandedRequests(prev => {
-            const newExpanded = { ...prev };
-            requests.forEach(request => {
-                // Only set to true if it doesn't exist or was previously true
-                if (!(request.id in prev)) {
-                    newExpanded[request.id] = true;
-                }
-            });
-            return newExpanded;
-        });
-    }, [requests]);
-
-    const toggleExpand = (requestId: string) => {
-        setExpandedRequests(prev => ({
-            ...prev,
-            [requestId]: !prev[requestId],
-        }));
-    };
-
-    const expandAll = () => {
-        const newExpandedRequests: Record<string, boolean> = {};
-        requests.forEach(request => {
-            newExpandedRequests[request.id] = true;
-        });
-        setExpandedRequests(newExpandedRequests);
-    };
-
-    const collapseAll = () => {
-        setExpandedRequests({});
-    };
+// Receive expandedRequests and onToggleExpand from props
+export function BookingTable({
+    requests,
+    userRole,
+    onApprove,
+    onReject,
+    expandedRequests,
+    onToggleExpand,
+}: BookingTableProps) {
+    // Removed local state and handlers for expansion
 
     // Helper function to format date with defensive programming
     const formatDate = (date: Date | string | null | undefined) => {
@@ -177,21 +148,7 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
 
     return (
         <>
-            <div className="mb-4">
-                <Button
-                    variant="outline"
-                    onClick={expandAll}
-                    className="mr-2"
-                >
-                    Раскрыть все
-                </Button>
-                <Button
-                    variant="outline"
-                    onClick={collapseAll}
-                >
-                    Скрыть все
-                </Button>
-            </div>
+            {/* Removed Expand/Collapse All buttons container */}
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -227,7 +184,7 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                         <TableCell
                                             colSpan={headerColSpan} // Use calculated colspan
                                             className="font-bold"
-                                            onClick={() => toggleExpand(request.id)}
+                                            onClick={() => onToggleExpand(request.id)} // Use handler from props
                                         >
                                             <div className="flex">
                                                 <Button

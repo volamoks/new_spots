@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ZoneStatus, Role } from '@prisma/client'; // Added Role
-import redis from '@/lib/redis';
+import getRedisClient from '@/lib/redis';
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
@@ -57,9 +57,10 @@ export async function POST(request: Request) {
 
         // --- Cache Invalidation ---
         try {
-            const keys = await redis.keys('zones:*'); // Find all zone cache keys
+            const redisClient = getRedisClient(); // Get client instance
+            const keys = await redisClient.keys('zones:*'); // Find all zone cache keys
             if (keys.length > 0) {
-                await redis.del(keys); // Delete them
+                await redisClient.del(keys); // Delete them
                 console.log(`Invalidated ${keys.length} zone cache keys after bulk update.`);
             }
         } catch (redisError) {
