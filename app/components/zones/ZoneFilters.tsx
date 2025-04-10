@@ -13,6 +13,7 @@ import { useLoaderStore } from '@/lib/stores/loaderStore';
 export interface ZoneFilterValues {
     searchTerm: string;
     statusFilter: string; // Or ZoneStatus | 'all'
+    categoryFilter: string; // Added for category filtering
 }
 
 // Define props for the component
@@ -21,7 +22,8 @@ interface ZoneFiltersProps {
     onRefresh: () => void;
 }
 
-export function ZoneFilters({ onFilterChange, onRefresh }: ZoneFiltersProps) { // Destructure props
+export function ZoneFilters({ onFilterChange, onRefresh }: ZoneFiltersProps) {
+    // Destructure props
     // Remove Zustand store usage
     // const { handleFilterChange, onRefresh } = useZonesManagementStore(state => ({
     //     handleFilterChange: state.handleFilterChange,
@@ -33,6 +35,7 @@ export function ZoneFilters({ onFilterChange, onRefresh }: ZoneFiltersProps) { /
     // Internal state for local input control remains the same
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState(''); // Added state for category
 
     // Debounced callback for search term changes
     const debouncedOnFilterChange = useCallback(
@@ -48,9 +51,9 @@ export function ZoneFilters({ onFilterChange, onRefresh }: ZoneFiltersProps) { /
 
     // Effect to call the debounced prop function whenever filters change
     useEffect(() => {
-        debouncedOnFilterChange({ searchTerm, statusFilter });
+        debouncedOnFilterChange({ searchTerm, statusFilter, categoryFilter }); // Include categoryFilter
         return () => debouncedOnFilterChange.cancel?.();
-    }, [searchTerm, statusFilter, debouncedOnFilterChange]);
+    }, [searchTerm, statusFilter, categoryFilter, debouncedOnFilterChange]); // Add categoryFilter dependency
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value);
@@ -60,6 +63,10 @@ export function ZoneFilters({ onFilterChange, onRefresh }: ZoneFiltersProps) { /
         setStatusFilter(newStatus);
     };
 
+    const handleCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCategoryFilter(e.target.value);
+    };
+
     return (
         <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -67,6 +74,14 @@ export function ZoneFilters({ onFilterChange, onRefresh }: ZoneFiltersProps) { /
                     placeholder="Поиск по городу, магазину, макрозоне..."
                     value={searchTerm}
                     onChange={handleSearchChange}
+                    className="w-full"
+                />
+            </div>
+            <div className="flex-1">
+                <Input
+                    placeholder="Фильтр по категории (макрозоне)..."
+                    value={categoryFilter}
+                    onChange={handleCategoryChange}
                     className="w-full"
                 />
             </div>

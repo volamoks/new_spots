@@ -35,7 +35,7 @@ export default function CreateBookingPage() {
     const fetchZones = useZonesStore(state => state.fetchZones);
     const fetchFilterOptions = useZonesStore(state => state.fetchFilterOptions);
     const totalCount = useZonesStore(state => state.totalCount);
-    // const filterCriteriaCategory = useZonesStore(state => state.filterCriteria.category); // We'll use selectedCategoryForCreation for the dropdown now
+    const filterCriteria = useZonesStore(state => state.filterCriteria); // Get the whole filter criteria object
     const paginationCriteria = useZonesStore(state => state.paginationCriteria);
     const setPaginationCriteria = useZonesStore(state => state.setPaginationCriteria);
     const isLoading = useZonesStore(state => state.isLoading); // Get loading state
@@ -69,7 +69,7 @@ export default function CreateBookingPage() {
             fetchZones();
         }
         // Add filterCriteria and paginationCriteria to dependencies
-    }, [fetchZones, isAuthenticated, paginationCriteria]);
+    }, [fetchZones, isAuthenticated, filterCriteria, paginationCriteria]); // Add filterCriteria dependency
 
     useEffect(() => {
         if (isAuthenticated && user?.role === 'SUPPLIER' && user.inn) {

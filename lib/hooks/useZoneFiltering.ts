@@ -8,6 +8,7 @@ export const useZoneFiltering = (initialZones: Zone[]) => {
     const [currentFilters, setCurrentFilters] = useState<ZoneFilterValues>({
         searchTerm: '',
         statusFilter: 'all',
+        categoryFilter: '', // Initialize categoryFilter
     });
 
     // Callback to update the filter state, designed to be passed to ZoneFilters
@@ -30,9 +31,13 @@ export const useZoneFiltering = (initialZones: Zone[]) => {
                 zone.market.toLowerCase().includes(lowerSearchTerm) ||
                 zone.mainMacrozone.toLowerCase().includes(lowerSearchTerm);
 
-            const matchesStatus = currentFilters.statusFilter === 'all' || zone.status === currentFilters.statusFilter; // Corrected syntax
+            const matchesStatus = currentFilters.statusFilter === 'all' || zone.status === currentFilters.statusFilter;
 
-            return matchesSearch && matchesStatus;
+            // Add category filter logic
+            const lowerCategoryFilter = currentFilters.categoryFilter.toLowerCase();
+            const matchesCategory = !lowerCategoryFilter || zone.mainMacrozone.toLowerCase().includes(lowerCategoryFilter);
+
+            return matchesSearch && matchesStatus && matchesCategory; // Include category match
         });
     }, [initialZones, currentFilters]); // Recalculate only when zones or filters change
 

@@ -258,81 +258,73 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                    {expandedRequests[request.id] &&
-                                        request.bookings.map(
-                                            booking => (
-                                                // <<< ADD LOGGING HERE >>>
-                                                console.log(
-                                                    `[BookingTable] Rendering booking ID: ${booking.id}, brandId: ${booking.brandId}, brand object:`,
-                                                    booking.brand,
-                                                ),
-                                                (
-                                                    // <<< END LOGGING >>>
-                                                    <TableRow key={booking.id}>
-                                                        <TableCell>{booking.id}</TableCell>
-                                                        {/* <TableCell>{request.supplierName || 'N/A'}</TableCell>s */}
-                                                        <TableCell>
-                                                            {booking.zone.uniqueIdentifier}
-                                                        </TableCell>
-                                                        <TableCell>{booking.zone.city}</TableCell>
-                                                        <TableCell>
-                                                            {booking.zone.market?.startsWith(
-                                                                'Korzinka - ',
-                                                            )
-                                                                ? booking.zone.market.substring(
-                                                                      'Korzinka - '.length,
-                                                                  )
-                                                                : booking.zone.market}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {booking.zone.mainMacrozone}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {booking.brand?.name || 'N/A'}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {booking.zone?.equipment || 'N/A'}
-                                                        </TableCell>{' '}
-                                                        {/* Added Equipment Cell */}
-                                                        {/* Price Cell (KM/DMP only) */}
-                                                        {!isSupplier && (
-                                                            <TableCell>
-                                                                {booking.zone
-                                                                    .price /* Corrected access */
-                                                                    ? `${(
-                                                                          booking.zone.price /
-                                                                          1000000
-                                                                      ).toFixed(
-                                                                          1,
-                                                                      )} mln UZS` /* Format to millions */
-                                                                    : 'N/A'}
-                                                            </TableCell>
-                                                        )}
-                                                        {/* Status Cell */}
-                                                        <TableCell>
-                                                            <StatusBadge
-                                                                status={getBookingDisplayStatus(
-                                                                    booking.status,
-                                                                    userRole,
-                                                                )}
-                                                            />
-                                                        </TableCell>
-                                                        {/* Actions Cell (KM/DMP only) */}
-                                                        {!isSupplier && (
-                                                            <TableCell>
-                                                                <BookingActions
-                                                                    booking={booking}
-                                                                    userRole={userRole}
-                                                                    requestId={request.id}
-                                                                    onApprove={memoizedOnApprove}
-                                                                    onReject={memoizedOnReject}
-                                                                />
-                                                            </TableCell>
-                                                        )}
-                                                    </TableRow>
-                                                )
-                                            ),
-                                        )}
+                                    {
+                                        expandedRequests[request.id]
+                                            ? request.bookings.map(booking => (
+                                                  <TableRow key={booking.id}>
+                                                      <TableCell>{booking.id}</TableCell>
+                                                      {/* <TableCell>{request.supplierName || 'N/A'}</TableCell>s */}
+                                                      <TableCell>
+                                                          {booking.zone.uniqueIdentifier}
+                                                      </TableCell>
+                                                      <TableCell>{booking.zone.city}</TableCell>
+                                                      <TableCell>
+                                                          {booking.zone.market?.startsWith(
+                                                              'Korzinka - ',
+                                                          )
+                                                              ? booking.zone.market.substring(
+                                                                    'Korzinka - '.length,
+                                                                )
+                                                              : booking.zone.market}
+                                                      </TableCell>
+                                                      <TableCell>
+                                                          {booking.zone.mainMacrozone}
+                                                      </TableCell>
+                                                      <TableCell>
+                                                          {booking.brand?.name || 'N/A'}
+                                                      </TableCell>
+                                                      <TableCell>
+                                                          {booking.zone?.equipment || 'N/A'}
+                                                      </TableCell>{' '}
+                                                      {/* Added Equipment Cell */}
+                                                      {/* Price Cell (KM/DMP only) */}
+                                                      {!isSupplier && (
+                                                          <TableCell>
+                                                              {booking.zone
+                                                                  .price /* Corrected access */
+                                                                  ? `${(
+                                                                        booking.zone.price / 1000000
+                                                                    ).toFixed(
+                                                                        1,
+                                                                    )} mln UZS` /* Format to millions */
+                                                                  : 'N/A'}
+                                                          </TableCell>
+                                                      )}
+                                                      {/* Status Cell */}
+                                                      <TableCell>
+                                                          <StatusBadge
+                                                              status={getBookingDisplayStatus(
+                                                                  booking.status,
+                                                                  userRole,
+                                                              )}
+                                                          />
+                                                      </TableCell>
+                                                      {/* Actions Cell (KM/DMP only) */}
+                                                      {!isSupplier && (
+                                                          <TableCell>
+                                                              <BookingActions
+                                                                  booking={booking}
+                                                                  userRole={userRole}
+                                                                  requestId={request.id}
+                                                                  onApprove={memoizedOnApprove}
+                                                                  onReject={memoizedOnReject}
+                                                              />
+                                                          </TableCell>
+                                                      )}
+                                                  </TableRow>
+                                              ))
+                                            : null /* Explicitly return null */
+                                    }
                                 </React.Fragment>
                             );
                         })
