@@ -152,7 +152,7 @@ export function BookingTable({
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>ID бронирования</TableHead>
+                        <TableHead>ID брони</TableHead>
                         <TableHead>Зона</TableHead>
                         <TableHead>Город</TableHead>
                         <TableHead>Магазин</TableHead>
@@ -219,7 +219,7 @@ export function BookingTable({
                                         expandedRequests[request.id]
                                             ? request.bookings.map(booking => (
                                                   <TableRow key={booking.id}>
-                                                      <TableCell>{booking.id}</TableCell>
+                                                      <TableCell>{booking.id.slice(-4)}</TableCell>
                                                       {/* <TableCell>{request.supplierName || 'N/A'}</TableCell>s */}
                                                       <TableCell>
                                                           {booking.zone.uniqueIdentifier}

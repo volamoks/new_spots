@@ -114,14 +114,14 @@ export async function GET(req: Request) {
 
     // Call the service function (needs modification)
     // It should now accept filters and pagination options
-    const { data, totalCount } = await getAllBookings({
+    const { data, totalCount, newCount } = await getAllBookings({ // <-- Add newCount here
       filters: cleanedFilters, // Pass cleaned filters
       pagination: { page, pageSize },
       user: serviceUser // Pass user info for role-based filtering in service
     });
 
     // Return data in the expected format
-    return NextResponse.json({ data, totalCount });
+    return NextResponse.json({ data, totalCount, newCount }); // <-- Add newCount here
 
   } catch (error) {
     return handleApiError(error);

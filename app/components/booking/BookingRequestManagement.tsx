@@ -31,6 +31,7 @@ const BookingRequestManagement: React.FC = () => {
         page,
         pageSize,
         totalCount,
+        newCount, // Get newCount from store
         setPage,
         setPageSize, // Get setPageSize action
         // Get current filters
@@ -81,16 +82,19 @@ const BookingRequestManagement: React.FC = () => {
             console.log('Effect running (supplier), calling fetchBookingRequests. User:', user);
             fetchBookingRequests();
         } else if (user && role !== 'SUPPLIER') {
-             // Fetch for non-suppliers on initial load or role change
-             console.log('Effect running (non-supplier), calling fetchBookingRequests. User:', user);
-             fetchBookingRequests();
+            // Fetch for non-suppliers on initial load or role change
+            console.log('Effect running (non-supplier), calling fetchBookingRequests. User:', user);
+            fetchBookingRequests();
         }
         // Removed the .then() block for setting expanded state here
     }, [fetchBookingRequests, user, setFilterCriteria, role]); // Dependencies for triggering initial fetch/filter set
 
     // Effect to manage expanded state based on bookingRequests data
     useEffect(() => {
-        console.log('Effect running to update expanded state. bookingRequests count:', bookingRequests.length);
+        console.log(
+            'Effect running to update expanded state. bookingRequests count:',
+            bookingRequests.length,
+        );
         setExpandedRequests(prevExpanded => {
             const newExpanded: Record<string, boolean> = { ...prevExpanded }; // Start with previous state
             bookingRequests.forEach(req => {
@@ -103,10 +107,10 @@ const BookingRequestManagement: React.FC = () => {
             // Optional: Clean up IDs that are no longer in bookingRequests
             // This prevents the expanded state from growing indefinitely if requests are removed.
             Object.keys(newExpanded).forEach(id => {
-                 if (!bookingRequests.some(req => req.id === id)) {
-                     delete newExpanded[id];
-                 }
-             });
+                if (!bookingRequests.some(req => req.id === id)) {
+                    delete newExpanded[id];
+                }
+            });
             return newExpanded;
         });
     }, [bookingRequests]); // Run whenever bookingRequests data changes
@@ -276,10 +280,11 @@ const BookingRequestManagement: React.FC = () => {
                             <p className="text-gray-600 mt-2 mr-auto">
                                 {' '}
                                 {/* Added mr-auto to push count to left */}
-                                Количество заявок:{' '}
+                                Всего заявок:{' '}
                                 <span className="font-semibold">
                                     {totalCount} {/* Display total count from server */}
-                                </span>
+                                </span>{' '}
+                                (Новых: <span className="font-semibold">{newCount}</span>)
                             </p>
                             <Button
                                 onClick={handleRefreshBookings}

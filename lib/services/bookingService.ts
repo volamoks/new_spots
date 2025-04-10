@@ -145,7 +145,7 @@ export async function getAllBookings(options: {
     filters: Partial<BookingRequestFilters>; // Use Partial as not all filters might be set
     pagination?: { page: number; pageSize: number }; // Make pagination optional
     user: { id: string; role: string; inn?: string | null; category?: string | null }; // Add category to user type
-}): Promise<{ data: BookingRequestWithBookings[]; totalCount: number }> { // Use specific return type
+}): Promise<{ data: BookingRequestWithBookings[]; totalCount: number; newCount: number }> { // Add newCount to return type
 
     const { filters, pagination, user } = options;
     // Default pagination if not provided (for export case)
@@ -327,10 +327,22 @@ export async function getAllBookings(options: {
     const cleanedAND = (where.AND as Prisma.BookingRequestWhereInput[]).filter(cond => Object.keys(cond).length > 0);
     const finalWhere = cleanedAND.length > 0 ? { AND: cleanedAND } : {};
     // Log the final clause *before* the query
-    console.log("[Service - getAllBookings] FINAL Prisma Where Clause before query:", JSON.stringify(finalWhere, null, 2));
+    console.log("[Service - getAllBookings] FINAL Prisma Where Clause (totalCount & data):", JSON.stringify(finalWhere, null, 2));
 
-    const [totalCount, bookingRequests] = await prisma.$transaction([
+    // --- Construct Where Clause for New Count ---
+    const newRequestCondition: Prisma.BookingRequestWhereInput = {
+        OR: [
+            { status: RequestStatus.NEW },
+            { bookings: { some: { status: BookingStatus.PENDING_KM } } }
+        ]
+    };
+    const newCountWhere = finalWhere.AND ? { AND: [...finalWhere.AND, newRequestCondition] } : newRequestCondition;
+    console.log("[Service - getAllBookings] FINAL Prisma Where Clause (newCount):", JSON.stringify(newCountWhere, null, 2));
+
+    // --- Database Queries (Total Count, New Count, Data) ---
+    const [totalCount, newCount, bookingRequests] = await prisma.$transaction([
         prisma.bookingRequest.count({ where: finalWhere }),
+        prisma.bookingRequest.count({ where: newCountWhere }), // Add query for new count
         prisma.bookingRequest.findMany({
             where: finalWhere,
             include: {
@@ -351,7 +363,7 @@ export async function getAllBookings(options: {
         }),
     ]);
 
-    console.log(`[Service - getAllBookings] Found ${totalCount} total requests. Pagination: ${pagination ? `page ${page}, size ${pageSize}` : 'ALL'}. Returning ${bookingRequests.length} requests.`);
+    console.log(`[Service - getAllBookings] Found ${totalCount} total requests, ${newCount} new requests. Pagination: ${pagination ? `page ${page}, size ${pageSize}` : 'ALL'}. Returning ${bookingRequests.length} requests.`);
 
     // --- Process Results (Add supplierName fallback if necessary) ---
     // This logic might be simplified if zone.supplier is always reliable
@@ -369,7 +381,7 @@ export async function getAllBookings(options: {
     });
 
 
-    return { data: processedData, totalCount };
+    return { data: processedData, totalCount, newCount }; // Return newCount
 }
 
 

@@ -61,6 +61,7 @@ interface BookingRequestState {
     page: number;
     pageSize: number;
     totalCount: number;
+    newCount: number; // Add state for new count
 
     // Filter Options State
     filterOptions: FilterOptions;
@@ -98,6 +99,7 @@ const initialPagination = {
     page: 1,
     pageSize: 20,
     totalCount: 0,
+    newCount: 0, // Initialize new count
 };
 
 const initialFilterOptions: FilterOptions = {
@@ -165,21 +167,23 @@ export const useBookingRequestStore = create<BookingRequestState>()(
                     console.log(`Fetching /api/bookings with params: ${params.toString()}`);
 
                     // Use fetchWithLoading
-                    const result = await fetchWithLoading<{ data: BookingRequestWithBookings[], totalCount: number }>(
+                    const result = await fetchWithLoading<{ data: BookingRequestWithBookings[], totalCount: number, newCount: number }>( // Expect newCount
                         url,
                         'GET',
                         'Загрузка заявок...'
                     );
 
-                    if (!result || typeof result.totalCount !== 'number' || !Array.isArray(result.data)) {
+                    // Add check for newCount
+                    if (!result || typeof result.totalCount !== 'number' || typeof result.newCount !== 'number' || !Array.isArray(result.data)) {
                         console.error("Invalid API response structure:", result);
                         throw new Error('Invalid API response structure received.');
                     }
 
-                    console.log(`[Store] Fetched ${result.data.length} Booking Requests (Total: ${result.totalCount})`);
+                    console.log(`[Store] Fetched ${result.data.length} Booking Requests (Total: ${result.totalCount}, New: ${result.newCount})`);
                     set({
                         bookingRequests: result.data,
                         totalCount: result.totalCount,
+                        newCount: result.newCount, // Store newCount
                         page: page,
                         pageSize: pageSize,
                         isLoading: false, // Reset loading
@@ -191,7 +195,7 @@ export const useBookingRequestStore = create<BookingRequestState>()(
                     if (error instanceof ApiError) {
                         // Handle specific statuses like 401 if needed
                         if (error.status === 401) {
-                            console.warn("fetchBookingRequests: Received 401 Unauthorized.");
+                            console.warn("fetchBookingRequests: Received 401 Unauthorized."); // Keep 401 handling
                             set({ bookingRequests: [], totalCount: 0, page: 1, error: null, isLoading: false });
                             return; // Exit early for 401
                         }
@@ -200,7 +204,7 @@ export const useBookingRequestStore = create<BookingRequestState>()(
                         errorMessage = error.message;
                     }
                     console.error("Error fetching booking requests:", errorMessage);
-                    set({ error: errorMessage, isLoading: false, bookingRequests: [], totalCount: 0 }); // Reset loading
+                    set({ error: errorMessage, isLoading: false, bookingRequests: [], totalCount: 0, newCount: 0 }); // Reset newCount on error too
                 }
             },
 
@@ -242,9 +246,9 @@ export const useBookingRequestStore = create<BookingRequestState>()(
 
                 } catch (error) {
                     let errorMessage = "Unknown error fetching filter options";
-                     // Handle potential ApiError from fetchWithLoading
+                    // Handle potential ApiError from fetchWithLoading
                     if (error instanceof ApiError) {
-                         // Handle specific statuses like 401 if needed
+                        // Handle specific statuses like 401 if needed
                         if (error.status === 401) {
                             console.warn("fetchFilterOptions: Received 401 Unauthorized.");
                             set({ filterOptions: initialFilterOptions, isLoadingOptions: false, optionsError: null }); // Reset loading, clear error
