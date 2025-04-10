@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react'; // Removed unused useEffect
-import { useSession } from 'next-auth/react';
 import { ZoneKeys } from '@/types/zone'; // ZoneStatus removed
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { ZonePagination } from './ZonePagination';
@@ -12,8 +11,13 @@ import { ZoneSelectionActionsPanel } from './ZoneSelectionActionsPanel';
 import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import consolidated hook
 // import { useSupplierStore } from '@/lib/stores/supplierStore'; // Возможно, понадобится для uniqueSuppliers, если их нет в zonesStore
 
-// Component no longer takes props
-export function ZonesTable() {
+import { Role } from '@prisma/client'; // Import Role enum
+
+type ZonesTableProps = {
+    userRole?: Role; // Add userRole prop
+};
+
+export function ZonesTable({ userRole }: ZonesTableProps) {
     // --- Store State and Actions ---
     const {
         zones,
@@ -31,19 +35,19 @@ export function ZonesTable() {
         updateZoneField, // Action for updating supplier/brand
     } = useRoleData('dmp'); // Use consolidated hook for DMP role
 
-    // --- Session and Role Logic ---
-    const { data: session } = useSession();
-    const userRole = session?.user?.role;
-    // const isDmpManager = userRole === 'DMP_MANAGER'; // Можно получать в дочерних компонентах
-    const isSupplier = userRole === 'SUPPLIER';
-    const isCategoryManager = userRole === 'CATEGORY_MANAGER';
+    // --- Role Logic (using prop) ---
+    // const { data: session } = useSession(); // Removed session call
+    // const userRole = session?.user?.role; // Role now comes from props
+    const isSupplier = userRole === Role.SUPPLIER;
+    const isCategoryManager = userRole === Role.CATEGORY_MANAGER;
+    const isDmpManager = userRole === Role.DMP_MANAGER;
 
     // Determine visibility based on role
     // Дочерние компоненты могут сами определять видимость на основе роли
-    const showSelectionColumn = isSupplier || isCategoryManager || userRole === 'DMP_MANAGER';
-    const showStatusActions = isSupplier || isCategoryManager;
-    // Show panel if selection is possible and user is not DMP Manager (booking logic is now internal to panel)
-    const showActionsPanel = showSelectionColumn && userRole !== 'DMP_MANAGER';
+    const showSelectionColumn = isSupplier || isCategoryManager || isDmpManager;
+    const showStatusActions = isSupplier || isCategoryManager; // Keep as is for now, might need adjustment later
+    // Show panel if selection is possible and user is not DMP Manager
+    const showActionsPanel = showSelectionColumn && !isDmpManager;
 
     // --- Local State for Action Panel ---
     const [actionPanelSupplier, setActionPanelSupplier] = useState<string | null>(null); // Локальное состояние
@@ -70,9 +74,11 @@ export function ZonesTable() {
     };
 
     // --- Calculate ColSpan ---
-    let colSpan = 8; // Base columns: ID, City, Market, Macrozone, Equipment, Supplier, Brand, Status
-    if (showSelectionColumn) colSpan++;
-    if (showStatusActions) colSpan++;
+    // Base columns: ID, City, Market, Macrozone, Equipment, Supplier, Brand, Status = 8
+    let colSpan = 8;
+    if (showSelectionColumn) colSpan++; // Selection checkbox
+    if (isCategoryManager) colSpan++; // Price column for KM
+    if (showStatusActions) colSpan++; // Status actions (Supplier/KM)
 
     // --- Render Logic ---
     if (error) {
@@ -95,6 +101,7 @@ export function ZonesTable() {
             <div className="rounded-md border">
                 <Table>
                     <ZonesTableHeader
+                        userRole={userRole} // Pass role down
                         showSelectionColumn={showSelectionColumn}
                         areAllCurrentZonesSelected={areAllCurrentZonesSelected}
                         onSelectAll={handleSelectAll}
@@ -119,9 +126,10 @@ export function ZonesTable() {
                                 <ZonesTableRow
                                     key={zone.id}
                                     zone={zone}
+                                    userRole={userRole} // Pass role down
                                     showSelectionColumn={showSelectionColumn}
                                     showStatusActions={showStatusActions}
-                                    onUpdateZoneField={updateZoneField} // OK - это action из стора
+                                    onUpdateZoneField={updateZoneField}
                                 />
                             ))
                         ) : (

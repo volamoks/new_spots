@@ -1,11 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
-// Removed unused prisma import
 import { Role } from "@prisma/client";
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-// Import necessary clients for your storage and queue system
-// import { put } from '@vercel/blob'; // Example: Vercel Blob
-// import { triggerVercelQueue } from '@/lib/queue'; // Example: Your queue trigger function
+import { put } from '@vercel/blob'; // Import Vercel Blob client
+
+// Define the payload structure for the background job API
+interface ExcelUploadJobPayload {
+  storageIdentifier: string; // URL from Vercel Blob
+  fileName: string;
+  importType: string;
+  userId: string;
+}
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -27,67 +32,80 @@ export async function POST(req: NextRequest) {
     // --- Form Data & File Validation ---
     const formData = await req.formData()
     const file = formData.get("file") as File
-    const type = formData.get("type") as string || req.nextUrl.searchParams.get("type") || "zones" // Get type early
+    const type = formData.get("type") as string || req.nextUrl.searchParams.get("type") || "zones"
 
     if (!file) {
       return NextResponse.json({ error: "Файл не загружен" }, { status: 400 })
     }
 
     // --- File Size Check ---
-    const VERCEL_HOBBY_LIMIT = 4.5 * 1024 * 1024; // Example limit
+    // Consider if this limit is still appropriate or should be handled by Blob storage limits
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // Example: 10MB limit
     console.log(`[API File Check] Size: ${file.size} bytes`);
-    if (file.size > VERCEL_HOBBY_LIMIT) { // Adjust limit as needed
-      console.error(`[API File Check] File size ${file.size} exceeds limit`);
-      return NextResponse.json({ error: `Файл слишком большой (${(file.size / (1024 * 1024)).toFixed(2)} MB).` }, { status: 413 });
+    if (file.size > MAX_FILE_SIZE) {
+      console.error(`[API File Check] File size ${file.size} exceeds limit ${MAX_FILE_SIZE}`);
+      return NextResponse.json({ error: `Файл слишком большой (${(file.size / (1024 * 1024)).toFixed(2)} MB). Максимальный размер: 10 MB.` }, { status: 413 });
     }
 
-    // --- TODO: Step 1: Upload file to temporary storage (e.g., Vercel Blob) ---
-    console.log(`[API Storage] Attempting to upload file to storage...`);
-    // Example using Vercel Blob:
-    // const blob = await put(file.name, file, { access: 'private' });
-    // console.log(`[API Storage] File uploaded to ${blob.url}. Time: ${Date.now() - startTime} ms`);
-    // const storageUrl = blob.url; // Get the URL or identifier of the stored file
-    // *** Replace Placeholder Below ***
-    const storageIdentifier = `placeholder/path/to/${file.name}`; // Replace with actual storage path/URL/ID
+    // --- Step 1: Upload file to Vercel Blob ---
+    console.log(`[API Storage] Attempting to upload file "${file.name}" to Vercel Blob...`);
+    const blob = await put(
+      `excel-uploads/${type}/${Date.now()}-${file.name}`, // Unique path including type and timestamp
+      file,
+      {
+        access: 'public', // Required by type definition, even for private blobs (default behavior)
+        // Optional: Add metadata if needed
+        // addRandomSuffix: false, // Consider if you need predictable URLs
+      }
+    );
+    console.log(`[API Storage] File uploaded to ${blob.url}. Time: ${Date.now() - startTime} ms`);
+    const storageIdentifier = blob.url; // Use the returned URL as the identifier
 
-    // --- TODO: Step 2: Trigger background job ---
-    // Pass necessary info: storage identifier, import type, user ID
-    const jobPayload = {
-      storageIdentifier: storageIdentifier, // Use the actual identifier from storage upload
-      fileName: file.name, // Keep original filename for context
+    // --- Step 2: Trigger background job API asynchronously ---
+    const jobPayload: ExcelUploadJobPayload = {
+      storageIdentifier: storageIdentifier,
+      fileName: file.name,
       importType: type,
       userId: session.user.id,
     };
-    console.log(`[API Queue] Triggering background job with payload:`, jobPayload);
-    // Example using a hypothetical queue trigger:
-    // await triggerVercelQueue('process-excel-upload', jobPayload);
-    // *** Replace Placeholder Below ***
-    const jobTriggered = true; // Replace with actual job trigger call result
+    console.log(`[API Job Trigger] Triggering background job via fetch with payload:`, jobPayload);
 
-    if (!jobTriggered) {
-      // Optional: Handle failure to trigger the job (e.g., delete stored file)
-      console.error("[API Queue] Failed to trigger background job.");
-      // await deleteFromBlob(storageIdentifier); // Example cleanup
-      throw new Error("Не удалось запустить фоновую обработку файла.");
+    // Construct the full URL for the job handler API route
+    // Ensure NEXT_PUBLIC_APP_URL is set in your environment variables
+    const jobApiUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/process-upload-job`;
+    if (!process.env.NEXT_PUBLIC_APP_URL) {
+      console.warn("[API Job Trigger] NEXT_PUBLIC_APP_URL is not set. Using relative path for job trigger, which might fail in some environments.");
     }
+
+    // Fire-and-forget fetch call to the job handler
+    // DO NOT await this call, otherwise this route will wait for the job to finish
+    fetch(jobApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Add security header if implemented in the job handler
+        // 'X-Internal-Secret': process.env.INTERNAL_API_SECRET || '',
+      },
+      body: JSON.stringify(jobPayload),
+    }).catch(fetchError => {
+      // Log errors initiating the background job, but don't fail the initial request
+      console.error("[API Job Trigger] Error initiating background job fetch:", fetchError);
+      // Optional: Implement more robust error handling/retry for the trigger if needed
+    });
 
     // --- Step 3: Return immediate success response ---
     console.log(`[API End] Job triggered. Returning 202 Accepted. Total API time: ${Date.now() - startTime} ms`);
     return NextResponse.json(
-      { message: "Файл принят и поставлен в очередь на обработку." },
+      { message: "Файл принят и поставлен в очередь на обработку.", jobId: storageIdentifier }, // Optionally return blob URL as a job identifier
       { status: 202 } // 202 Accepted
     );
 
   } catch (error) {
     const totalTime = Date.now() - startTime;
-    console.error(`[API Error] Error after ${totalTime} ms:`, error);
+    console.error(`[API Error] Error during initial upload/trigger after ${totalTime} ms:`, error);
     return NextResponse.json({
-      error: "Ошибка при постановке файла в очередь",
+      error: "Ошибка при инициации загрузки файла",
       details: error instanceof Error ? error.message : String(error),
     }, { status: 500 })
   }
 }
-
-// NOTE: All the processing functions (formatZoneData, batchUpsert*, getZoneStatus)
-// should be moved to the background worker function/file.
-// They are removed from this API route file.

@@ -6,7 +6,10 @@ import { TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
+import { Role } from '@prisma/client'; // Import Role enum
+
 interface ZonesTableHeaderProps {
+    userRole?: Role; // Add userRole prop
     showSelectionColumn: boolean;
     areAllCurrentZonesSelected: boolean;
     onSelectAll: (checked: boolean) => void;
@@ -18,6 +21,7 @@ interface ZonesTableHeaderProps {
 }
 
 export function ZonesTableHeader({
+    userRole, // Destructure userRole
     showSelectionColumn,
     areAllCurrentZonesSelected,
     onSelectAll,
@@ -27,6 +31,7 @@ export function ZonesTableHeader({
     showStatusActions,
     disableSelectAll = false,
 }: ZonesTableHeaderProps) {
+    const isCategoryManager = userRole === Role.CATEGORY_MANAGER;
     // Обработчик изменения сортировки
     const handleSortChange = (field: keyof Zone) => {
         if (!onSortChange) return;
@@ -99,6 +104,8 @@ export function ZonesTableHeader({
                 <SortableHeader field="equipment">Оборудование</SortableHeader>
                 <SortableHeader field="supplier">Поставщик</SortableHeader>
                 <SortableHeader field="brand">Бренд</SortableHeader>
+                {isCategoryManager && <SortableHeader field="price">Цена</SortableHeader>}{' '}
+                {/* Add Price header for KM */}
                 <SortableHeader field="status">Статус</SortableHeader>
                 {showStatusActions && <TableHead>Действия</TableHead>}
             </TableRow>

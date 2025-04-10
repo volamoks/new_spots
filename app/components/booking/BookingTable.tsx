@@ -201,7 +201,9 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                         <TableHead>Магазин</TableHead>
                         <TableHead>Макрозона</TableHead>
                         <TableHead>Бренд</TableHead>
-                        {/* Add Brand Header */}
+                        <TableHead>Оборудование</TableHead> {/* Added Equipment Header */}
+                        {userRole !== BookingRole.SUPPLIER && <TableHead>Цена</TableHead>}{' '}
+                        {/* Added Price Header (KM/DMP only) */}
                         <TableHead>Статус</TableHead>
                         {userRole !== BookingRole.SUPPLIER && <TableHead>Действия</TableHead>}
                     </TableRow>
@@ -209,8 +211,10 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                 <TableBody>
                     {requests && requests.length > 0 ? (
                         requests.map(request => {
-                            const displayStatus = getRequestDisplayStatus(request); // Role no longer needed here
-                            const isClosed = displayStatus === RequestStatus.CLOSED;
+                            const displayStatus = getRequestDisplayStatus(request);
+                            const isClosed = displayStatus === 'REQUEST_CLOSED'; // Use the string status
+                            const isSupplier = userRole === BookingRole.SUPPLIER;
+                            const headerColSpan = isSupplier ? 8 : 10; // Calculate colspan based on role
 
                             return (
                                 <React.Fragment key={request.id}>
@@ -221,7 +225,7 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                         )}
                                     >
                                         <TableCell
-                                            colSpan={11} // Corrected colspan
+                                            colSpan={headerColSpan} // Use calculated colspan
                                             className="font-bold"
                                             onClick={() => toggleExpand(request.id)}
                                         >
@@ -255,48 +259,79 @@ export function BookingTable({ requests, userRole, onApprove, onReject }: Bookin
                                         </TableCell>
                                     </TableRow>
                                     {expandedRequests[request.id] &&
-                                        request.bookings.map(booking => (
-                                            <TableRow key={booking.id}>
-                                                <TableCell>{booking.id}</TableCell>
-                                                {/* <TableCell>{request.supplierName || 'N/A'}</TableCell>s */}
-                                                <TableCell>
-                                                    {booking.zone.uniqueIdentifier}
-                                                </TableCell>
-                                                <TableCell>{booking.zone.city}</TableCell>
-                                                <TableCell>{booking.zone.market}</TableCell>
-                                                <TableCell>{booking.zone.mainMacrozone}</TableCell>
-                                                <TableCell>
-                                                    {booking.brand?.name || 'N/A'}
-                                                </TableCell>
-                                                {/* Wrap StatusBadge and BookingActions in separate TableCells */}
-                                                <TableCell>
-                                                    <StatusBadge
-                                                        status={getBookingDisplayStatus(
-                                                            booking.status,
-                                                            userRole,
+                                        request.bookings.map(
+                                            booking => (
+                                                // <<< ADD LOGGING HERE >>>
+                                                console.log(
+                                                    `[BookingTable] Rendering booking ID: ${booking.id}, brandId: ${booking.brandId}, brand object:`,
+                                                    booking.brand,
+                                                ),
+                                                (
+                                                    // <<< END LOGGING >>>
+                                                    <TableRow key={booking.id}>
+                                                        <TableCell>{booking.id}</TableCell>
+                                                        {/* <TableCell>{request.supplierName || 'N/A'}</TableCell>s */}
+                                                        <TableCell>
+                                                            {booking.zone.uniqueIdentifier}
+                                                        </TableCell>
+                                                        <TableCell>{booking.zone.city}</TableCell>
+                                                        <TableCell>{booking.zone.market}</TableCell>
+                                                        <TableCell>
+                                                            {booking.zone.mainMacrozone}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {booking.brand?.name || 'N/A'}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {booking.zone?.equipment || 'N/A'}
+                                                        </TableCell>{' '}
+                                                        {/* Added Equipment Cell */}
+                                                        {/* Price Cell (KM/DMP only) */}
+                                                        {!isSupplier && (
+                                                            <TableCell>
+                                                                {booking.zone
+                                                                    .price /* Corrected access */
+                                                                    ? `${(
+                                                                          booking.zone.price /
+                                                                          1000000
+                                                                      ).toFixed(
+                                                                          1,
+                                                                      )} mln UZS` /* Format to millions */
+                                                                    : 'N/A'}
+                                                            </TableCell>
                                                         )}
-                                                    />
-                                                </TableCell>
-                                                {userRole !== BookingRole.SUPPLIER && (
-                                                    <TableCell>
-                                                        <BookingActions
-                                                            booking={booking}
-                                                            userRole={userRole}
-                                                            requestId={request.id}
-                                                            onApprove={memoizedOnApprove}
-                                                            onReject={memoizedOnReject}
-                                                        />
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        ))}
+                                                        {/* Status Cell */}
+                                                        <TableCell>
+                                                            <StatusBadge
+                                                                status={getBookingDisplayStatus(
+                                                                    booking.status,
+                                                                    userRole,
+                                                                )}
+                                                            />
+                                                        </TableCell>
+                                                        {/* Actions Cell (KM/DMP only) */}
+                                                        {!isSupplier && (
+                                                            <TableCell>
+                                                                <BookingActions
+                                                                    booking={booking}
+                                                                    userRole={userRole}
+                                                                    requestId={request.id}
+                                                                    onApprove={memoizedOnApprove}
+                                                                    onReject={memoizedOnReject}
+                                                                />
+                                                            </TableCell>
+                                                        )}
+                                                    </TableRow>
+                                                )
+                                            ),
+                                        )}
                                 </React.Fragment>
                             );
                         })
                     ) : (
                         <TableRow>
                             <TableCell
-                                colSpan={10} // Corrected colspan
+                                colSpan={userRole === BookingRole.SUPPLIER ? 8 : 10} // Use dynamic colspan
                                 className="text-center py-4"
                             >
                                 Нет заявок на бронирование

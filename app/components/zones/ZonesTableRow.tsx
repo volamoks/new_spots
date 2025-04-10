@@ -6,40 +6,39 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ZoneStatusBadge } from './ZoneStatusBadge';
 import { ZoneStatusActions } from './ZoneStatusActions';
-import { useSession } from 'next-auth/react'; // Import useSession
+// import { useSession } from 'next-auth/react'; // Removed useSession
 import { EditableSupplierCell } from './EditableSupplierCell';
 import { EditableBrandCell } from './EditableBrandCell';
 // import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
 import { useRoleData } from '@/lib/stores/roleActionsStore'; // Import consolidated hook
 
+import { Role } from '@prisma/client'; // Import Role enum
+
 interface ZonesTableRowProps {
     zone: Zone;
-
+    userRole?: Role; // Add userRole prop
     showSelectionColumn: boolean;
-
     showStatusActions: boolean;
-
     onUpdateZoneField?: (
         zoneId: string,
-        field: 'supplier' | 'brand',
+        field: 'supplier' | 'brand' | 'category', // Added 'category'
         value: string | null,
-    ) => Promise<boolean>; // Changed return type to match store action
+    ) => Promise<boolean>;
 }
 
 export function ZonesTableRow({
     zone,
+    userRole, // Destructure userRole
     showSelectionColumn,
     showStatusActions,
-
     onUpdateZoneField,
 }: ZonesTableRowProps) {
+    const isDmpManager = userRole === Role.DMP_MANAGER;
+    const isCategoryManager = userRole === Role.CATEGORY_MANAGER;
     // --- Get state from store ---
     const { isLoading, selectedZoneIds, toggleZoneSelection } = useRoleData('dmp'); // Use consolidated hook
     const isSelected = selectedZoneIds.has(zone.id);
-    // --- Get session ---
-    const { data: session } = useSession();
-    const isDmpManager = session?.user?.role === 'DMP_MANAGER';
-    // ---
+    // Session logic removed, using userRole prop now
 
     const handleSelect = () => {
         if (showSelectionColumn && (isDmpManager || zone.status === ZoneStatus.AVAILABLE)) {
@@ -109,6 +108,12 @@ export function ZonesTableRow({
                     zone.brand || '-'
                 )}
             </TableCell>
+            {/* Price Cell (KM only) */}
+            {isCategoryManager && (
+                <TableCell>
+                    {zone.price ? `${(zone.price / 1000000).toFixed(1)} mln UZS` : 'N/A'}
+                </TableCell>
+            )}
             <TableCell>
                 <ZoneStatusBadge status={zone.status} />
             </TableCell>
