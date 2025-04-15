@@ -2,44 +2,32 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth'; // Assuming authOptions are defined here
 import { prisma } from '@/lib/prisma'; // Assuming prisma client is here (named export)
-import { Prisma } from '@prisma/client'; // Import Prisma namespace (Role removed)
+import { Prisma } from '@prisma/client'; // Import Prisma namespace
 import { type NextRequest } from 'next/server'; // Import NextRequest
-import redis from '@/lib/redis'; // Import Redis client
-export async function GET(request: NextRequest) { // Add request parameter
+import getRedisClient from '@/lib/redis'; // Import Redis client factory function
+// Removed duplicate import of NextResponse
+
+const DEFAULT_LIMIT = 100; // Define a default limit
+const CACHE_TTL = 3600; // Cache for 1 hour
+
+export async function GET(request: NextRequest) {
   try {
+    const redis = getRedisClient(); // Get the Redis client instance
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get search query parameter
+    // Get search and limit query parameters
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
-
-    // const user = session.user; // Removed as it's no longer used
-    // Start with base where clause (will be combined with AND)
-    const baseWhereClauses: Prisma.BrandWhereInput[] = [];
-
-    // Supplier specific filtering removed to show all brands for suppliers
-    // Add other role-based filters here if needed in the future
-    // Add search term filtering
-    if (search) {
-      baseWhereClauses.push({
-        name: {
-          contains: search,
-          mode: 'insensitive', // Case-insensitive search
-        },
-      });
-    }
-
-    // Combine all where clauses with AND
-    const whereClause = baseWhereClauses.length > 0 ? { AND: baseWhereClauses } : {};
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam, 10) : DEFAULT_LIMIT;
 
     // --- Redis Caching Logic ---
-    // Cache key simplified further
-    const cacheKey = `brands:${search || 'all'}`;
-    const cacheTTL = 86400; // Cache for 24 hours
+    const searchTerm = search || 'initial'; // Use 'initial' if no search term
+    const cacheKey = `brands:${searchTerm}:${limit}`;
 
     try {
       const cachedBrands = await redis.get(cacheKey);
@@ -54,18 +42,33 @@ export async function GET(request: NextRequest) { // Add request parameter
     }
     // --- End Redis Caching Logic ---
 
+    // --- Prisma Query Logic ---
+    let whereClause: Prisma.BrandWhereInput = {};
+    if (search) {
+      whereClause = {
+        name: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      };
+    }
 
     const brands = await prisma.brand.findMany({
       where: whereClause,
-      take: 20, // Limit results
+      take: limit, // Apply limit
       orderBy: {
         name: 'asc',
       },
+      // Select only necessary fields if possible
+      // select: { id: true, name: true }
     });
+    // --- End Prisma Query Logic ---
+
 
     // --- Store in Redis ---
     try {
-      await redis.set(cacheKey, JSON.stringify(brands), 'EX', cacheTTL);
+      // Cache even empty results to avoid hitting DB repeatedly for non-existent searches
+      await redis.set(cacheKey, JSON.stringify(brands), 'EX', CACHE_TTL);
       console.log(`Cached data for key: ${cacheKey}`);
     } catch (redisError) {
       console.error(`Redis SET error for key ${cacheKey}:`, redisError);
@@ -74,6 +77,7 @@ export async function GET(request: NextRequest) { // Add request parameter
     // --- End Store in Redis ---
 
     return NextResponse.json(brands, { status: 200 });
+
   } catch (error) {
     console.error('Error fetching brands:', error);
     return NextResponse.json(

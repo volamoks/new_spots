@@ -5,13 +5,15 @@ import ZonesTableHeader from './ZonesTableHeader'; // Import the new header comp
 // import { useDmpManagerZones } from '@/lib/stores/zones/dmpManagerZonesStore'; // Removed
 import { useZonesStore } from '@/lib/stores/zonesStore'; // Import base zones store
 
-// Removed isLoading prop definition
-// interface ZonesTableProps {
-//     isLoading: boolean;
-// }
+import { Role } from '@prisma/client'; // Import Role enum
 
-// Removed isLoading prop from component signature
-const ZonesTable: React.FC = () => {
+// Define props interface
+interface ZonesTableProps {
+    role?: Role; // Make role optional
+}
+
+// Update component signature to accept props
+const ZonesTable: React.FC<ZonesTableProps> = ({ role }) => {
     const { addSelectedZoneForCreation, removeSelectedZoneForCreation, selectedZonesForCreation } =
         useBookingActionsStore();
 
@@ -40,8 +42,8 @@ const ZonesTable: React.FC = () => {
         });
     };
 
-    // Define number of columns for empty state
-    const columnCount = 7; // Adjust based on your table header columns
+    // Define number of columns for empty state, adjust based on role
+    const columnCount = role === 'SUPPLIER' ? 6 : 7; // Hide price for supplier
 
     return (
         <div className="bg-white rounded-md shadow overflow-hidden mb-6">
@@ -52,7 +54,7 @@ const ZonesTable: React.FC = () => {
                         selectedZones={selectedZonesForCreation}
                         onSelectAll={handleSelectAll}
                         onDeselectAll={handleDeselectAll}
-                        // Removed disableActions prop
+                        role={role} // Pass role down
                     />
                     <tbody className="bg-white divide-y divide-gray-200">
                         {/* Removed isLoading check and loading indicator */}
@@ -74,6 +76,7 @@ const ZonesTable: React.FC = () => {
                                     zone={zone}
                                     selectedZones={selectedZonesForCreation} // Pass the Set
                                     onZoneSelection={handleZoneSelection} // Pass the handler function
+                                    role={role} // Pass role down
                                 />
                             ))
                         )}

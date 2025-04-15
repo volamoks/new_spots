@@ -1,4 +1,5 @@
 import React from 'react';
+import { Role } from '@prisma/client'; // Import Role enum
 import { Zone } from '@/types/zone';
 import { Checkbox } from '@/components/ui/checkbox';
 import TableHeaderCell from '@/app/components/ui/TableHeaderCell'; // Use the reusable cell
@@ -8,6 +9,7 @@ interface ZonesTableHeaderProps {
     selectedZones: Set<string>;
     onSelectAll: () => void;
     onDeselectAll: () => void;
+    role?: Role; // Add optional role prop
 }
 
 const ZonesTableHeader: React.FC<ZonesTableHeaderProps> = ({
@@ -15,6 +17,7 @@ const ZonesTableHeader: React.FC<ZonesTableHeaderProps> = ({
     selectedZones,
     onSelectAll,
     onDeselectAll,
+    role, // Destructure role prop
 }) => {
     // Ensure selectedZones is treated as a Set, default to empty Set if invalid
     const validSelectedZones = selectedZones instanceof Set ? selectedZones : new Set<string>();
@@ -51,7 +54,7 @@ const ZonesTableHeader: React.FC<ZonesTableHeaderProps> = ({
                 <TableHeaderCell>Магазин</TableHeaderCell>
                 <TableHeaderCell>Макрозона</TableHeaderCell>
                 <TableHeaderCell>Оборудование</TableHeaderCell>
-                <TableHeaderCell>Цена</TableHeaderCell>
+                {role !== 'SUPPLIER' && <TableHeaderCell>Цена</TableHeaderCell>}
                 <TableHeaderCell>Статус</TableHeaderCell>
             </tr>
         </thead>

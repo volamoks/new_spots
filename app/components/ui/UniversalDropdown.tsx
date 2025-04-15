@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react'; // Keep useState
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -87,15 +87,19 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
     popoverClassName = '',
 }: UniversalDropdownProps<T>) {
     const [open, setOpen] = useState(false);
+    // Remove internalSearchQuery state as it's no longer needed
+    // const [internalSearchQuery, setInternalSearchQuery] = useState('');
 
     // Determine if using async data fetching
     const isAsync = !!apiUrl && !!valueField && !!labelField;
 
     // Fetch options if async (Call hook unconditionally)
+    // Destructure handleSearchChange even if it's not used to avoid breaking changes if the hook still returns it
+    // Or adjust the hook not to return it anymore (preferred)
     const {
         options: asyncOptions,
         isLoading,
-        handleSearchChange,
+        handleSearchChange, // Ensure handleSearchChange is destructured
     } = useSelectOptions<T>(
         isAsync
             ? {
@@ -142,15 +146,7 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
         [selected, options, title, triggerPlaceholder],
     );
 
-    // --- Filter function for Command ---
-    const filter = (value: string, search: string): number => {
-        // Perform case-insensitive comparison
-        // value is the CommandItem's value (option.label in this case)
-        // search is the CommandInput's value
-        const lowerCaseValue = value.toLowerCase();
-        const lowerCaseSearch = search.toLowerCase();
-        return lowerCaseValue.includes(lowerCaseSearch) ? 1 : 0;
-    };
+    // Filter function removed - using Command's default filtering
 
     // --- Handle selection logic ---
     const handleSelect = useCallback(
@@ -200,10 +196,13 @@ export function UniversalDropdown<T extends ApiItem = ApiItem>({
                     popoverClassName,
                 )}
             >
-                <Command filter={filter}>
+                <Command>
+                    {' '}
+                    {/* filter prop removed */}
                     <CommandInput
                         placeholder={placeholder}
-                        onValueChange={isAsync ? handleSearchChange : undefined} // Only use hook's search handler if async
+                        // value prop remains removed
+                        onValueChange={isAsync ? handleSearchChange : undefined} // Call hook's search handler if async
                         disabled={effectiveIsDisabled}
                     />
                     <CommandList>
